@@ -140,6 +140,9 @@ const bad = {
     { brand: "Generic", model: "Import moka pot", axes: { material: 35, sourcing: 10, construction: 40, assembly: 25, skill: 20, superstructure: 30 }, why: "No disclosure" }
   ]
 };
+/* verify() mutates its argument, so keep an untouched copy for section 10,
+   which runs both implementations against the same input. */
+const badPristine = structuredClone(bad);
 const log = verify(bad);
 const expect = [
   [/Silicone rubber.*EXACT.*source/i, "EXACT with unresolvable source downgraded"],
@@ -378,6 +381,112 @@ if (CATTR.some(a => a.k === "role")) fail("role is in the header, not a compared
   S.dpiv = "axis";
   if (!/Peer set/.test(peerView(w, deltas(w)))) fail("By axis pivot did not route to the axis matrix");
   ok("both peer pivots route correctly");
+}
+
+/* ------------------------------------------- 10. the two duplicated copies */
+/* Invariant 1 says verify() in index.html and build-corpus.mjs must stay
+   identical, and invariant 8's deriveAxes() is duplicated the same way. A
+   comment cannot enforce that — they had already drifted in their log wording
+   before this test existed. Run both against the same input and diff. */
+console.log("\nindex.html vs build-corpus.mjs");
+{
+  const build = await import("./build-corpus.mjs");
+
+  /* Every log line verify() can emit needs a payload that reaches it. The
+     adversarial payload alone does not: after its orphan is pruned the shares
+     sum to 100, and it keeps one valid EXACT — so the mass-share and
+     nothing-confirmed branches never fire, and a drift in those two strings
+     slipped through a comparison that only ran that payload. */
+  const sources = [{ t: "Src", u: "https://example.com/spec" }];
+  const mk = over => ({
+    klassLabel: "Test class",
+    sources,
+    target: {
+      brand: "B", model: "M", year: "current",
+      axes: { material: 1, sourcing: 1, construction: 1, assembly: 1, skill: 1, superstructure: 1 },
+      comps: [{ id: "c", n: "Comp", role: "Critical" }],
+      materials: [{ c: "c", n: "Mat", share: 50, spec: "S", t: "e", src: 0 }],
+      sourcing: [{ c: "c", m: "Src", o: "O", s: "s", t: "e", src: 0 }],
+      construction: { mode: "Factory", t: "e", auto: "a", tol: "t", src: 0, steps: [{ c: "c", p: "p" }] },
+      assembly: { sites: [{ l: "L", o: "O" }], label: "lbl", count: "Single site", t: "e", src: 0 },
+      skill: { tier: "T", t: "e", basis: "b", src: 0, ops: [["c", "op", "sk"]] },
+      parts: [{ c: "c", n: "P", m: "m", crit: "Critical", t: "e", src: 0, fail: "f" }],
+      issues: [],
+      ...over,
+    },
+  });
+
+  const cases = [
+    ["adversarial payload", badPristine],
+    ["clean payload", mk({})],
+    ["material shares over 105%", mk({
+      materials: [
+        { c: "c", n: "A", share: 80, spec: "S", t: "e", src: 0 },
+        { c: "c", n: "B", share: 40, spec: "S", t: "e", src: 0 },
+      ],
+    })],
+    ["nothing source-confirmed", mk({
+      materials: [{ c: "c", n: "Mat", share: 50, spec: "S", t: "u" }],
+      sourcing: [{ c: "c", m: "Src", o: "O", s: "s", t: "u" }],
+      construction: { mode: "Factory", t: "u", auto: "a", tol: "t", steps: [{ c: "c", p: "p" }] },
+      assembly: { sites: [{ l: "L", o: "O" }], label: "lbl", count: "Unknown", t: "u" },
+      skill: { tier: "T", t: "u", basis: "b", ops: [["c", "op", "sk"]] },
+      parts: [{ c: "c", n: "P", m: "m", crit: "Critical", t: "u", fail: "f" }],
+    })],
+  ];
+
+  let lines = 0, seen = new Set();
+  for (const [label, payload] of cases) {
+    const a = structuredClone(payload);
+    const b = structuredClone(payload);
+    const logA = verify(a);
+    const logB = build.verify(b);
+    logA.forEach(l => seen.add(l));
+    lines += logA.length;
+
+    if (JSON.stringify(logA) !== JSON.stringify(logB)) {
+      fail(`verify() log drifted between the two copies on the ${label}`);
+      for (let i = 0; i < Math.max(logA.length, logB.length); i++) {
+        if (logA[i] !== logB[i]) {
+          fail(`  index.html   ${JSON.stringify(logA[i])}`);
+          fail(`  build-corpus ${JSON.stringify(logB[i])}`);
+        }
+      }
+    }
+    /* The log is what the reader sees, but the corrections matter more — a
+       verifier that logs the same line while nulling a different field is
+       still divergent. */
+    if (JSON.stringify(a) !== JSON.stringify(b))
+      fail(`verify() left the ${label} in different states between the two copies`);
+  }
+
+  /* Guard the coverage itself, so a future payload change can't quietly stop
+     exercising a branch and make this comparison hollow again. */
+  const branches = [/mass figures/, /source-confirmed/, /undeclared component/, /certainty tag/, /without a working source/, /without an inference basis/];
+  for (const re of branches) {
+    if (![...seen].some(l => re.test(l)))
+      fail(`no test payload reaches the verify() branch matching ${re}`);
+  }
+  ok(`verify() agrees across ${cases.length} payloads, ${lines} log lines, all ${branches.length} branches`);
+
+  /* Same check for the derived axis. */
+  if (build.EVW.e !== EVW.e || build.EVW.l !== EVW.l || build.EVW.u !== EVW.u)
+    fail("evidence weights differ between index.html and build-corpus.mjs");
+  for (const rows of [
+    [{ t: "e" }, { t: "e" }], [{ t: "e" }, { t: "u" }], [{ t: "l" }, { t: "u" }, { t: "e" }], [],
+  ]) {
+    const p1 = { sourcing: rows, axes: { sourcing: 58 } };
+    const p2 = structuredClone(p1);
+    deriveAxes(p1); build.deriveAxes(p2);
+    if (JSON.stringify(p1) !== JSON.stringify(p2))
+      fail(`deriveAxes() diverged on ${rows.length} row(s): ${JSON.stringify(p1)} vs ${JSON.stringify(p2)}`);
+  }
+  ok("deriveAxes() and the evidence weights agree across both copies");
+
+  /* Importing the build script must not run it — a top-level process.exit on a
+     missing API key would take this suite down with it. */
+  if (typeof build.verify !== "function") fail("build-corpus.mjs did not export verify");
+  ok("build-corpus.mjs is importable without executing its main flow");
 }
 
 /* ----------------------------------------------------------------- done */

@@ -71,10 +71,24 @@ pivots must work for every product. Adding a field means handling it in both.
 These have all been violated once already during development. In rough order of
 how much damage they cause:
 
-1. **`verify()` exists in two places** — `index.html` and `build-corpus.mjs` —
-   and they must stay identical. It runs at build time and again in the browser
-   on load. If they drift, the browser silently corrects a corpus that passed
-   its own build, and nobody finds out. Change one, change both.
+1. **`verify()` and `deriveAxes()` exist in two places** — `index.html` and
+   `build-corpus.mjs` — and must stay identical. They run at build time and
+   again in the browser on load. If they drift, the browser silently corrects a
+   corpus that passed its own build, and nobody finds out. Change one, change
+   both.
+
+   `test.mjs` now imports both copies and diffs them, so this is enforced
+   rather than remembered — which is why `build-corpus.mjs` guards its main
+   flow behind `import.meta.url === pathToFileURL(process.argv[1]).href`. Keep
+   that guard: an import that hits the top-level API-key check would call
+   `process.exit` and take the whole suite down with it.
+
+   The comparison runs four payloads because branch coverage is the real
+   failure mode here — the wording of the mass-share and nothing-confirmed
+   lines had drifted, and a comparison that ran only the adversarial payload
+   passed anyway, since that payload reaches neither branch. `test.mjs` asserts
+   every branch is reached; do not delete that check to make a payload edit
+   pass.
 
 2. **A class needs at least two peers.** `deltas()` reduces over the peer array
    and throws on an empty one. Any new functional class ships with a minimum of
@@ -109,11 +123,14 @@ how much damage they cause:
 
 8. **`deriveAll()` runs on every path that admits a product** — at startup, in
    `loadCorpus()` after the corpus is swapped, and in `ingest()` after a
-   generated product is pushed. Miss one and that product's score runs on the
-   pass's judged sourcing number while every other product's runs on evidence,
-   which makes the ranking incomparable without anything looking wrong.
-   `deriveAxes()` recomputes from the rows and never from the axis it wrote, so
-   calling it twice is safe.
+   generated product is pushed. `build-corpus.mjs` derives too, in
+   `toProducts()`, so `corpus.json` carries the same sourcing figure the site
+   displays and the review PR is reviewing the number that ships. Miss one and
+   that product's score runs on the pass's judged sourcing number while every
+   other product's runs on evidence, which makes the ranking incomparable
+   without anything looking wrong. `deriveAxes()` recomputes from the rows and
+   never from the axis it wrote, so calling it twice — once at build, once on
+   load — is safe and preserves the pass's original in `srcAdj.model`.
 
 9. **Component ids are the join key across a class, and comparison happens on
    the attribute key, not the raw string.** `compDeltas()` matches parts between

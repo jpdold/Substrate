@@ -18,6 +18,7 @@
    ========================================================================== */
 
 import { readFileSync, writeFileSync, existsSync } from "node:fs";
+import { pathToFileURL } from "node:url";
 
 const SCHEMA = 1;
 const TTL_DAYS = 180;
@@ -27,7 +28,10 @@ const KEY = process.env.ANTHROPIC_API_KEY;
 const [, , reqPath = "requests.json", outPath = "corpus.json"] = process.argv;
 const REFRESH = process.argv.includes("--refresh");
 
-if (!KEY) { console.error("ANTHROPIC_API_KEY is not set."); process.exit(1); }
+/* Nothing above the main() guard at the bottom may exit or do I/O: test.mjs
+   imports verify() and deriveAxes() from here to prove they still agree with
+   the copies in index.html, and an import that calls process.exit takes the
+   test suite down with it. */
 
 /* -------------------------------------------------------------- schema ask */
 const SCHEMA_NOTE = `Return ONE json object, no prose, no markdown fences:
@@ -93,53 +97,77 @@ async function callModel(query) {
 }
 
 /* --------------------------------------------------------------- verifier */
-/* Identical to the one in substrate.html. Keep them in sync — the site
-   re-runs this on load, so a divergence shows up as a corpus that gets
-   silently corrected in the browser. */
+/* Byte-for-byte the same logic and the same log wording as the copy in
+   index.html — invariant 1. The site re-runs this on load, so a divergence
+   silently corrects a corpus that passed its own build. The two had already
+   drifted in their log text once; test.mjs now imports both and asserts they
+   produce identical output rather than trusting this comment. */
 const TAGN = { e: "EXACT", l: "LIKELY", u: "UNKNOWN" };
 
 export function verify(o) {
-  const log = [];
-  const srcOK = i => Number.isInteger(i) && o.sources?.[i] && /^https?:\/\//.test(o.sources[i].u || "");
+  const log = [], srcOK = i => Number.isInteger(i) && o.sources && o.sources[i] && /^https?:\/\//.test(o.sources[i].u || "");
   const step = (obj, label) => {
     if (!obj) return;
     const from = obj.t;
     if (obj.t === "e" && !srcOK(obj.src)) obj.t = "l";
     if (obj.t === "l" && !(obj.why || "").trim()) obj.t = "u";
-    if (obj.t !== from) log.push(`${label} was tagged ${TAGN[from]} without ` +
-      `${from === "e" ? "a working source" : "an inference basis"} — now ${TAGN[obj.t]}`);
-    if (obj.t === "u") ["spec", "o", "s", "p", "m", "tier", "auto", "tol"]
-      .forEach(k => { if (k in obj) obj[k] = null; });
-    if (!["e", "l", "u"].includes(obj.t)) { obj.t = "u"; log.push(`${label} had no certainty tag — treated as UNKNOWN`); }
+    if (obj.t !== from) log.push(label + " was tagged " + TAGN[from] + " without " +
+      (from === "e" ? "a working source" : "an inference basis") + " — now " + TAGN[obj.t]);
+    if (obj.t === "u") { ["spec", "o", "s", "p", "m", "tier", "auto", "tol"].forEach(k => { if (k in obj) obj[k] = null; }); }
+    if (!["e", "l", "u"].includes(obj.t)) { obj.t = "u"; log.push(label + " had no certainty tag — treated as UNKNOWN"); }
   };
-
   const t = o.target;
-  t.materials.forEach(m => step(m, `Material "${m.n}"`));
-  t.sourcing.forEach(x => step(x, `Sourcing of "${x.m}"`));
+  t.materials.forEach(m => step(m, "Material “" + m.n + "”"));
+  t.sourcing.forEach(x => step(x, "Sourcing of “" + x.m + "”"));
   step(t.construction, "Construction method");
   step(t.assembly, "Assembly location");
   step(t.skill, "Skill tier");
-  t.parts.forEach(x => step(x, `Component "${x.n}"`));
+  t.parts.forEach(x => step(x, "Component “" + x.n + "”"));
 
+  // orphan guard: a row bound to a component that was never declared is unreadable
   const ids = new Set((t.comps || []).map(c => c.id));
   const prune = (arr, f, lbl) => {
-    const kept = (arr || []).filter(x => ids.has(f(x)));
-    const n = (arr || []).length - kept.length;
-    if (n) log.push(`${n} ${lbl} row(s) referenced an undeclared component — dropped`);
+    const before = arr.length;
+    const kept = arr.filter(x => ids.has(f(x)));
+    if (kept.length < before) log.push((before - kept.length) + " " + lbl + " row(s) referenced an undeclared component — dropped");
     return kept;
   };
   t.materials = prune(t.materials, x => x.c, "material");
   t.sourcing = prune(t.sourcing, x => x.c, "sourcing");
-  t.construction.steps = prune(t.construction.steps, x => x.c, "process");
-  t.skill.ops = prune(t.skill.ops, x => x[0], "skill");
+  t.construction.steps = prune(t.construction.steps || [], x => x.c, "process");
+  t.skill.ops = prune(t.skill.ops || [], x => x[0], "skill");
   t.parts = prune(t.parts, x => x.c, "component");
 
+  // mass share sanity
   const sum = t.materials.reduce((a, m) => a + (+m.share || 0), 0);
-  if (sum > 105) log.push(`Material shares summed to ${Math.round(sum)}% — mass figures approximate`);
+  if (sum > 105) log.push("Material shares summed to " + Math.round(sum) + "% — treat mass figures as approximate");
 
-  const all = [...t.materials, ...t.sourcing, t.construction, t.assembly, t.skill, ...t.parts];
-  if (!all.some(x => x.t === "e")) log.push("No field is source-confirmed — everything inferred or missing");
+  // a report with no confirmed field anywhere is worth saying out loud
+  const cc = [...t.materials, ...t.sourcing, t.construction, t.assembly, t.skill, ...t.parts];
+  if (!cc.some(x => x.t === "e")) log.push("No field in this report is source-confirmed — everything is inferred or missing");
   return log;
+}
+
+/* ---------------------------------------------------------- derived axes */
+/* Also duplicated from index.html. The site derives on load regardless, so a
+   corpus written without this still renders correctly — but corpus.json would
+   carry the pass's judged sourcing number while the site displayed a different
+   one, and the PR that is meant to be the review gate would be reviewing a
+   figure nobody sees. Deriving here keeps the artifact and the page in step. */
+export const EVW = { e: 1, l: 0.5, u: 0 };
+
+export function srcDensity(p) {
+  const rows = p.sourcing || [];
+  if (!rows.length) return null;
+  return Math.round(rows.reduce((a, x) => a + (EVW[x.t] || 0), 0) / rows.length * 100);
+}
+
+export function deriveAxes(p) {
+  const d = srcDensity(p);
+  if (d === null) { p.srcAdj = { derived: false }; return; }
+  const model = p.srcAdj && p.srcAdj.derived ? p.srcAdj.model : p.axes.sourcing;
+  p.srcAdj = { derived: true, model, value: d, diff: d - model, rows: (p.sourcing || []).length };
+  p.axes.sourcing = d;
 }
 
 /* ---------------------------------------------------------------- helpers */
@@ -167,17 +195,21 @@ function toProducts(o) {
     skill: { tier: null, t: "u", basis: p.why || "Delta reference; no report built.", ops: [] },
     parts: [], issues: [], stub: true, gen: today, rev: false, sources: [], vlog: []
   }));
-  return { kid, klassLabel: o.klassLabel, products: [target, ...peers] };
+  const products = [target, ...peers];
+  products.forEach(deriveAxes);   // stubs have no sourcing rows and keep the judged axis
+  return { kid, klassLabel: o.klassLabel, products };
 }
 
 /* ------------------------------------------------------------------- main */
+async function main() {
+if (!KEY) { console.error("ANTHROPIC_API_KEY is not set."); process.exit(1); }
+
 const reqs = JSON.parse(readFileSync(reqPath, "utf8")).requested || [];
 const corpus = existsSync(outPath)
   ? JSON.parse(readFileSync(outPath, "utf8"))
   : { schema: SCHEMA, built: today, classes: {}, products: [] };
 
-const have = new Set(corpus.products.map(p => p.id));
-let built = 0, skipped = 0, failed = 0, adjusted = 0;
+let built = 0, skipped = 0, failed = 0, adjusted = 0, reaxed = 0;
 
 for (const r of reqs) {
   const guess = slug(r.q);
@@ -199,6 +231,16 @@ for (const r of reqs) {
     }
     console.log(`ok  (${o._searches} search result set(s), ${o._vlog.length} claim(s) adjusted)`);
     o._vlog.forEach(l => console.log(`         ↓ ${l}`));
+
+    /* The pass judges a sourcing score; the rows decide it. Where those
+       disagree the reviewer should see it in the build log, not only on the
+       published page. */
+    const a = products[0].srcAdj;
+    if (a && a.derived && a.diff !== 0) {
+      reaxed++;
+      console.log(`         ± sourcing axis ${a.model} → ${a.value}  (pass scored it ` +
+        `${Math.abs(a.diff)} ${a.diff < 0 ? "above" : "below"} what its ${a.rows} row(s) support)`);
+    }
     built++;
   } catch (e) {
     console.log(`FAILED — ${e.message}`);
@@ -217,6 +259,7 @@ console.log(`
 ─────────────────────────────────────────────
 built ${built}   skipped ${skipped}   failed ${failed}
 ${adjusted} claim(s) downgraded by the verifier
+${reaxed} report(s) had their sourcing axis moved off the pass's judgment
 ${corpus.products.length} products across ${Object.keys(corpus.classes).length} classes → ${outPath}
 
 ${unreviewed} report(s) await human review before publication.
@@ -225,3 +268,8 @@ ${overdue} report(s) are past the ${TTL_DAYS}-day cycle — rerun with --refresh
 Set rev:true on a product once a person has checked it against its
 sources. The site shows unreviewed reports as machine-built.
 ─────────────────────────────────────────────`);
+}
+
+/* Only run when invoked directly — test.mjs imports verify() and deriveAxes()
+   from this file to check them against the copies in index.html. */
+if (import.meta.url === pathToFileURL(process.argv[1] || "").href) await main();
