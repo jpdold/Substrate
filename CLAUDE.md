@@ -186,7 +186,23 @@ how much damage they cause:
     actually built, for the same reason — a no-op `--stale` run would otherwise
     create an empty corpus.
 
-13. **Stubs render.** Generated peers have no component tree. `quickView` and
+13. **A rebuild of an existing product must pin its `id` and `klass`.** Both are
+    otherwise derived from whatever brand, model and class-label strings the
+    generating pass returned *that run* — so re-researching `wusthof` yields
+    `wusthof-classic-8in-cook-s-knife` in a brand-new class, and the merge adds
+    it beside the original instead of replacing it, severed from its own peers.
+    That makes `--stale` silently duplicating rather than refreshing, which is
+    what it did when first written.
+
+    A queue entry pins with `{"q": …, "id": …, "klass": …}`; `--stale` carries
+    both from the product it is refreshing. A pinned class also suppresses the
+    two generated stub peers, since that class already has researched ones and
+    stubs would drag its class-silence reduction toward "nobody discloses this".
+    Dedupe keys on the id *and* the slug — a product can arrive queued unpinned
+    and again from `--stale` pinned, and keying on either alone pays for the
+    same research twice.
+
+14. **Stubs render.** Generated peers have no component tree. `quickView` and
    `fullView` both short-circuit on `p.stub`. Anything new that walks
    `p.materials[0]` or `p.parts[1]` needs a length guard — that exact bug has
    been fixed twice.
@@ -259,10 +275,22 @@ resolves" — the site does not currently meet the rule it exists to enforce.
 
 This is measured, not suspected: running the nine through `verify()` produces
 104 adjustments and takes every one of them to 0% confirmed, because a source
-that does not exist cannot resolve. Closing it means *citing* them. Do not
-attempt to fix it by adding a blanket `why` to make them pass as LIKELY — a
-generic string is not an inference chain, and buying a pass from the verifier
-with one is exactly the move the thesis forbids.
+that does not exist cannot resolve. Do not attempt to fix it by adding a blanket
+`why` to make them pass as LIKELY — a generic string is not an inference chain,
+and buying a pass from the verifier with one is exactly the move the thesis
+forbids.
+
+**All nine are queued in `queue.json`, pinned to their existing ids and
+classes.** Run `node build-corpus.mjs --max=1` first and read one report before
+spending on the rest. Researching them through the pipeline is deliberate rather
+than retro-fitting citations onto the existing text: asking a model to find a
+source for a claim already written invites motivated retrieval — it will find
+something plausible for whatever it is handed — while researching the product
+and reporting only what it can confirm does not. Expect certainty to *fall*.
+Claims that survive as EXACT will be genuinely cited; the rest should land as
+LIKELY with a real inference chain, or as gaps. A rebuild that leaves the
+confirmed percentages roughly where they are is the suspicious outcome, not the
+good one.
 
 **Before the first rebuild PR is merged**, set `ANTHROPIC_API_KEY` in Settings →
 Secrets and variables → Actions, and run the workflow once by hand

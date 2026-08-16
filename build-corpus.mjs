@@ -241,10 +241,15 @@ const slug = x => norm(x).replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slic
 const today = new Date().toISOString().slice(0, 10);
 const ageOf = d => Math.round((Date.now() - new Date(d).getTime()) / 864e5);
 
-function toProducts(o) {
-  const kid = "k-" + slug(o.klassLabel);
+/* `pin` makes a rebuild land on top of an existing product instead of beside
+   it. Without it the id and class are derived from whatever brand and model
+   strings the model happened to return this run, so re-researching a product
+   — including a --stale refresh of one the script built itself — produces a
+   near-duplicate under a new id, in a new class, split from its own peers. */
+export function toProducts(o, pin = {}) {
+  const kid = pin.klass || ("k-" + slug(o.klassLabel));
   const t = o.target;
-  const id = slug(t.brand + "-" + t.model);
+  const id = pin.id || slug(t.brand + "-" + t.model);
   const target = {
     id, brand: t.brand, model: t.model, klass: kid, year: t.year || "unspecified",
     axes: t.axes, comps: t.comps, materials: t.materials, sourcing: t.sourcing,
@@ -252,7 +257,10 @@ function toProducts(o) {
     parts: t.parts, issues: t.issues || [],
     gen: today, rev: false, sources: o.sources || [], vlog: o._vlog || []
   };
-  const peers = (o.peers || []).slice(0, 2).map((p, i) => ({
+  /* A pinned class already has real peers. Attaching generated stubs to it
+     would put unresearched placeholders next to researched products and drag
+     the class-silence reduction toward "nobody discloses this". */
+  const peers = pin.klass ? [] : (o.peers || []).slice(0, 2).map((p, i) => ({
     id: `${id}-peer${i}`, brand: p.brand, model: p.model, klass: kid, year: "unspecified",
     axes: p.axes, comps: [], materials: [], sourcing: [],
     construction: { mode: "Unknown", t: "u", auto: null, tol: null, steps: [] },
@@ -271,17 +279,29 @@ function toProducts(o) {
    itself — the request file has no reason to list a product that was built
    months ago, so without this a scheduled "rebuild" would refresh nothing. */
 export function workList(queue, corpus, { stale = false, max = MAX_PER_RUN } = {}) {
-  const seen = new Set(), out = [];
-  const add = (q, why) => {
-    const k = slug(q);
-    if (!k || seen.has(k)) return;
-    seen.add(k); out.push({ q, why });
+  /* Dedupe on both keys, not whichever one is handy. A product can arrive
+     queued without a pin and again from --stale with one; keying on the id
+     alone lets those two through as separate work and pays for the same
+     research twice. */
+  const seenId = new Set(), seenQ = new Set(), out = [];
+  const add = (q, why, pin = {}) => {
+    const qk = slug(q), ik = pin.id || null;
+    if (!qk && !ik) return;
+    if ((ik && seenId.has(ik)) || (qk && seenQ.has(qk))) return;
+    if (ik) seenId.add(ik);
+    if (qk) seenQ.add(qk);
+    out.push({ q, why, id: pin.id, klass: pin.klass });
   };
-  (queue || []).forEach(r => add(typeof r === "string" ? r : r && r.q, "queued"));
+  (queue || []).forEach(r => {
+    if (typeof r === "string") return add(r, "queued");
+    if (r && r.q) add(r.q, "queued", { id: r.id, klass: r.klass });
+  });
   if (stale) {
+    /* Carry the existing id and class so the refresh replaces the product
+       rather than landing beside it under a regenerated slug. */
     (corpus.products || [])
       .filter(p => !p.stub && p.gen && ageOf(p.gen) > TTL_DAYS)
-      .forEach(p => add(`${p.brand} ${p.model}`, "past the review cycle"));
+      .forEach(p => add(`${p.brand} ${p.model}`, "past the review cycle", { id: p.id, klass: p.klass }));
   }
   return { take: out.slice(0, max), deferred: out.slice(max) };
 }
@@ -325,8 +345,10 @@ for (const r of take) {
     const o = await callModel(r.q);
     o._vlog = verify(o);
     adjusted += o._vlog.length;
-    const { kid, klassLabel, products } = toProducts(o);
-    corpus.classes[kid] = klassLabel;
+    const { kid, klassLabel, products } = toProducts(o, { id: r.id, klass: r.klass });
+    /* Only name a class we are creating. Overwriting a pinned class's label
+       with this run's phrasing would rename an existing class on every rebuild. */
+    if (!r.klass) corpus.classes[kid] = klassLabel;
     for (const p of products) {
       const i = corpus.products.findIndex(x => x.id === p.id);
       if (i >= 0) corpus.products[i] = p; else corpus.products.push(p);

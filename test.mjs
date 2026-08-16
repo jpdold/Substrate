@@ -722,6 +722,27 @@ console.log("\nscheduled rebuild");
   if (w.take.filter(x => /old.*thing/i.test(x.q)).length !== 1)
     fail("a queued product that is also stale was scheduled twice");
 
+  /* Pinning is what makes a rebuild replace a product rather than land beside
+     it. Without the id carried through, a --stale refresh regenerates the slug
+     from whatever the model returned that run and silently duplicates. */
+  w = build.workList([{ q: "Old Thing", id: "a", klass: "knife8" }], corpus, {});
+  if (w.take[0].id !== "a" || w.take[0].klass !== "knife8")
+    fail("a queued entry's pinned id and class were not carried to the build");
+  w = build.workList([], corpus, { stale: true });
+  const oldItem = w.take.find(x => /Old Thing/.test(x.q));
+  if (!oldItem || oldItem.id !== "a") fail("a stale refresh did not carry the existing product's id");
+  if (oldItem.klass !== undefined && oldItem.klass !== corpus.products[0].klass)
+    fail("a stale refresh did not carry the existing product's class");
+
+  /* Dedupe has to work on both keys. Same id, wording different enough that the
+     slugs differ — the pin is the only thing that says these are one product. */
+  w = build.workList([{ q: "Old Thing", id: "a" }, { q: "The revised Old Thing, 2nd ed", id: "a" }], { products: [] }, {});
+  if (w.take.length !== 1) fail("two entries pinned to the same id were scheduled twice");
+  /* And the reverse: queued without a pin, then again from --stale with one. */
+  w = build.workList([{ q: "Old Thing" }], corpus, { stale: true });
+  if (w.take.filter(x => /old.*thing/i.test(x.q)).length !== 1)
+    fail("an unpinned queue entry and its pinned stale twin were both scheduled");
+
   /* The cap bounds the bill, and overflow is reported rather than dropped. */
   const many = Array.from({ length: 9 }, (_, i) => ({ q: `Product ${i}` }));
   w = build.workList(many, { products: [] }, { max: 5 });
@@ -729,6 +750,41 @@ console.log("\nscheduled rebuild");
   if (w.deferred.length !== 4) fail(`cap dropped work silently: ${w.deferred.length} deferred, expected 4`);
   if (build.MAX_PER_RUN !== 5) fail(`default cap is ${build.MAX_PER_RUN}, expected 5`);
   ok("work list: stale detection, dedupe, stub exclusion, capped with overflow reported");
+
+  /* The pin has to survive into the built product, or the merge adds a
+     near-duplicate under a regenerated slug instead of replacing. */
+  {
+    const resp = {
+      klassLabel: "Chef's knife, eight inch",
+      sources: [{ t: "S", u: "https://example.com/s" }],
+      target: {
+        brand: "Wüsthof", model: "Classic 8in Cook's Knife", year: "current",
+        axes: { material: 1, sourcing: 1, construction: 1, assembly: 1, skill: 1, superstructure: 1 },
+        comps: [{ id: "c", n: "C", role: "Critical" }],
+        materials: [{ c: "c", n: "M", share: 100, spec: "S", t: "e", src: 0 }],
+        sourcing: [{ c: "c", m: "S", o: "O", s: "s", t: "e", src: 0 }],
+        construction: { mode: "Factory", t: "e", auto: "a", tol: "t", src: 0, steps: [] },
+        assembly: { sites: [{ l: "L", o: "O" }], label: "l", count: "Single site", t: "e", src: 0 },
+        skill: { tier: "T", t: "e", basis: "b", src: 0, ops: [] },
+        parts: [{ c: "c", n: "P", m: "m", crit: "Critical", t: "e", src: 0, fail: "f" }],
+        issues: [],
+      },
+      peers: [{ brand: "X", model: "Y", axes: {}, why: "w" }, { brand: "Z", model: "W", axes: {}, why: "w" }],
+    };
+
+    const pinned = build.toProducts(structuredClone(resp), { id: "wusthof", klass: "knife8" });
+    if (pinned.products[0].id !== "wusthof") fail(`pin ignored: built id ${pinned.products[0].id}`);
+    if (pinned.products[0].klass !== "knife8") fail(`pin ignored: built class ${pinned.products[0].klass}`);
+    if (pinned.products.length !== 1)
+      fail(`a pinned rebuild attached ${pinned.products.length - 1} stub peer(s) to a class that already has real ones`);
+    if (!P.some(p => p.id === pinned.products[0].id))
+      fail("the pinned id does not match any existing product, so the merge would not override");
+
+    const free = build.toProducts(structuredClone(resp));
+    if (free.products[0].id === "wusthof") fail("an unpinned build should derive its own id");
+    if (free.products.length !== 3) fail(`an unpinned build should carry 2 stub peers, got ${free.products.length - 1}`);
+    ok("pinned rebuild keeps id and class and adds no stubs; unpinned still derives both");
+  }
 
   /* The workflow file is what actually runs monthly — assert the parts that
      would fail silently or spend money wrongly. */
@@ -746,10 +802,20 @@ console.log("\nscheduled rebuild");
   if (!/concurrency/.test(wf)) fail("two runs could race on the same branch");
   ok("workflow: manual trigger, keyed from secrets, gated on review, tested before and after");
 
-  /* The queue is tracked on purpose — the build reads it in CI. */
+  /* The queue is tracked on purpose — the build reads it in CI. Every entry
+     that pins an id must pin a real one, or the rebuild lands beside the
+     product it meant to replace and the site shows both. */
   const q = JSON.parse(readFileSync("queue.json", "utf8"));
   if (!Array.isArray(q.requested)) fail("queue.json has no requested array");
-  ok(`queue.json tracked and parseable, ${q.requested.length} queued`);
+  const ids = new Set(P.map(p => p.id)), klasses = new Set(P.map(p => p.klass));
+  for (const e of q.requested) {
+    if (!e.q) fail(`queue entry has no query: ${JSON.stringify(e)}`);
+    if (e.id && !ids.has(e.id)) fail(`queue pins id "${e.id}", which is not a product in the corpus`);
+    if (e.klass && !klasses.has(e.klass)) fail(`queue pins class "${e.klass}", which does not exist`);
+    if (e.id && !e.klass) fail(`queue entry "${e.id}" pins an id without a class — the rebuild would move it to a new class`);
+  }
+  const pinned = q.requested.filter(e => e.id).length;
+  ok(`queue.json: ${q.requested.length} queued, ${pinned} pinned to existing products`);
 }
 
 /* ---------------------------------------- 13. corpus merges, never replaces */
