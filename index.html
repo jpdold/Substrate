@@ -2086,8 +2086,8 @@ function renderMethod(){
     <div class="sechead"><h3>The three tags</h3>
       <span class="note">Every field on every report carries exactly one.</span></div>
     <table class="dt">
-      ${check(tag("e"), `Stated in manufacturer literature, a spec sheet, a teardown, or a regulatory filing, with a link that resolves.
-        <span class="sub">A claim holds this tag only while its source index points at a working http or https URL in that report's own source list. If the link breaks, the claim is downgraded on the next load.</span>`)}
+      ${check(tag("e"), `Stated in manufacturer literature, a spec sheet, a teardown, or a regulatory filing, and carrying a link to it.
+        <span class="sub">A claim holds this tag only while it cites a source in that report's own list. Whether that link still resolves is checked when the report is built, not in your browser — a page cannot fetch another site to find out. A citation that has since gone dead will say so on the next rebuild, not the next load. And no check anywhere can tell you the source actually supports the claim; that is what review is for.</span>`)}
       ${check(tag("l"), `Not stated anywhere, but inferred from class norms, price tier, or material analysis — with the inference chain written down and shown on the report.
         <span class="sub">A LIKELY with no recorded chain is not a weaker claim, it is an unsupported one, and it is treated as missing.</span>`)}
       ${check(tag("u"), `No basis to state a value. The value is discarded and the field renders as ${gap("a visible gap")}
@@ -2101,7 +2101,8 @@ function renderMethod(){
     <p class="mprose">Reports are assembled by a model, and model output is untrusted. Before anything reaches the page it goes through a verifier that can only ever remove confidence, never add it. It does not check whether a claim is true — it checks whether the claim is carrying the evidence its tag asserts.</p>
     <table class="dt" style="margin-top:16px">
       <tr><th>Condition</th><th>Effect</th></tr>
-      ${check("EXACT, source does not resolve","Downgraded to LIKELY. The claim may still be right, but it is no longer cited.")}
+      ${check("EXACT, citing no source","Downgraded to LIKELY. The claim may still be right, but it is no longer cited.")}
+      ${check("EXACT, citing a source that has 404'd","Downgraded the same way. Liveness is checked at build time, where fetching another site is possible; a 403 is treated as a block rather than a dead page.")}
       ${check("LIKELY, no inference chain","Downgraded to UNKNOWN. Reasoning that was never written down cannot be audited.")}
       ${check("Lands on UNKNOWN","The value is nulled and the field renders as a gap, whatever it originally said.")}
       ${check("Bound to an undeclared component","The row is dropped. A claim about a part that is not on the roster cannot be read.")}

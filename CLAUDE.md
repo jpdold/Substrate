@@ -223,9 +223,26 @@ Model output is untrusted. Before anything renders:
 Every adjustment lands in `vlog` and shows on the report. The downgrade cascade
 (`e → l → u`) logs one line, not two.
 
+**`verify()` cannot tell whether a citation resolves.** It regexes the URL, and
+that is all it can do — it runs in the browser too, and a page cannot fetch
+another site to check. The first real build produced an EXACT claim citing a
+404 and the verifier passed it, reporting zero adjustments. Liveness is now
+checked in `checkSources()` at build time, where fetching is possible: 404 and
+410 blank the source's `u` so the ordinary cascade downgrades everything citing
+it, while a 403 is a site blocking bots rather than a dead page and is recorded
+but left alone. A network failure is never treated as a dead link.
+
+Keep the Method page honest about this. It previously said an EXACT claim holds
+"only while its source index points at a working URL" and would be "downgraded
+on the next load" — neither was true, and overstating the check is precisely
+the failure the site exists to expose.
+
 The verifier catches *unsourced* claims mechanically. It cannot catch a real
-source saying something wrong. That's why every report ships `rev: false` and
-displays as "machine-built, source-checked only" until a person flips it.
+source saying something wrong, and no automated check can — a live URL says
+nothing about whether the page supports the claim. The first build cited a
+retailer listing and a forum thread behind EXACT tags; both resolve. That is
+why every report ships `rev: false` and displays as "machine-built,
+source-checked only" until a person flips it.
 
 ---
 

@@ -186,6 +186,43 @@ export async function callModel(query) {
   return obj;
 }
 
+/* ----------------------------------------------------------- link liveness */
+/* verify() can only regex a URL: it runs in the browser too, and a page cannot
+   fetch cross-origin to see whether a citation resolves. So an EXACT claim
+   citing a 404 passes it — which it did on the first real build. Node can
+   fetch, so liveness is checked here, once, at build time.
+
+   Only 404 and 410 count as broken. A 403 is a site blocking automated
+   fetches, not a dead page — Bladeforums returns one for a thread a reader can
+   open perfectly well, and downgrading on that would be its own false claim.
+   Anything else is recorded as unverified and left alone.
+
+   A broken source has its `u` blanked (kept as `deadUrl`) so the ordinary
+   verifier cascade does the downgrade and logs it, rather than duplicating
+   that logic here and drifting from index.html. */
+const GONE = new Set([404, 410]);
+
+export async function checkSources(o, fetchImpl = fetch) {
+  const log = [];
+  for (const [i, s] of (o.sources || []).entries()) {
+    if (!s || !/^https?:\/\//.test(s.u || "")) continue;
+    let status;
+    try {
+      const r = await fetchImpl(s.u, { redirect: "follow", signal: AbortSignal.timeout(20000) });
+      status = r.status;
+    } catch { status = "unreachable"; }
+
+    if (GONE.has(status)) {
+      s.deadUrl = s.u; s.u = ""; s.httpStatus = status;
+      log.push(`Source [${i}] “${s.t}” returned ${status} — anything citing it can no longer be EXACT`);
+    } else if (status !== 200) {
+      s.httpStatus = status;
+      log.push(`Source [${i}] “${s.t}” answered ${status} — left in place; a block or a timeout is not a dead page`);
+    }
+  }
+  return log;
+}
+
 /* --------------------------------------------------------------- verifier */
 /* Byte-for-byte the same logic and the same log wording as the copy in
    index.html — invariant 1. The site re-runs this on load, so a divergence
@@ -375,7 +412,10 @@ for (const r of take) {
   try {
     process.stdout.write(`build  ${r.q} … `);
     const o = await callModel(r.q);
-    o._vlog = verify(o);
+    /* Liveness first: a dead source has its URL blanked, so the verifier that
+       follows downgrades everything citing it through its normal cascade. */
+    const linkLog = await checkSources(o);
+    o._vlog = [...linkLog, ...verify(o)];
     adjusted += o._vlog.length;
     const { kid, klassLabel, products } = toProducts(o, { id: r.id, klass: r.klass });
     /* Only name a class we are creating. Overwriting a pinned class's label

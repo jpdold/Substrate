@@ -802,6 +802,57 @@ console.log("\nscheduled rebuild");
   if (!/concurrency/.test(wf)) fail("two runs could race on the same branch");
   ok("workflow: manual trigger, keyed from secrets, gated on review, tested before and after");
 
+  /* An EXACT claim citing a 404 passed verify() on the first real build, because
+     verify() only regexes the URL — it runs in the browser too, and a page
+     cannot fetch cross-origin. Liveness is checked at build time instead. */
+  {
+    const payload = () => ({
+      sources: [
+        { t: "dead", u: "https://example.com/gone" },
+        { t: "blocked", u: "https://example.com/403" },
+        { t: "live", u: "https://example.com/ok" },
+      ],
+      target: {
+        comps: [{ id: "c", n: "C", role: "Critical" }],
+        materials: [
+          { c: "c", n: "FromDead", share: 50, spec: "S", t: "e", src: 0 },
+          { c: "c", n: "FromBlocked", share: 25, spec: "S", t: "e", src: 1 },
+          { c: "c", n: "FromLive", share: 25, spec: "S", t: "e", src: 2 },
+        ],
+        sourcing: [], parts: [],
+        construction: { mode: "F", t: "u", steps: [] },
+        assembly: { sites: [], label: "l", count: "Unknown", t: "u" },
+        skill: { tier: null, t: "u", ops: [] },
+      },
+    });
+    const status = { "https://example.com/gone": 404, "https://example.com/403": 403, "https://example.com/ok": 200 };
+    const stub = async url => ({ status: status[url] });
+
+    const o = payload();
+    const log = await build.checkSources(o, stub);
+    if (o.sources[0].u !== "") fail("a 404 source kept its URL, so the verifier will still accept it");
+    if (o.sources[0].deadUrl !== "https://example.com/gone") fail("the dead URL was discarded instead of recorded");
+    if (o.sources[1].u !== "https://example.com/403") fail("a 403 was treated as dead — a block is not a broken page");
+    if (o.sources[2].u !== "https://example.com/ok") fail("a live source was altered");
+    if (!log.some(l => /404/.test(l))) fail("the dead link was not reported");
+    if (!log.some(l => /403/.test(l) && /left in place/.test(l))) fail("the blocked source was not reported as unverified");
+
+    /* The point of blanking rather than downgrading here: the ordinary cascade
+       does the work, so this logic never drifts from index.html's verifier. */
+    const vlog = build.verify(o);
+    const byName = n => o.target.materials.find(m => m.n === n);
+    if (byName("FromDead").t === "e") fail("a claim citing a 404 survived as EXACT");
+    if (byName("FromBlocked").t !== "e") fail("a claim citing a blocked-but-live source was downgraded");
+    if (byName("FromLive").t !== "e") fail("a claim citing a live source was downgraded");
+    if (!vlog.some(l => /FromDead/.test(l))) fail("the downgrade was not logged for the reader");
+
+    /* A transient network failure must not silently kill a citation. */
+    const o2 = payload();
+    await build.checkSources(o2, async () => { throw new Error("ENOTFOUND"); });
+    if (o2.sources.some(s => s.u === "")) fail("an unreachable host was treated as a dead link");
+    ok("link liveness: 404 downgrades and logs, 403 and network failures do not");
+  }
+
   /* Preflight turns N identical 401s into one message that names the cause.
      Driven against a stubbed transport so it costs nothing to test. */
   {
