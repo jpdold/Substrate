@@ -85,6 +85,14 @@ const SCHEMA_NOTE = `Return ONE json object, no prose, no markdown fences:
 
 RULES — these decide whether the report is usable:
 - t is the certainty of that specific field. "e" EXACT, "l" LIKELY, "u" UNKNOWN.
+- EVERY object that shows a "t" above must carry one, including construction,
+  assembly and skill. These three are single objects rather than arrays and are
+  the ones most often forgotten. An object with no t is treated as UNKNOWN and
+  its values are discarded, so omitting it throws away work you already did.
+- share is percent BY MASS OF THE WHOLE OBJECT, not of its component. All
+  material shares together must total 100 or less. If you cannot apportion by
+  mass, omit share rather than guessing — a set summing to several hundred
+  percent tells the reader nothing.
 - "e" REQUIRES src = index into sources[] of a page that states it. No source, do not use "e".
 - "l" REQUIRES why = the inference chain in one line.
 - "u" means you could not establish it. Set the value to null. Do NOT guess.

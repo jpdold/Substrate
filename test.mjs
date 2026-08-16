@@ -387,6 +387,55 @@ if (CATTR.some(a => a.k === "role")) fail("role is in the header, not a compared
   ok("both peer pivots route correctly");
 }
 
+/* ----------------------------------- 9b. renderers survive a sparse report */
+/* A real build returned a part with no `fail`, and two views interpolated it
+   straight into the page as the word "undefined". The model omits optional
+   fields whenever it cannot establish them, so every renderer has to treat an
+   absent field as a gap. This builds a product carrying only what the data
+   model requires and renders everything against it. */
+console.log("\nsparse report");
+{
+  const sparse = {
+    id: "sparse", brand: "Sparse", model: "Everything Optional Omitted",
+    klass: "knife8", year: "unspecified",
+    axes: { material: 50, sourcing: 50, construction: 50, assembly: 50, skill: 50, superstructure: 50 },
+    comps: [{ id: "c", n: "Only component", role: "Critical" }],
+    materials: [{ c: "c", n: "A material", t: "l", why: "w" }],          // no share, no spec
+    sourcing: [{ c: "c", m: "A material", t: "u" }],                     // no o, no s, no note
+    construction: { mode: "Factory", t: "u", steps: [{ c: "c" }] },      // no auto, tol, or step text
+    assembly: { sites: [{ l: "Somewhere" }], count: "Unknown", t: "u" }, // no label, no site operation
+    skill: { t: "u", ops: [["c", "an operation"]] },                     // no tier, basis, or op skill
+    parts: [{ c: "c", n: "A part", t: "u" }],                            // no m, crit, or fail
+    issues: [], sources: [], vlog: [],
+  };
+
+  P.push(sparse);
+  try {
+    let found = null;
+    for (const pivot of ["attr", "comp"]) {
+      S.pivot = pivot;
+      const d = deltas(sparse), c = certCount(sparse);
+      for (const [name, out] of [
+        ["quick", quickView(sparse, c, d.filter(x => x.d > 0), d.filter(x => x.d < 0))],
+        ["full", fullView(sparse)],
+        ["gaps", gapView(sparse)],
+        ["custom", customView(sparse)],
+        ["peers", peerView(sparse, d)],
+        ["compDeltas", compDeltaView(sparse)],
+        ["vpanel", vpanel(sparse)],
+        ["srcNote", srcNote(sparse)],
+      ]) {
+        const hit = out.match(/.{0,60}(undefined|NaN|\[object Object\]).{0,60}/s);
+        if (hit && !found) found = `${name}/${pivot}: …${hit[0].replace(/\s+/g, " ")}…`;
+      }
+    }
+    if (found) fail(`a renderer printed a missing field instead of a gap — ${found}`);
+    else ok("every view renders a report with all optional fields absent, no stray values");
+  } finally {
+    P.splice(P.indexOf(sparse), 1);
+  }
+}
+
 /* ------------------------------------------ 10. compare tray and exports */
 console.log("\ncompare tray and exports");
 

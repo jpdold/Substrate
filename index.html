@@ -1269,9 +1269,9 @@ function compView(p){
           ${steps.length?line("Formed by",steps.map(x=>
               x.p?x.p:gap("process not published")).join('<hr class="hr">')):""}
           ${ops.length?line("Skill applied",ops.map(x=>
-              `${x[2]}<span class="sub">${x[1]}</span>`).join('<hr class="hr">')):""}
+              `${x[2]?x[2]:gap("skill not stated")}<span class="sub">${x[1]||"operation not named"}</span>`).join('<hr class="hr">')):""}
           ${prts.length?line("If it fails",prts.map(x=>
-              `${x.fail}`).join('<hr class="hr">')):""}
+              x.fail?x.fail:gap("failure mode not recorded")).join('<hr class="hr">')):""}
         </div></div>`;
     }).join("")}
   </div>`;
@@ -1283,8 +1283,8 @@ function matSec(p){
     <span class="note">Share is by mass of the whole object. The chip on each row is the part that material belongs to.</span></div>
     ${p.materials.map(m=>`<div class="mat"><div class="mname">${cchip(p,m.c)}<span>${m.n}</span>${tag(m.t)}
       ${m.spec?`<span class="mspec">${m.spec}</span>`:`<span class="mspec">${gap("spec not published")}</span>`}
-      <div class="mtrack"><div class="mfill" style="width:${m.share}%"></div></div></div>
-      <div class="mshare">${m.share}%</div></div>`).join("")}</div>`;
+      ${Number.isFinite(+m.share)?`<div class="mtrack"><div class="mfill" style="width:${Math.min(100,+m.share)}%"></div></div>`:""}</div>
+      <div class="mshare">${Number.isFinite(+m.share)?`${m.share}%`:gap("share not stated")}</div></div>`).join("")}</div>`;
 }
 function srcSec(p){
   return `<div class="sec"><div class="sechead"><h3>Material sourcing</h3>
@@ -1311,9 +1311,10 @@ function asmSec(p){
   return `<div class="sec"><div class="sechead"><h3>Assembly location</h3>
     <span class="note">The country on the label is a legal claim about final assembly, not about where the parts came from.</span></div>
     <table class="dt"><tr><th>Site</th><th>Operation performed</th></tr>
-    ${a.sites.map(x=>`<tr><td class="k">${x.l}</td><td class="v">${x.o}</td></tr>`).join("")}
-    <tr><td class="k">Site count</td><td class="v">${a.count}</td></tr>
-    <tr><td class="k">Label basis</td><td class="v">${a.label} ${tag(a.t)}</td></tr></table></div>`;
+    ${a.sites.map(x=>`<tr><td class="k">${x.l||gap("site not named")}</td>
+      <td class="v">${x.o?x.o:gap("operation not stated")}</td></tr>`).join("")}
+    <tr><td class="k">Site count</td><td class="v">${a.count||gap()}</td></tr>
+    <tr><td class="k">Label basis</td><td class="v">${a.label?`${a.label} ${tag(a.t)}`:gap("no country-of-origin claim recorded")}</td></tr></table></div>`;
 }
 function skillSec(p){
   const k=p.skill;
@@ -1321,20 +1322,21 @@ function skillSec(p){
     <span class="note">Stated where the manufacturer publishes it, inferred where they do not, blank where neither holds.</span></div>
     <table class="dt">
       <tr><td class="k">Tier, whole object</td><td class="v">${k.tier?`${k.tier} ${tag(k.t)}`:gap("no tier can be assigned")}</td></tr>
-      <tr><td class="k">Basis</td><td class="v">${k.basis}</td></tr>
+      <tr><td class="k">Basis</td><td class="v">${k.basis?k.basis:gap("no basis recorded")}</td></tr>
     </table>
     ${k.ops.length?`<table class="dt" style="margin-top:16px"><tr><th>Component</th><th>Operation</th><th>Skill applied</th></tr>
-      ${k.ops.map(o=>`<tr><td class="k">${cchip(p,o[0])}</td><td class="k">${o[1]}</td><td class="v">${o[2]}</td></tr>`).join("")}</table>`:""}</div>`;
+      ${k.ops.map(o=>`<tr><td class="k">${cchip(p,o[0])}</td><td class="k">${o[1]||gap("operation not named")}</td>
+        <td class="v">${o[2]?o[2]:gap("skill not stated")}</td></tr>`).join("")}</table>`:""}</div>`;
 }
 function partSec(p){
   return `<div class="sec"><div class="sechead"><h3>Superstructural components</h3>
     <span class="note">Parts that carry the load or define the function. Trim and packaging are excluded.</span></div>
     <div class="parts">${p.parts.map(x=>`<div class="part ${x.crit==="Critical"?"crit":""}">
-      <div class="pcrit">${x.crit} ${tag(x.t)}</div>
+      <div class="pcrit">${x.crit||"Role not stated"} ${tag(x.t)}</div>
       <div class="pname">${x.n}</div>
       <div class="pscope">${cName(p,x.c)}</div>
       <div class="pspec">${x.m||gap("material not published")}</div>
-      <div class="pfail">${x.fail}</div></div>`).join("")}</div></div>`;
+      <div class="pfail">${x.fail?x.fail:gap("failure mode not recorded")}</div></div>`).join("")}</div></div>`;
 }
 function issueSec(p){
   return `<div class="sec"><div class="sechead"><h3>Known issues</h3></div>
