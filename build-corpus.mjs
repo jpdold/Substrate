@@ -7,14 +7,22 @@
    credentials and no runtime network dependency.
 
      export ANTHROPIC_API_KEY=sk-...
-     node build-corpus.mjs requests.json corpus.json
+     node build-corpus.mjs                    # queue.json → corpus.json
+     node build-corpus.mjs --stale            # also refresh reports past the cycle
+     node build-corpus.mjs --max=2            # tighter cap for a trial run
+     node build-corpus.mjs q.json out.json    # explicit paths
 
-   requests.json is what the site's request queue exports:
+   queue.json is tracked and holds what to research next. Paste in what the
+   site's request queue exports:
      { "requested": [ { "q": "Bialetti Moka Express 6-cup" } ] }
 
    Products already present in corpus.json are skipped unless --refresh is
    passed or they are past the review cycle. Rebuilding a report that has
    not changed only introduces drift.
+
+   --stale adds every corpus product past the review cycle to the work list.
+   The queue has no reason to relist a product built months ago, so without
+   it a scheduled rebuild would refresh nothing.
    ========================================================================== */
 
 import { readFileSync, writeFileSync, existsSync } from "node:fs";
@@ -35,8 +43,23 @@ export const MAX_TOKENS = 16000;
    stop_reason "pause_turn" with no final answer. Resending continues it. */
 const MAX_CONTINUATIONS = 5;
 
-const [, , reqPath = "requests.json", outPath = "corpus.json"] = process.argv;
+/* Positional args skip flags, so `node build-corpus.mjs --stale` still writes to
+   the default corpus.json rather than treating the flag as a path. */
+const positional = process.argv.slice(2).filter(a => !a.startsWith("--"));
+const [reqPath = "queue.json", outPath = "corpus.json"] = positional;
 const REFRESH = process.argv.includes("--refresh");
+const STALE = process.argv.includes("--stale");
+
+/* A scheduled run spends real money per product. The cap bounds both the bill
+   and the size of the PR a reviewer has to read; overflow is deferred and
+   logged, never dropped quietly. */
+export const MAX_PER_RUN = 5;
+
+const MAX = (() => {
+  const a = process.argv.find(x => x.startsWith("--max="));
+  const n = a ? Number(a.slice(6)) : NaN;
+  return Number.isFinite(n) && n > 0 ? Math.floor(n) : MAX_PER_RUN;
+})();
 
 /* Nothing above the main() guard at the bottom may exit or do I/O: test.mjs
    imports verify() and deriveAxes() from here to prove they still agree with
@@ -242,18 +265,55 @@ function toProducts(o) {
   return { kid, klassLabel: o.klassLabel, products };
 }
 
+/* ---------------------------------------------------------------- work list */
+/* Two sources of work, because the scheduled run needs both. Queued products
+   come from the tracked queue file. Stale ones are read out of the corpus
+   itself — the request file has no reason to list a product that was built
+   months ago, so without this a scheduled "rebuild" would refresh nothing. */
+export function workList(queue, corpus, { stale = false, max = MAX_PER_RUN } = {}) {
+  const seen = new Set(), out = [];
+  const add = (q, why) => {
+    const k = slug(q);
+    if (!k || seen.has(k)) return;
+    seen.add(k); out.push({ q, why });
+  };
+  (queue || []).forEach(r => add(typeof r === "string" ? r : r && r.q, "queued"));
+  if (stale) {
+    (corpus.products || [])
+      .filter(p => !p.stub && p.gen && ageOf(p.gen) > TTL_DAYS)
+      .forEach(p => add(`${p.brand} ${p.model}`, "past the review cycle"));
+  }
+  return { take: out.slice(0, max), deferred: out.slice(max) };
+}
+
 /* ------------------------------------------------------------------- main */
 async function main() {
 if (!KEY) { console.error("ANTHROPIC_API_KEY is not set."); process.exit(1); }
 
-const reqs = JSON.parse(readFileSync(reqPath, "utf8")).requested || [];
 const corpus = existsSync(outPath)
   ? JSON.parse(readFileSync(outPath, "utf8"))
   : { schema: SCHEMA, built: today, classes: {}, products: [] };
 
+let queue = [];
+if (existsSync(reqPath)) {
+  queue = JSON.parse(readFileSync(reqPath, "utf8")).requested || [];
+} else if (!STALE) {
+  console.error(
+    `${reqPath} does not exist.\n` +
+    `Create it as {"requested":[{"q":"Bialetti Moka Express 6-cup"}]}, or pass\n` +
+    `--stale to refresh reports already past the ${TTL_DAYS}-day cycle instead.`);
+  process.exit(1);
+}
+
+const { take, deferred } = workList(queue, corpus, { stale: STALE, max: MAX });
+if (deferred.length)
+  console.log(`note   ${deferred.length} over the ${MAX}-per-run cap, deferred to the next run:\n` +
+    deferred.map(d => `         · ${d.q}  (${d.why})`).join("\n"));
+if (!take.length) console.log("note   nothing to build");
+
 let built = 0, skipped = 0, failed = 0, adjusted = 0, reaxed = 0;
 
-for (const r of reqs) {
+for (const r of take) {
   const guess = slug(r.q);
   const hit = corpus.products.find(p => p.id.startsWith(guess.slice(0, 20)));
   if (hit && !REFRESH && ageOf(hit.gen) < TTL_DAYS) {
@@ -292,9 +352,18 @@ for (const r of reqs) {
   }
 }
 
-corpus.schema = SCHEMA;
-corpus.built = today;
-writeFileSync(outPath, JSON.stringify(corpus, null, 2));
+/* Only write when something was actually built. Writing on a no-op run would
+   create an empty corpus.json on a first --stale run — and since loadCorpus()
+   replaces the embedded corpus wholesale, committing that would take the live
+   site down to zero products. It also keeps the scheduled run from opening a
+   PR whose only change is the build date. */
+if (built) {
+  corpus.schema = SCHEMA;
+  corpus.built = today;
+  writeFileSync(outPath, JSON.stringify(corpus, null, 2));
+} else {
+  console.log(`note   nothing built — ${outPath} left untouched`);
+}
 
 const unreviewed = corpus.products.filter(p => !p.rev && !p.stub).length;
 const overdue = corpus.products.filter(p => ageOf(p.gen) > TTL_DAYS).length;
@@ -307,7 +376,7 @@ ${reaxed} report(s) had their sourcing axis moved off the pass's judgment
 ${corpus.products.length} products across ${Object.keys(corpus.classes).length} classes → ${outPath}
 
 ${unreviewed} report(s) await human review before publication.
-${overdue} report(s) are past the ${TTL_DAYS}-day cycle — rerun with --refresh.
+${overdue} report(s) are past the ${TTL_DAYS}-day cycle — rerun with --stale.
 
 Set rev:true on a product once a person has checked it against its
 sources. The site shows unreviewed reports as machine-built.

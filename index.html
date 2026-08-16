@@ -1947,10 +1947,20 @@ async function loadCorpus(){
     const bad=[];
     c.products.forEach(p=>{ const log=verify({target:p,sources:p.sources||[]});
       if(log.length) bad.push(p.id+": "+log.length+" claim(s) adjusted"); });
-    P.length=0; P.push(...c.products); deriveAll();
-    Object.keys(CLASSES).forEach(k=>delete CLASSES[k]);
-    Object.assign(CLASSES,c.classes);
-    META.built=c.built; META.source="corpus.json"; META.adjusted=bad;
+
+    /* Merge, never replace. The embedded corpus is hand-curated and carries no
+       sources at all, so running it through this verifier would null every
+       field it has — replacing would leave the site rendering nothing but gaps.
+       corpus.json is the machine-built, source-checked layer that grows beside
+       it, and a rebuilt product overrides the embedded one of the same id. */
+    c.products.forEach(p=>{
+      const i=P.findIndex(x=>x.id===p.id);
+      if(i>=0) P[i]=p; else P.push(p);
+    });
+    deriveAll();
+    Object.assign(CLASSES,c.classes||{});
+    META.built=c.built; META.merged=c.products.length; META.adjusted=bad;
+    META.source=`embedded + ${c.products.length} from corpus.json`;
   }catch(e){ META.source="embedded"; META.loadNote=e&&e.message?e.message:null; }
 
   try{

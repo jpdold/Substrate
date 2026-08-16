@@ -1,0 +1,134 @@
+name: Corpus rebuild
+
+# Builds queued products and refreshes reports past the review cycle, then opens
+# a pull request. The PR is the review gate — every report ships rev:false, and
+# merging is the human step that publishes it. Nothing here writes to main.
+
+on:
+  schedule:
+    # 06:17 UTC on the 1st. Off the hour on purpose: scheduled runs queue behind
+    # everyone else's on:00 cron and GitHub drops them under load.
+    - cron: "17 6 1 * *"
+  workflow_dispatch:
+    inputs:
+      max:
+        description: "Maximum products to build this run"
+        required: false
+        default: "5"
+      stale:
+        description: "Also refresh reports past the review cycle"
+        type: boolean
+        required: false
+        default: true
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  # Two runs building the same corpus would race on the same branch name.
+  group: corpus-rebuild
+  cancel-in-progress: false
+
+jobs:
+  rebuild:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+
+      - name: Check the key is present
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          if [ -z "$ANTHROPIC_API_KEY" ]; then
+            echo "::error::ANTHROPIC_API_KEY is not set. Add it under Settings → Secrets and variables → Actions."
+            exit 1
+          fi
+
+      - name: Regression suite before touching anything
+        run: node test.mjs
+
+      - name: Build
+        id: build
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          set -o pipefail
+          STALE=""
+          if [ "${{ inputs.stale }}" != "false" ]; then STALE="--stale"; fi
+          MAX="${{ inputs.max || '5' }}"
+          node build-corpus.mjs $STALE "--max=$MAX" 2>&1 | tee build.log
+          if [ -n "$(git status --porcelain corpus.json)" ]; then
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "corpus.json unchanged — no pull request to open."
+          fi
+
+      - name: Check the corpus is loadable
+        if: steps.build.outputs.changed == 'true'
+        run: |
+          node -e '
+            const c = JSON.parse(require("node:fs").readFileSync("corpus.json", "utf8"));
+            if (c.schema !== 1) throw new Error(`schema ${c.schema} will not load — the site expects 1`);
+            if (!Array.isArray(c.products) || !c.products.length) throw new Error("corpus has no products");
+            for (const p of c.products) {
+              if (!p.id || !p.klass) throw new Error(`product missing id or klass: ${JSON.stringify(p).slice(0,120)}`);
+              const ids = new Set((p.comps || []).map(x => x.id));
+              for (const m of p.materials || []) if (!ids.has(m.c)) throw new Error(`${p.id}: orphan material row survived the verifier`);
+            }
+            console.log(`corpus.json: ${c.products.length} products, schema ${c.schema}, built ${c.built}`);
+          '
+
+      - name: Regression suite after the build
+        if: steps.build.outputs.changed == 'true'
+        run: node test.mjs
+
+      - name: Open a pull request
+        if: steps.build.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          BRANCH="corpus/$(date -u +%Y-%m-%d-%H%M)"
+          git config user.name  "substrate-rebuild"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -b "$BRANCH"
+          git add corpus.json
+          git commit -m "Rebuild corpus $(date -u +%Y-%m-%d)"
+          git push -u origin "$BRANCH"
+
+          {
+            echo "Built by the scheduled rebuild. **Every report in here ships \`rev: false\`** —"
+            echo "this pull request is the review gate, so read before merging."
+            echo
+            echo "What to check:"
+            echo
+            echo "- Each EXACT claim carries a source that actually says it. The verifier"
+            echo "  confirms a link resolves, not that the page supports the claim."
+            echo "- The sourcing axis is computed from the rows, not judged. Where the log"
+            echo "  below shows it moved, the published figure is the derived one."
+            echo "- Set \`rev: true\` on any product you have checked, in a commit on this branch."
+            echo
+            echo '```'
+            cat build.log
+            echo '```'
+          } > pr-body.md
+
+          gh pr create \
+            --title "Corpus rebuild $(date -u +%Y-%m-%d)" \
+            --body-file pr-body.md \
+            --base main \
+            --head "$BRANCH"
+
+      - name: Keep the build log even when nothing changed
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-log
+          path: build.log
+          if-no-files-found: ignore

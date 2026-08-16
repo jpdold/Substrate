@@ -25,9 +25,11 @@ check a proposed change against.
 
 ```
 index.html          the entire site — no build step, no dependencies
-build-corpus.mjs    Node script, runs on the maintainer's machine only
-corpus.json         composition data. Not committed yet; site falls back to embedded
+build-corpus.mjs    Node script; runs locally or in the rebuild workflow
+queue.json          tracked. What to research next; the scheduled run reads it
+corpus.json         machine-built reports, MERGED over the embedded corpus
 advisories.json     recalls and safety notices, refreshed independently
+.github/workflows/  monthly rebuild, opens a PR — never writes to main
 ```
 
 `index.html` is deliberately one file with no imports, no npm, no bundler. Keep
@@ -171,7 +173,20 @@ how much damage they cause:
     only honest route; the stylesheet repaints to ink-on-paper rather than
     printing a dark UI.
 
-12. **Stubs render.** Generated peers have no component tree. `quickView` and
+12. **`corpus.json` merges over the embedded corpus — it never replaces it.**
+    `loadCorpus()` verifies each fetched product, then upserts it into `P` by id.
+    This is not a style choice: the embedded nine carry no `sources`, no `src`
+    indices and no `why`, so putting them through `verify()` nulls every field
+    they have — measured at 104 adjustments, all nine to 0% confirmed. The old
+    `P.length=0` would therefore have blanked the live site the moment a
+    `corpus.json` landed. A rebuilt product overrides the embedded one of the
+    same id, which is how a machine-built report can correct a seeded one.
+
+    `build-corpus.mjs` will not write `corpus.json` unless something was
+    actually built, for the same reason — a no-op `--stale` run would otherwise
+    create an empty corpus.
+
+13. **Stubs render.** Generated peers have no component tree. `quickView` and
    `fullView` both short-circuit on `p.stub`. Anything new that walks
    `p.materials[0]` or `p.parts[1]` needs a length guard — that exact bug has
    been fixed twice.
@@ -235,17 +250,24 @@ arithmetic fix for them — see the reasoning in *Derived axes* before trying
 one. Closing this properly means source-checking the axes themselves, not
 computing them from disclosure.
 
-**Scheduled rebuild.** A GitHub Action running `build-corpus.mjs` monthly and
-opening a PR rather than committing to main. The PR *is* the `rev: false` review
-gate. Key goes in repo secrets.
+**The embedded nine claim EXACT without citations.** Not one of the products in
+`index.html` carries a `sources` array, a `src` index, or a `why`. They were
+written by hand and have never been through the verifier, which only ever runs
+on `corpus.json`. So the site displays EXACT tags on claims with no link behind
+them, while the Method page tells the reader an EXACT claim "carries a link that
+resolves" — the site does not currently meet the rule it exists to enforce.
 
-*Blocked on a decision, not on scripting.* `build-corpus.mjs` reads
-`requests.json`, which is gitignored and does not exist, and `corpus.json` does
-not exist either — so a cron run today would throw ENOENT before making a single
-API call. Something has to decide what each run researches first: a committed
-queue file, a GitHub issue label, or `--refresh` over an existing corpus that
-has to be seeded once by hand. Add an existence guard at the same time, so the
-failure is legible rather than a stack trace.
+This is measured, not suspected: running the nine through `verify()` produces
+104 adjustments and takes every one of them to 0% confirmed, because a source
+that does not exist cannot resolve. Closing it means *citing* them. Do not
+attempt to fix it by adding a blanket `why` to make them pass as LIKELY — a
+generic string is not an inference chain, and buying a pass from the verifier
+with one is exactly the move the thesis forbids.
+
+**Before the first rebuild PR is merged**, set `ANTHROPIC_API_KEY` in Settings →
+Secrets and variables → Actions, and run the workflow once by hand
+(`workflow_dispatch`) with `max: 1` to watch a real build end to end before
+letting the schedule spend anything unattended.
 
 ---
 

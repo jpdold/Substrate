@@ -1,0 +1,4 @@
+{
+  "note": "What to research on the next build. Tracked on purpose: the scheduled rebuild reads this file, so adding a product is a reviewable commit. Paste in what the site's request queue exports, or add entries by hand. An entry is safe to delete once its report is in corpus.json — the build skips anything already built and still inside the review cycle.",
+  "requested": []
+}

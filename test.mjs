@@ -39,7 +39,8 @@ const mod = await import(
     "gapView, gapFields, classSilence, TABL, " +
     "srcDensity, deriveAxes, DERIVED_AXES, EVW, srcNote, " +
     "compDeltas, compDeltaView, CATTR, " +
-    "tcmp, clearCmp, cmpSet, compareView, exportPayload, comparisonCSV, exportRows };"
+    "tcmp, clearCmp, cmpSet, compareView, exportPayload, comparisonCSV, exportRows, " +
+    "loadCorpus, META, CLASSES as CLS };"
   )
 );
 
@@ -50,7 +51,8 @@ const {
   gapView, gapFields, classSilence, TABL,
   srcDensity, deriveAxes, DERIVED_AXES, EVW, srcNote,
   compDeltas, compDeltaView, CATTR,
-  tcmp, clearCmp, cmpSet, compareView, exportPayload, comparisonCSV, exportRows
+  tcmp, clearCmp, cmpSet, compareView, exportPayload, comparisonCSV, exportRows,
+  loadCorpus, META
 } = mod;
 
 /* ---------------------------------------------------------- 1. integrity */
@@ -693,6 +695,118 @@ console.log("\nindex.html vs build-corpus.mjs");
   } finally {
     globalThis.fetch = realFetch;
   }
+}
+
+/* ------------------------------------------- 12. scheduled rebuild wiring */
+console.log("\nscheduled rebuild");
+{
+  const build = await import("./build-corpus.mjs");
+
+  /* The queue has no reason to relist a product built months ago, so a
+     scheduled rebuild that only reads the queue refreshes nothing. */
+  const old = { id: "a", brand: "Old", model: "Thing", gen: "2020-01-01", axes: {} };
+  const fresh = { id: "b", brand: "New", model: "Thing", gen: new Date().toISOString().slice(0, 10), axes: {} };
+  const stubP = { id: "c", brand: "Stub", model: "Thing", gen: "2020-01-01", stub: true, axes: {} };
+  const corpus = { products: [old, fresh, stubP] };
+
+  let w = build.workList([], corpus, { stale: false });
+  if (w.take.length) fail("an empty queue produced work without --stale");
+
+  w = build.workList([], corpus, { stale: true });
+  if (!w.take.some(x => /Old Thing/.test(x.q))) fail("--stale did not pick up a report past the cycle");
+  if (w.take.some(x => /New Thing/.test(x.q))) fail("--stale rebuilt a report still inside the cycle");
+  if (w.take.some(x => /Stub Thing/.test(x.q))) fail("--stale tried to rebuild a generated stub");
+
+  /* A product both queued and stale must be built once, not twice. */
+  w = build.workList([{ q: "Old Thing" }], corpus, { stale: true });
+  if (w.take.filter(x => /old.*thing/i.test(x.q)).length !== 1)
+    fail("a queued product that is also stale was scheduled twice");
+
+  /* The cap bounds the bill, and overflow is reported rather than dropped. */
+  const many = Array.from({ length: 9 }, (_, i) => ({ q: `Product ${i}` }));
+  w = build.workList(many, { products: [] }, { max: 5 });
+  if (w.take.length !== 5) fail(`cap not applied: took ${w.take.length}`);
+  if (w.deferred.length !== 4) fail(`cap dropped work silently: ${w.deferred.length} deferred, expected 4`);
+  if (build.MAX_PER_RUN !== 5) fail(`default cap is ${build.MAX_PER_RUN}, expected 5`);
+  ok("work list: stale detection, dedupe, stub exclusion, capped with overflow reported");
+
+  /* The workflow file is what actually runs monthly — assert the parts that
+     would fail silently or spend money wrongly. */
+  const wf = readFileSync(".github/workflows/rebuild.yml", "utf8");
+  if (!/workflow_dispatch/.test(wf)) fail("no manual trigger — the schedule could not be tested without waiting a month");
+  if (!/cron:/.test(wf)) fail("no schedule");
+  if (!/secrets\.ANTHROPIC_API_KEY/.test(wf)) fail("the key does not come from secrets");
+  if (/sk-ant-/.test(wf)) fail("a literal key is embedded in the workflow");
+  if (!/set -o pipefail/.test(wf)) fail("piping into tee would mask a failed build");
+  if (!/gh pr create/.test(wf)) fail("the run does not open a pull request");
+  if (/--auto|gh pr merge/.test(wf)) fail("the workflow merges its own PR, defeating the review gate");
+  if (!/git status --porcelain corpus\.json/.test(wf))
+    fail("change detection uses git diff, which cannot see a newly created corpus.json");
+  if (!/node test\.mjs/.test(wf)) fail("the workflow never runs the regression suite");
+  if (!/concurrency/.test(wf)) fail("two runs could race on the same branch");
+  ok("workflow: manual trigger, keyed from secrets, gated on review, tested before and after");
+
+  /* The queue is tracked on purpose — the build reads it in CI. */
+  const q = JSON.parse(readFileSync("queue.json", "utf8"));
+  if (!Array.isArray(q.requested)) fail("queue.json has no requested array");
+  ok(`queue.json tracked and parseable, ${q.requested.length} queued`);
+}
+
+/* ---------------------------------------- 13. corpus merges, never replaces */
+/* The embedded nine carry no sources at all, so this verifier nulls every field
+   they have. Replacing the embedded corpus with corpus.json would render the
+   site as nothing but gaps — the merge is what stops that. */
+console.log("\ncorpus loading");
+{
+  const before = P.slice();
+  const beforeIds = new Set(before.map(p => p.id));
+  const realFetch = globalThis.fetch;
+
+  const mkP = (id, over) => ({
+    id, brand: "Fetched", model: id, klass: "knife8", year: "current",
+    axes: { material: 1, sourcing: 1, construction: 1, assembly: 1, skill: 1, superstructure: 1 },
+    comps: [{ id: "c", n: "Comp", role: "Critical" }],
+    materials: [{ c: "c", n: "Mat", share: 50, spec: "S", t: "e", src: 0 }],
+    sourcing: [{ c: "c", m: "Src", o: "O", s: "s", t: "e", src: 0 }],
+    construction: { mode: "Factory", t: "e", auto: "a", tol: "t", src: 0, steps: [{ c: "c", p: "p" }] },
+    assembly: { sites: [{ l: "L", o: "O" }], label: "lbl", count: "Single site", t: "e", src: 0 },
+    skill: { tier: "T", t: "e", basis: "b", src: 0, ops: [["c", "op", "sk"]] },
+    parts: [{ c: "c", n: "P", m: "m", crit: "Critical", t: "e", src: 0, fail: "f" }],
+    issues: [], gen: "2026-08-14", rev: false,
+    sources: [{ t: "Src", u: "https://example.com/spec" }], vlog: [],
+    ...over,
+  });
+
+  const overridden = before.find(p => !p.stub).id;
+  globalThis.fetch = async url => {
+    if (String(url).includes("corpus.json")) return {
+      ok: true, json: async () => ({
+        schema: 1, built: "2026-08-14",
+        classes: { newklass: "A new class" },
+        products: [mkP("fetched-new"), mkP(overridden, { brand: "Overridden" })],
+      }),
+    };
+    throw new Error("no advisories");
+  };
+
+  try { await loadCorpus(); } finally { globalThis.fetch = realFetch; }
+
+  for (const p of before) {
+    if (!P.some(x => x.id === p.id)) fail(`loading corpus.json dropped the embedded product ${p.id}`);
+  }
+  if (!P.some(x => x.id === "fetched-new")) fail("the fetched product was not added");
+  const ov = P.find(x => x.id === overridden);
+  if (!ov || ov.brand !== "Overridden") fail("a rebuilt product did not override the embedded one of the same id");
+  if (P.filter(x => x.id === overridden).length !== 1) fail("the override duplicated the product instead of replacing it");
+  if (P.length !== before.length + 1) fail(`expected ${before.length + 1} products after merge, got ${P.length}`);
+  if (!CLASSES.knife8) fail("merging classes wiped the embedded ones");
+  if (!CLASSES.newklass) fail("the fetched class was not merged in");
+  if (!/embedded/.test(META.source)) fail(`META.source does not disclose the merge: ${META.source}`);
+
+  /* Restore, so the summary below counts the corpus the suite started with. */
+  P.length = 0; P.push(...before);
+  delete CLASSES.newklass;
+  ok(`corpus.json merges: ${before.length} embedded kept, 1 added, 1 overridden by id`);
 }
 
 /* ----------------------------------------------------------------- done */
