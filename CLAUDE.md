@@ -107,7 +107,15 @@ how much damage they cause:
    of the finding. Filter `!x.stub` first, and if fewer than two researched
    products remain, say the gaps are unclassified rather than guessing.
 
-8. **Stubs render.** Generated peers have no component tree. `quickView` and
+8. **`deriveAll()` runs on every path that admits a product** — at startup, in
+   `loadCorpus()` after the corpus is swapped, and in `ingest()` after a
+   generated product is pushed. Miss one and that product's score runs on the
+   pass's judged sourcing number while every other product's runs on evidence,
+   which makes the ranking incomparable without anything looking wrong.
+   `deriveAxes()` recomputes from the rows and never from the axis it wrote, so
+   calling it twice is safe.
+
+9. **Stubs render.** Generated peers have no component tree. `quickView` and
    `fullView` both short-circuit on `p.stub`. Anything new that walks
    `p.materials[0]` or `p.parts[1]` needs a length guard — that exact bug has
    been fixed twice.
@@ -134,14 +142,42 @@ displays as "machine-built, source-checked only" until a person flips it.
 
 ---
 
+## Derived axes
+
+Five of the six axes are the generating pass's judgment. **Sourcing is not** —
+it is computed from the report's own sourcing rows:
+
+```
+sourcing = ( EXACT + 0.5·LIKELY ) / sourcing rows × 100
+```
+
+Sourcing is the only axis where disclosure and the property being scored are
+the same thing: traceability nobody discloses is not traceability. The pass had
+been scoring it above what disclosure supports on seven of nine products, by as
+much as 41 points.
+
+**Do not extend this to the other five.** It was measured, and the note that
+used to live here — that certainty density "already measures nearly the same
+thing" — is wrong. Sourcing was in fact the *worst*-tracking axis of the six
+(mean absolute difference 25.2). Two separate reasons block the rest:
+
+- **material, superstructure** — multi-row, so they would grade smoothly, but
+  disclosure ≠ quality. A thoroughly documented cheap steel is still a cheap
+  steel; deriving these would score paperwork and call it quality.
+- **construction, assembly, skill** — one tagged field each, so a derived score
+  could only ever be 0, 50, or 100. Too coarse to rank with. (Skill's r=0.96
+  against density is an artifact of that coarseness, not a good fit.)
+
+The pass's original number is kept in `p.srcAdj` and shown on the report
+wherever it differs, so a published number is never revised in silence.
+
 ## Open work
 
-**Axis scores are the weakest link.** Materials and forming are source-checked;
-the six 0–100 axis scores are still the model's unverified judgment. The
-sourcing axis in particular should be derived arithmetically from certainty
-density, which already measures nearly the same thing. Deriving scores from
-verified fields would close the last gap where an unchecked number drives a
-visible ranking.
+**Five axis scores are still judgment.** Sourcing is derived (see below); the
+other five remain the generating pass's unverified opinion. There is no
+arithmetic fix for them — see the reasoning in *Derived axes* before trying
+one. Closing this properly means source-checking the axes themselves, not
+computing them from disclosure.
 
 **Delta matrix should pivot by component.** Right now deltas compare whole
 objects. "Same alloy, different forming" is a component-level fact — comparing

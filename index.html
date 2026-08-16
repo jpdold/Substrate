@@ -915,6 +915,51 @@ function deltas(p){
   return out.sort((a,b)=>Math.abs(b.d)-Math.abs(a.d));
 }
 
+/* ==================================================================
+   DERIVED AXES
+   ------------------------------------------------------------------
+   Five of the six axes are the generating pass's judgment. Sourcing is
+   not: it is computed from the sourcing rows on the report itself.
+
+   Sourcing is the one axis where disclosure and the property being
+   scored are the same thing — traceability that nobody discloses is
+   not traceability. That equivalence does not hold for the others. A
+   thoroughly documented cheap steel is still a cheap steel, so
+   deriving the material axis from disclosure would score paperwork and
+   call it quality. Construction, assembly and skill carry exactly one
+   tagged field each, so a derived score could only ever be 0, 50 or
+   100 — too coarse to rank with.
+   ================================================================== */
+
+/* Credit per certainty tag. LIKELY earns half: an inference chain is on
+   record, a source is not. */
+const EVW = {e:1, l:0.5, u:0};
+
+/* Which axes are computed rather than judged. renderMethod() reads this, so the
+   page cannot claim an axis is derived after someone stops deriving it. */
+const DERIVED_AXES = ["sourcing"];
+
+/* Null when there are no rows to compute from — a stub peer has no sourcing
+   at all and keeps whatever the generating pass gave it. */
+function srcDensity(p){
+  const rows=p.sourcing||[];
+  if(!rows.length) return null;
+  return Math.round(rows.reduce((a,x)=>a+(EVW[x.t]||0),0)/rows.length*100);
+}
+
+/* Always recomputes from the rows and never from the axis, so running it
+   twice cannot compound. The pass's original is kept so the correction can
+   be shown rather than made quietly. */
+function deriveAxes(p){
+  const d=srcDensity(p);
+  if(d===null){ p.srcAdj={derived:false}; return; }
+  const model = p.srcAdj && p.srcAdj.derived ? p.srcAdj.model : p.axes.sourcing;
+  p.srcAdj={derived:true, model, value:d, diff:d-model, rows:(p.sourcing||[]).length};
+  p.axes.sourcing=d;
+}
+function deriveAll(){ P.forEach(deriveAxes); }
+deriveAll();
+
 /* ============================ STATE ============================ */
 let S = {
   q:"", klass:new Set(), mode:new Set(), skillT:new Set(), sites:new Set(),
@@ -1051,6 +1096,7 @@ function renderReport(){
         <div>${cbar(p,true)}
           <div class="cmeta"><span><b>${c.pe}%</b> confirmed</span><span>${c.pl}% inferred</span><span>${c.pu}% missing</span></div></div>
       </div>
+      ${srcNote(p)}
       ${vpanel(p)}
     </div>
     <div class="tabs">
@@ -1486,6 +1532,7 @@ function ingest(o){
     parts:[], issues:[], live:true, stub:true, sources:[], vlog:[]
   }));
   P.push(built,...peers);
+  deriveAll();   // every path that admits a product derives its axes
   return built;
 }
 
@@ -1519,7 +1566,7 @@ async function loadCorpus(){
     const bad=[];
     c.products.forEach(p=>{ const log=verify({target:p,sources:p.sources||[]});
       if(log.length) bad.push(p.id+": "+log.length+" claim(s) adjusted"); });
-    P.length=0; P.push(...c.products);
+    P.length=0; P.push(...c.products); deriveAll();
     Object.keys(CLASSES).forEach(k=>delete CLASSES[k]);
     Object.assign(CLASSES,c.classes);
     META.built=c.built; META.source="corpus.json"; META.adjusted=bad;
@@ -1580,6 +1627,23 @@ function renderGen(){
     </div>
   </div>`;
 }
+/* The sourcing axis is computed, not judged. Where that lands somewhere other
+   than the generating pass put it, the site says so on the report rather than
+   revising a published number in silence. */
+function srcNote(p){
+  const a=p.srcAdj;
+  if(!a) return "";
+  if(!a.derived) return `<div class="vpanel">
+    <span class="eyebrow">Derived axis</span>
+    <ul><li>Material sourcing could not be computed — this record has no sourcing rows. The axis is the generating pass's judgment, unchecked.</li></ul></div>`;
+  const off = a.diff===0 ? "which is where the generating pass put it."
+    : `The generating pass scored it ${a.model}, ${Math.abs(a.diff)} point${Math.abs(a.diff)===1?"":"s"} ${a.diff<0?"above":"below"} what the disclosure supports.`;
+  return `<div class="vpanel ${a.diff===0?"fresh":""}">
+    <span class="eyebrow">Derived axis</span>
+    <ul><li class="${a.diff===0?"clean":""}">Material sourcing is computed from the ${a.rows} sourcing row${a.rows===1?"":"s"} on this report rather than judged: <b>${a.value}</b> of 100. ${off}</li></ul>
+  </div>`;
+}
+
 function vpanel(p){
   const srcs=(p.sources||[]).filter(x=>x&&x.u), age=ageDays(p);
   if(!p.gen && !srcs.length) return "";
@@ -1612,7 +1676,8 @@ function renderMethod(){
   const wrows = AXES.map(([k,l])=>`<tr>
     <td class="k">${l}</td>
     <td class="v mono">${DEFAULT_W[k].toFixed(1)}</td>
-    <td class="v">${AXIS_NOTE[k]}</td></tr>`).join("");
+    <td class="v">${AXIS_NOTE[k]}${DERIVED_AXES.includes(k)
+      ?` <span class="sub">Computed from this report's own rows, not judged.</span>`:""}</td></tr>`).join("");
   const formula = AXES.map(([k])=>`${DEFAULT_W[k].toFixed(1)}·${k}`).join("  +  ");
   const wsum = AXES.reduce((s,[k])=>s+DEFAULT_W[k],0).toFixed(1);
 
@@ -1665,7 +1730,11 @@ function renderMethod(){
       ${wrows}
     </table>
     <p class="mprose">These weights are an editorial judgment about what matters in a durable object, not a derived quantity. They are the default only — <b>Build custom</b> on any report re-runs the same arithmetic against weights you set yourself, over the same peer set.</p>
-    <p class="mprose"><b>The axis scores are the least verified thing on this site.</b> Materials, forming process, and origin are checked against sources and tagged accordingly. The six 0–100 values are the model's judgment and carry no certainty tag of their own, which means an unchecked number is driving a visible ranking. When you want to know how much of a report is actually confirmed, read the certainty bar, not the score.</p>
+    <p class="mprose">One of the six is computed rather than judged. <b>Material sourcing</b> is derived from the certainty of the report's own sourcing rows — a confirmed row counts full, an inferred one half, a missing one nothing — because traceability that nobody discloses is not traceability. The two are the same property, so there is no reason to guess at it.</p>
+    <div class="mform">sourcing = ( EXACT + 0.5 × LIKELY ) / sourcing rows × 100</div>
+    <p class="mprose">Where that lands somewhere other than the generating pass put it, the report shows both numbers rather than revising a published one in silence. Across the current corpus the pass scored sourcing above what disclosure supports on seven of nine products, by as much as 41 points.</p>
+    <p class="mprose">The other five are deliberately left alone. Disclosure and the property being scored coincide only for sourcing: a thoroughly documented cheap steel is still a cheap steel, so deriving the material axis would score paperwork and call it quality. Construction, assembly and skill carry one tagged field each, so a derived score there could only ever be 0, 50, or 100 — too coarse to rank with.</p>
+    <p class="mprose"><b>Those five remain the least verified thing on this site.</b> Materials, forming process, and origin are checked against sources and tagged accordingly, but the five judged axes carry no certainty tag of their own, which means an unchecked number still drives part of a visible ranking. When you want to know how much of a report is actually confirmed, read the certainty bar, not the score.</p>
   </div>
 
   <div class="sec">

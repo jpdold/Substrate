@@ -36,7 +36,8 @@ const mod = await import(
     stub + src + "\nexport { P, S, CLASSES, certCount, score, deltas, peers, verify, ingest, " +
     "quickView, fullView, peerView, customView, vpanel, matches, results, stale, ageDays, " +
     "norm, addReq, REQS, renderGen, renderMethod, AXES, DEFAULT_W, SEV, " +
-    "gapView, gapFields, classSilence, TABL };"
+    "gapView, gapFields, classSilence, TABL, " +
+    "srcDensity, deriveAxes, DERIVED_AXES, EVW, srcNote };"
   )
 );
 
@@ -44,7 +45,8 @@ const {
   P, S, CLASSES, certCount, score, deltas, peers, verify, ingest,
   quickView, fullView, peerView, customView, vpanel, results, stale, norm,
   renderMethod, AXES, DEFAULT_W, SEV,
-  gapView, gapFields, classSilence, TABL
+  gapView, gapFields, classSilence, TABL,
+  srcDensity, deriveAxes, DERIVED_AXES, EVW, srcNote
 } = mod;
 
 /* ---------------------------------------------------------- 1. integrity */
@@ -240,6 +242,63 @@ if (genP) {
     fail("gap view did not say the gaps are unclassified");
   ok("stubs excluded from silence; single-product class reported as unclassified");
 } else fail("no generated product to check stub exclusion against");
+
+/* ------------------------------------------------------ 8. derived axes */
+console.log("\nderived axes");
+
+/* The axis on the product must equal what the rows say, or the score is
+   running on a number nobody derived. */
+for (const p of P) {
+  const d = srcDensity(p);
+  if (d === null) {
+    if (p.srcAdj?.derived) fail(`${p.id}: claims a derived axis with no sourcing rows`);
+    continue;
+  }
+  if (p.axes.sourcing !== d)
+    fail(`${p.id}: sourcing axis is ${p.axes.sourcing}, rows compute to ${d}`);
+  if (!p.srcAdj?.derived) fail(`${p.id}: derived axis not recorded`);
+  if (p.srcAdj.value !== d) fail(`${p.id}: recorded value ${p.srcAdj.value} != ${d}`);
+  if (p.srcAdj.diff !== d - p.srcAdj.model) fail(`${p.id}: diff does not reconcile`);
+}
+ok("every sourcing axis equals its rows, and the adjustment is recorded");
+
+/* Running it twice must not compound: it derives from rows, never from the
+   axis it just wrote. */
+const dp = P.find(p => p.srcAdj?.derived);
+const snap = JSON.stringify(dp.srcAdj);
+deriveAxes(dp); deriveAxes(dp);
+if (JSON.stringify(dp.srcAdj) !== snap) fail("deriveAxes is not idempotent");
+ok("deriveAxes is idempotent — model original survives repeat runs");
+
+/* Half credit for LIKELY is the rule the Method page publishes. */
+if (EVW.e !== 1 || EVW.l !== 0.5 || EVW.u !== 0) fail("evidence weights are not 1 / 0.5 / 0");
+const allE = { sourcing: [{ t: "e" }, { t: "e" }] };
+const allU = { sourcing: [{ t: "u" }, { t: "u" }] };
+const half = { sourcing: [{ t: "e" }, { t: "u" }] };
+if (srcDensity(allE) !== 100) fail("all-confirmed sourcing did not score 100");
+if (srcDensity(allU) !== 0) fail("all-missing sourcing did not score 0");
+if (srcDensity(half) !== 50) fail("half-confirmed sourcing did not score 50");
+if (srcDensity({ sourcing: [] }) !== null) fail("empty sourcing should be null, not 0");
+ok("scale anchored: 100 all confirmed, 50 half, 0 none, null when there are no rows");
+
+/* A stub keeps the pass's axis and must say the axis is unchecked, not
+   silently present a judged number as derived. */
+const stubP = P.find(p => p.stub);
+if (stubP) {
+  if (stubP.srcAdj?.derived) fail("a stub reported a derived axis");
+  if (!/could not be computed/.test(srcNote(stubP))) fail("stub does not disclose the axis is unchecked");
+  ok("stub keeps the judged axis and discloses that it is unchecked");
+} else fail("no stub to check");
+
+/* The Method page must document the derivation, not the old all-six claim. */
+const m2 = renderMethod();
+for (const k of DERIVED_AXES) {
+  if (!m2.includes("not judged")) fail(`method page does not mark ${k} as derived`);
+}
+if (!/0\.5/.test(m2)) fail("method page does not publish the half-credit rule");
+if (/The axis scores are the least verified/.test(m2))
+  fail("method page still claims all six axes are unverified judgment");
+ok("method page documents the derivation and no longer claims all six are judged");
 
 /* ----------------------------------------------------------------- done */
 console.log("");
