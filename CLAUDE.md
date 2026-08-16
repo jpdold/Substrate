@@ -157,7 +157,21 @@ how much damage they cause:
     otherwise returns a partial report that parses as "no JSON object in
     response".
 
-11. **Stubs render.** Generated peers have no component tree. `quickView` and
+11. **An export carries the absence, not just the values.** `exportRows()` ships
+    `missing`, `inferred`, `certainty`, `sourcingAxis` (the pass's original
+    alongside the derived figure), `verifierAdjustments`, and `reviewed`. A
+    payload of values alone would read as a far more complete record than the
+    page it came from, which is the one thing the thesis forbids — and unlike
+    the page, a CSV in a spreadsheet has no hatched gap to make absence visible.
+    The comparison sheet labels every axis `derived from evidence` or
+    `pass judgment, unverified` for the same reason.
+
+    PDF export is `window.print()` against a print stylesheet, not a library.
+    Invariant 3 rules out a bundler, so the browser's own print-to-PDF is the
+    only honest route; the stylesheet repaints to ink-on-paper rather than
+    printing a dark UI.
+
+12. **Stubs render.** Generated peers have no component tree. `quickView` and
    `fullView` both short-circuit on `p.stub`. Anything new that walks
    `p.materials[0]` or `p.parts[1]` needs a length guard — that exact bug has
    been fixed twice.
@@ -221,13 +235,17 @@ arithmetic fix for them — see the reasoning in *Derived axes* before trying
 one. Closing this properly means source-checking the axes themselves, not
 computing them from disclosure.
 
-**Compare tray and export are stubs.** Both `alert()`. The tray collects
-selections correctly; the side-by-side workspace with user weighting isn't
-built. Export should produce PDF, structured JSON, and a comparison sheet.
-
 **Scheduled rebuild.** A GitHub Action running `build-corpus.mjs` monthly and
 opening a PR rather than committing to main. The PR *is* the `rev: false` review
 gate. Key goes in repo secrets.
+
+*Blocked on a decision, not on scripting.* `build-corpus.mjs` reads
+`requests.json`, which is gitignored and does not exist, and `corpus.json` does
+not exist either — so a cron run today would throw ENOENT before making a single
+API call. Something has to decide what each run researches first: a committed
+queue file, a GitHub issue label, or `--refresh` over an existing corpus that
+has to be seeded once by hand. Add an existence guard at the same time, so the
+failure is legible rather than a stack trace.
 
 ---
 

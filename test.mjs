@@ -38,7 +38,8 @@ const mod = await import(
     "norm, addReq, REQS, renderGen, renderMethod, AXES, DEFAULT_W, SEV, " +
     "gapView, gapFields, classSilence, TABL, " +
     "srcDensity, deriveAxes, DERIVED_AXES, EVW, srcNote, " +
-    "compDeltas, compDeltaView, CATTR };"
+    "compDeltas, compDeltaView, CATTR, " +
+    "tcmp, clearCmp, cmpSet, compareView, exportPayload, comparisonCSV, exportRows };"
   )
 );
 
@@ -48,7 +49,8 @@ const {
   renderMethod, AXES, DEFAULT_W, SEV,
   gapView, gapFields, classSilence, TABL,
   srcDensity, deriveAxes, DERIVED_AXES, EVW, srcNote,
-  compDeltas, compDeltaView, CATTR
+  compDeltas, compDeltaView, CATTR,
+  tcmp, clearCmp, cmpSet, compareView, exportPayload, comparisonCSV, exportRows
 } = mod;
 
 /* ---------------------------------------------------------- 1. integrity */
@@ -383,7 +385,112 @@ if (CATTR.some(a => a.k === "role")) fail("role is in the header, not a compared
   ok("both peer pivots route correctly");
 }
 
-/* ------------------------------------------- 10. the two duplicated copies */
+/* ------------------------------------------ 10. compare tray and exports */
+console.log("\ncompare tray and exports");
+
+/* The tray shipped unreachable: it rendered and removed, but nothing ever
+   added to S.cmp, so it could never become non-empty. That is the regression
+   to guard — a compare feature you cannot put anything into. */
+{
+  clearCmp();
+  if (S.cmp.size !== 0) fail("clearCmp did not empty the tray");
+  const knives = P.filter(p => p.klass === "knife8" && !p.stub).slice(0, 2);
+  tcmp(knives[0].id);
+  if (S.cmp.size !== 1) fail("nothing can be added to the compare tray");
+  tcmp(knives[1].id);
+  tcmp(knives[1].id);                       // toggles back off
+  if (S.cmp.size !== 1) fail("the compare toggle does not toggle");
+  tcmp(knives[1].id);
+  if (cmpSet().length !== 2) fail("cmpSet did not resolve the selection to products");
+  ok("the tray can be filled, toggled, and cleared");
+}
+
+/* The workspace itself, across the three shapes it has to handle. */
+{
+  const knives = P.filter(p => p.klass === "knife8" && !p.stub).slice(0, 2);
+  const skillet = P.find(p => p.klass === "skillet" && !p.stub);
+
+  clearCmp(); tcmp(knives[0].id);
+  let out = compareView();
+  if (!/at least two/.test(out)) fail("a single selection did not ask for a second");
+
+  tcmp(knives[1].id);
+  out = compareView();
+  if (/undefined|NaN|\[object Object\]/.test(out)) fail("compare workspace: stray value in output");
+  if (!/Side by side/.test(out)) fail("compare workspace did not render the matrix");
+  if (!/Component deltas/.test(out)) fail("same-class selection did not get component deltas");
+  for (const p of knives) if (!out.includes(p.brand)) fail(`${p.brand} missing from the matrix`);
+
+  /* Cross-class is the case that must not pretend: a blade and a jar share no
+     roster, so the parts section has to decline rather than invent alignment. */
+  tcmp(skillet.id);
+  out = compareView();
+  if (/undefined|NaN|\[object Object\]/.test(out)) fail("cross-class compare: stray value in output");
+  if (!/cannot be compared across different classes/.test(out))
+    fail("cross-class selection still offered a component comparison");
+  if (!/Side by side/.test(out)) fail("cross-class selection lost the axis matrix, which is still valid");
+  ok("workspace handles one, same-class, and cross-class selections");
+}
+
+/* An export that carried only the values would read as a more complete record
+   than the page it came from. */
+{
+  clearCmp();
+  const w = P.find(p => p.brand.startsWith("W") && p.klass === "knife8");
+  const unbranded = P.find(p => /Unbranded/.test(p.brand));
+  const stub = P.find(p => p.stub);
+  tcmp(w.id); tcmp(unbranded.id);
+
+  /* Guard before dereferencing: if the tray regressed, cmpSet() is empty and
+     every assertion below would throw instead of reporting, aborting the run
+     and hiding the checks that follow. */
+  const pay = exportPayload(cmpSet());
+  const u = pay.products.find(x => /Unbranded/.test(x.brand));
+  const wr = pay.products.find(x => x.brand.startsWith("W"));
+  if (pay.products.length !== 2 || !u || !wr) {
+    fail(`export did not receive both selected products (got ${pay.products.length})`);
+  } else {
+    if (!u.missing.length) fail("export omitted the fields with no basis");
+    if (u.missing.length !== gapFields(unbranded).filter(x => x.t === "u").length)
+      fail("export's missing list disagrees with the gap report");
+    if (u.certainty.pu === undefined) fail("export omitted the certainty breakdown");
+    if (u.reviewed !== false) fail("export did not carry review state");
+    if (!wr.sourcingAxis || !wr.sourcingAxis.derived)
+      fail("export omitted the derived-sourcing adjustment");
+    else if (wr.sourcingAxis.model === wr.axes.sourcing)
+      fail("export lost the pass's original sourcing figure");
+  }
+  if (!/judgment/.test(pay.note)) fail("export does not disclose that five axes are unverified");
+
+  /* A stub has no component tree — exporting one must not throw. */
+  if (stub) {
+    const s = exportRows([stub])[0];
+    if (!s.stub) fail("a stub was not marked as such in the export");
+    if (s.missing.length) fail("a stub reported gaps it cannot have");
+  }
+  ok("JSON export carries gaps, certainty, review state and the axis adjustment");
+
+  /* The sheet is read by spreadsheets, so quoting is load-bearing. */
+  const csv = comparisonCSV(cmpSet());
+  const lines = csv.split("\r\n");
+  const cols = lines[0].split('","').length;
+  for (const [i, line] of lines.entries()) {
+    if (line.split('","').length !== cols) fail(`comparison sheet row ${i} has a ragged column count`);
+    if (!line.startsWith('"') || !line.endsWith('"')) fail(`comparison sheet row ${i} is not quoted`);
+  }
+  if (!/derived from evidence/.test(csv)) fail("sheet does not mark which axis is derived");
+  if (!/pass judgment, unverified/.test(csv)) fail("sheet does not mark the judged axes");
+  if (!/Fields with no basis/.test(csv)) fail("sheet omits the gap count");
+
+  const tricky = comparisonCSV([{ ...w, brand: 'A "quoted", brand', model: "M" }, unbranded]);
+  if (!/A ""quoted"", brand/.test(tricky)) fail("comparison sheet does not escape embedded quotes");
+  if (tricky.split("\r\n")[0].split('","').length !== 3) fail("an embedded comma broke the sheet's columns");
+  ok(`comparison sheet: ${lines.length} rows, quoted and escaped`);
+
+  clearCmp();
+}
+
+/* ------------------------------------------- 11. the two duplicated copies */
 /* Invariant 1 says verify() in index.html and build-corpus.mjs must stay
    identical, and invariant 8's deriveAxes() is duplicated the same way. A
    comment cannot enforce that — they had already drifted in their log wording

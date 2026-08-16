@@ -149,6 +149,62 @@ header{
 .row .score{font-family:var(--mono);font-size:26px;font-weight:600;letter-spacing:-.02em;line-height:1}
 .row .scorelab{font-family:var(--mono);font-size:9.5px;letter-spacing:.16em;color:var(--fg-3);text-transform:uppercase;margin-top:4px}
 
+/* The row is a <button>, so the compare toggle cannot live inside it — it sits
+   beside it in a wrapper. Both stay keyboard-reachable that way. Selected state
+   is carried by brightness and a tick, not by hue: teal still means EXACT. */
+.rowwrap{display:flex;align-items:stretch;gap:8px;margin-bottom:9px}
+.rowwrap .row{margin-bottom:0;flex:1;min-width:0}
+.cmpbtn{
+  flex:none;width:46px;background:var(--bg-2);border:1px solid var(--line-soft);
+  border-radius:var(--r);color:var(--fg-3);font-family:var(--mono);font-size:15px;
+  transition:border-color .14s,background .14s,color .14s;
+}
+.cmpbtn:hover{border-color:var(--line);background:var(--bg-3);color:var(--fg)}
+.cmpbtn.on{border-color:var(--fg-3);background:var(--bg-3);color:var(--fg)}
+
+/* ---------- compare workspace ---------- */
+.cmxwrap{overflow-x:auto;margin-top:4px}
+.cmx{width:100%;border-collapse:collapse;min-width:520px}
+.cmx th{
+  text-align:left;font-family:var(--mono);font-size:10px;letter-spacing:.14em;
+  text-transform:uppercase;color:var(--fg-3);font-weight:400;
+  padding:0 14px 9px 0;border-bottom:1px solid var(--line);vertical-align:bottom;
+}
+.cmx th.p{color:var(--fg-2);text-transform:none;letter-spacing:.02em;font-size:12px}
+.cmx td{padding:10px 14px 10px 0;border-bottom:1px solid var(--line-soft);font-size:13.5px;vertical-align:top}
+.cmx td.k{color:var(--fg-3);white-space:nowrap}
+.cmx td.lead{color:var(--fg);font-weight:600}
+.cmx tr:last-child td{border-bottom:none}
+.cbig{font-family:var(--mono);font-size:22px;font-weight:600;letter-spacing:-.02em}
+.csub{display:block;font-family:var(--mono);font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--fg-3);margin-top:3px}
+.exprow{display:flex;gap:10px;flex-wrap:wrap;margin-top:16px}
+.exprow .btn{width:auto;margin:0;padding:9px 18px}
+
+/* ---------- print: the export path for PDF ---------- */
+/* No bundler and no dependencies means no PDF library — the browser's own
+   print-to-PDF is the honest route. Repaint to ink-on-paper rather than
+   printing a dark UI, and drop everything that is navigation. */
+@media print{
+  header,.hero,.rail,.tray,footer,.sortbox,.cmpbtn,.back,.exprow,.tabs,.pivot{display:none!important}
+  html,body{background:#fff!important;color:#111!important}
+  .wrap{max-width:none;padding:0}
+  .body{display:block}
+  .sec,.cdelta,.gblock,.genwrap,.vpanel,.qcard,.cpanel{
+    background:#fff!important;border-color:#bbb!important;break-inside:avoid;
+  }
+  .cmx th,.cmx td,.dt th,.dt td{border-color:#ccc!important}
+  .cmx td.k,.csub,.eyebrow,.gwhy,.cdflag,.cdp b,.note,.sub{color:#555!important}
+  .cmx td.lead,.cbig,h2,h3,h4{color:#000!important}
+  .mprose,.cdshared,.cdp,.dt td{color:#222!important}
+  .tag.e{color:#0a6b66!important;border-color:#0a6b66!important;background:none!important}
+  .tag.l{color:#8a5a00!important;border-color:#8a5a00!important;background:none!important}
+  .tag.u{color:#555!important;border-color:#555!important}
+  .gap{color:#555!important;border-color:#999!important}
+  .cbar{border:1px solid #999}
+  a{color:#111!important;text-decoration:underline}
+  .cmxwrap{overflow:visible}
+}
+
 /* ---------- certainty bar (signature element) ---------- */
 .cbar{display:flex;height:5px;border-radius:2px;overflow:hidden;background:var(--bg)}
 .cbar span{display:block;height:100%}
@@ -434,6 +490,8 @@ header{
 .chip button{color:var(--fg-3);font-size:15px;line-height:1}
 .chip button:hover{color:var(--fg)}
 .tray .btn{width:auto;margin:0 0 0 auto;padding:9px 20px}
+.trayact{display:flex;gap:8px;margin-left:auto}
+.trayact .btn{margin:0;padding:9px 18px}
 
 footer{border-top:1px solid var(--line-soft);padding:26px 0 40px;color:var(--fg-3);font-size:12px}
 footer .frow{display:flex;gap:26px;flex-wrap:wrap}
@@ -1053,8 +1111,9 @@ function setQ(v){ S.q=v; document.getElementById("bq").value=v; document.getElem
 function renderList(){
   const r=results();
   const rows = r.length ? r.map(p=>{
-    const c=certCount(p);
-    return `<button class="row ${p.stub?"stub":""}" onclick="open_('${p.id}')">
+    const c=certCount(p), on=S.cmp.has(p.id);
+    return `<div class="rowwrap">
+      <button class="row ${p.stub?"stub":""}" onclick="open_('${p.id}')">
       <div>
         <div class="brand">${p.brand}${p.live?`<span class="livemark">LIVE</span>`:""}</div>
         <div class="name">${p.model}</div>
@@ -1064,7 +1123,11 @@ function renderList(){
         <div class="cmeta"><span><b>${c.pe}%</b> confirmed</span><span>${c.pu}% missing</span></div></div>
       <div class="scorecell"><div class="score">${score(p)}</div>
         <div class="scorelab">${stale(p)?"Due for review":"Quality"}</div></div>
-    </button>`;
+      </button>
+      <button class="cmpbtn ${on?"on":""}" onclick="tcmp('${p.id}')"
+        aria-pressed="${on}" title="${on?"Remove from comparison":"Add to comparison"}"
+        aria-label="${on?"Remove":"Add"} ${p.brand} ${p.model} ${on?"from":"to"} comparison">${on?"✓":"+"}</button>
+    </div>`;
   }).join("") : (S.q
     ? `<div class="empty"><b>No report yet for “${S.q}”.</b>
         Reports are built in batches, checked against their sources, and published together. Name this product and it goes into the next build.
@@ -1357,8 +1420,10 @@ const CATTR = [
 
 /* Null when there is nothing researched to compare against. Stubs carry no
    component tree, so they cannot take part. */
-function compDeltas(p){
-  const ps=peers(p).filter(x=>!x.stub);
+/* `others` lets the compare workspace scope this to the reader's own selection
+   instead of the whole class. Omitted, it means every researched peer. */
+function compDeltas(p, others){
+  const ps=(others||peers(p)).filter(x=>!x.stub && x.id!==p.id);
   if(!ps.length || p.stub) return null;
   const all=[p,...ps];
 
@@ -1391,8 +1456,8 @@ function compDeltas(p){
   return {all, rows};
 }
 
-function compDeltaView(p){
-  const cd=compDeltas(p);
+function compDeltaView(p, others, scope){
+  const cd=compDeltas(p, others);
   if(!cd) return `<div class="sec"><div class="empty">
     <b>No researched peer to compare against.</b>
     Component deltas need at least one peer with a component tree. The peers in this class carry axis scores only.</div></div>`;
@@ -1426,7 +1491,7 @@ function compDeltaView(p){
 
   return `<div class="sec">
     <div class="sechead"><h3>Component deltas</h3>
-      <span class="note">Compared part by part against ${cd.all.length-1} researched peer${cd.all.length===2?"":"s"}.</span></div>
+      <span class="note">Compared part by part against ${cd.all.length-1} ${scope||"researched peer"}${cd.all.length===2?"":"s"}.</span></div>
     <p class="mprose">An attribute marked <b>same across class</b> is a class norm and tells you nothing about this product in particular. The rows marked <b>differs</b> are what actually separates these products from one another.</p>
     <div style="margin-top:18px">${blocks}</div>
   </div>`;
@@ -1459,7 +1524,7 @@ function customView(p){
       <div class="pscore">${cs}</div>
       <div class="pdelta">${diff===0?"same as default weighting":(diff>0?"+":"")+diff+" vs default weighting"}</div>
       <ul>${AXES.filter(a=>S.secs.has(a[0])).map(a=>`<li>${a[1]} · ${p.axes[a[0]]}</li>`).join("")||"<li>No sections selected</li>"}</ul>
-      <button class="btn" onclick="alert('Export not built in this pass. Would produce PDF, JSON, and comparison sheet.')">Export</button>
+      <button class="btn" onclick="exportOne('${p.id}')">Export JSON</button>
       <button class="btn ghost" onclick="S.w={...DEFAULT_W};S.secs=new Set(AXES.map(a=>a[0]));render()">Reset to defaults</button>
     </div>
   </div></div>`;
@@ -1602,9 +1667,175 @@ function renderTray(){
     `<span class="eyebrow">Compare</span>`+
     [...S.cmp].map(id=>{const p=P.find(x=>x.id===id);
       return `<span class="chip">${p.brand} ${p.model.split("—")[0]}<button onclick="uncmp('${id}')" aria-label="Remove">×</button></span>`}).join("")+
-    `<button class="btn" onclick="alert('Side-by-side workspace with user weighting. Not built in this pass.')">Compare ${S.cmp.size}</button>`;
+    `<div class="trayact">
+      <button class="btn ghost" onclick="clearCmp()">Clear</button>
+      <button class="btn" onclick="openCompare()">Compare ${S.cmp.size}</button>
+    </div>`;
 }
 function uncmp(id){ S.cmp.delete(id); render(); }
+function tcmp(id){ S.cmp.has(id)?S.cmp.delete(id):S.cmp.add(id); render(); }
+function clearCmp(){ S.cmp.clear(); if(S.view==="compare") S.view="list"; render(); }
+function cmpSet(){ return [...S.cmp].map(id=>P.find(x=>x.id===id)).filter(Boolean); }
+function openCompare(){ S.view="compare"; render(); window.scrollTo({top:0}); }
+
+/* ==================================================================
+   EXPORT
+   ------------------------------------------------------------------
+   In-memory only, downloaded as a file — the same route the request
+   queue already uses, and the reason invariant 4 holds.
+
+   An export that carried only the values would read as a far more
+   complete record than the page it came from, so every payload also
+   carries what is missing, what was merely inferred, what the verifier
+   downgraded, and whether a person has reviewed any of it.
+   ================================================================== */
+function download(name, mime, text){
+  const a=document.createElement("a");
+  a.href=URL.createObjectURL(new Blob([text],{type:mime}));
+  a.download=name; a.click(); URL.revokeObjectURL(a.href);
+}
+
+function exportRows(list){
+  return list.map(p=>({
+    id:p.id, brand:p.brand, model:p.model, klass:CLASSES[p.klass]||p.klass, year:p.year,
+    stub: !!p.stub,
+    reviewed: !!p.rev,
+    score:{ default: score(p), weighted: score(p, S.w) },
+    axes: {...p.axes},
+    sourcingAxis: p.srcAdj || null,
+    certainty: certCount(p),
+    missing: p.stub?[]:gapFields(p).filter(x=>x.t==="u").map(x=>({field:x.kind, of:x.label})),
+    inferred: p.stub?[]:gapFields(p).filter(x=>x.t==="l").map(x=>({field:x.kind, of:x.label})),
+    components:(p.comps||[]).map(c=>({id:c.id, name:c.n, role:c.role})),
+    sources:(p.sources||[]).map(s=>s&&s.u).filter(Boolean),
+    verifierAdjustments: p.vlog||[],
+  }));
+}
+
+/* Payload building is kept separate from the download so the contents can be
+   checked without a DOM — what these carry is the part that matters. */
+function exportPayload(list){
+  return {
+    generated: new Date().toISOString(),
+    schema: META.schema, corpusBuilt: META.built, corpusSource: META.source,
+    weighting: {...S.w},
+    note: "Sourcing is computed from each report's own rows. The other five axis "
+        + "scores are the generating pass's judgment and carry no certainty tag. "
+        + "Fields listed under \"missing\" have no basis at all and were not estimated.",
+    products: exportRows(list),
+  };
+}
+
+function comparisonCSV(list){
+  const q=v=>`"${String(v==null?"":v).replace(/"/g,'""')}"`;
+  const rows=[
+    ["Field", ...list.map(p=>`${p.brand} ${p.model}`)],
+    ["Class", ...list.map(p=>CLASSES[p.klass]||p.klass)],
+    ["Composite — default weighting", ...list.map(p=>score(p))],
+    ["Composite — your weighting", ...list.map(p=>score(p, S.w))],
+    ...AXES.map(([k,l])=>[`${l} — ${DERIVED_AXES.includes(k)?"derived from evidence":"pass judgment, unverified"}`,
+      ...list.map(p=>p.axes[k])]),
+    ["Confirmed %", ...list.map(p=>certCount(p).pe)],
+    ["Inferred %", ...list.map(p=>certCount(p).pl)],
+    ["Missing %", ...list.map(p=>certCount(p).pu)],
+    ["Fields with no basis", ...list.map(p=>p.stub?"":gapFields(p).filter(x=>x.t==="u").length)],
+    ["Reviewed by a person", ...list.map(p=>p.rev?"yes":"no")],
+  ];
+  return rows.map(r=>r.map(q).join(",")).join("\r\n");
+}
+
+function exportJSON(list){
+  if(!list.length) return;
+  download("substrate-export.json","application/json",JSON.stringify(exportPayload(list),null,2));
+}
+function exportCSV(list){
+  if(!list.length) return;
+  download("substrate-comparison.csv","text/csv",comparisonCSV(list));
+}
+
+function exportOne(id){ const p=P.find(x=>x.id===id); if(p) exportJSON([p]); }
+
+/* ==================================================================
+   COMPARE WORKSPACE
+   ================================================================== */
+function compareView(){
+  const sel=cmpSet();
+  if(sel.length<2) return `
+    <button class="back" onclick="goHome()">← Back to results</button>
+    <div class="sec"><div class="empty">
+      <b>Pick at least two products to compare.</b>
+      Add them from the results list with the button beside each row. The tray keeps your selection while you browse.</div></div>`;
+
+  const th=`<tr><th>Field</th>${sel.map(p=>
+    `<th class="p">${p.brand}<span class="csub">${p.model}</span></th>`).join("")}</tr>`;
+
+  const best=(vals)=>Math.max(...vals);
+  const row=(label,vals,lead)=>{
+    const top=lead?best(vals.map(Number)):null;
+    return `<tr><td class="k">${label}</td>${vals.map(v=>
+      `<td class="${lead&&Number(v)===top?"lead":""}">${v}</td>`).join("")}</tr>`;
+  };
+
+  const weighted=sel.map(p=>score(p,S.w));
+  const topW=Math.max(...weighted);
+
+  const body=[
+    `<tr><td class="k">Composite</td>${sel.map((p,i)=>
+      `<td><span class="cbig${weighted[i]===topW?" lead":""}">${weighted[i]}</span>
+        <span class="csub">${weighted[i]===score(p)?"default weighting":`${score(p)} at default`}</span></td>`).join("")}</tr>`,
+    `<tr><td class="k">Class</td>${sel.map(p=>`<td>${CLASSES[p.klass]||p.klass}</td>`).join("")}</tr>`,
+    ...AXES.map(([k,l])=>row(
+      `${l}${DERIVED_AXES.includes(k)?' <span class="csub">derived</span>':""}`,
+      sel.map(p=>p.axes[k]), true)),
+    `<tr><td class="k">Certainty</td>${sel.map(p=>{const c=certCount(p);
+      return `<td>${cbar(p)}<span class="csub">${c.pe}% confirmed · ${c.pu}% missing</span></td>`}).join("")}</tr>`,
+    row("Fields with no basis", sel.map(p=>p.stub?"—":gapFields(p).filter(x=>x.t==="u").length)),
+    row("Reviewed by a person", sel.map(p=>p.rev?"yes":"no")),
+  ].join("");
+
+  const klasses=new Set(sel.map(p=>p.klass));
+  const researched=sel.filter(p=>!p.stub);
+  const parts = klasses.size===1 && researched.length>=2
+    ? compDeltaView(researched[0], researched, "selected product")
+    : `<div class="sec"><div class="empty">
+        <b>Parts cannot be compared across ${klasses.size>1?"different classes":"this selection"}.</b>
+        ${klasses.size>1
+          ? "These products do not share a component roster — a blade and a jar have nothing to line up. The axis scores above still compare, because they are on the same 0–100 scale."
+          : "Component deltas need at least two researched products; a generated peer carries axis scores only."}</div></div>`;
+
+  const sliders=AXES.map(([k,l])=>`<div class="wrow"><span>${l}</span>
+    <input class="slider" type="range" min="0" max="2" step="0.1" value="${S.w[k]}"
+      oninput="S.w['${k}']=+this.value;render()" aria-label="Weight for ${l}">
+    <span class="wv">${S.w[k].toFixed(1)}</span></div>`).join("");
+
+  return `
+  <button class="back" onclick="goHome()">← Back to results</button>
+  <div class="genwrap">
+    <h3>Comparing ${sel.length} products</h3>
+    <p>The composite recomputes as you move the weights. Only the sourcing axis is derived from evidence; the other five are the generating pass's judgment, so read the certainty row before the scores.</p>
+  </div>
+
+  <div class="sec">
+    <div class="sechead"><h3>Side by side</h3>
+      <span class="note">The strongest figure in each row is highlighted. It is not a recommendation.</span></div>
+    <div class="cmxwrap"><table class="cmx">${th}${body}</table></div>
+    <div class="exprow">
+      <button class="btn ghost" onclick="exportJSON(cmpSet())">Export JSON</button>
+      <button class="btn ghost" onclick="exportCSV(cmpSet())">Comparison sheet</button>
+      <button class="btn ghost" onclick="window.print()">Print or save as PDF</button>
+    </div>
+  </div>
+
+  <div class="sec">
+    <div class="sechead"><h3>Axis weighting</h3>
+      <span class="note">Your weighting applies to every product above and travels with the exports.</span></div>
+    ${sliders}
+    <button class="btn ghost" style="width:auto;margin-top:14px;padding:8px 16px"
+      onclick="S.w={...DEFAULT_W};render()">Reset to defaults</button>
+  </div>
+
+  ${parts}`;
+}
 
 
 /* ==================================================================
@@ -1917,6 +2148,7 @@ function render(){
   if(S.view==="gen"){ document.getElementById("main").innerHTML=renderGen();
     const el=document.getElementById("gq"); if(el){el.focus();el.setSelectionRange(el.value.length,el.value.length);} }
   else if(S.view==="method"){ document.getElementById("main").innerHTML=renderMethod(); }
+  else if(S.view==="compare"){ document.getElementById("main").innerHTML=compareView(); }
   else if(S.view==="report"&&S.cur) renderReport(); else renderList();
   renderTray();
 }
