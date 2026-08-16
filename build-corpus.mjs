@@ -212,12 +212,15 @@ export async function checkSources(o, fetchImpl = fetch) {
       status = r.status;
     } catch { status = "unreachable"; }
 
+    /* Name the source, never its index. Indices shift whenever a source is
+       added or removed, and a log line pointing at a slot that no longer
+       exists is worse than no log line. */
     if (GONE.has(status)) {
       s.deadUrl = s.u; s.u = ""; s.httpStatus = status;
-      log.push(`Source [${i}] “${s.t}” returned ${status} — anything citing it can no longer be EXACT`);
+      log.push(`Source “${s.t}” returned ${status} — anything citing it can no longer be EXACT`);
     } else if (status !== 200) {
       s.httpStatus = status;
-      log.push(`Source [${i}] “${s.t}” answered ${status} — left in place; a block or a timeout is not a dead page`);
+      log.push(`Source “${s.t}” answered ${status} — left in place; a block or a timeout is not a dead page`);
     }
   }
   return log;

@@ -1,0 +1,287 @@
+{
+  "schema": 1,
+  "built": "2026-08-16",
+  "classes": {},
+  "products": [
+    {
+      "id": "wusthof",
+      "brand": "Wüsthof",
+      "model": "Classic 8\" Cook's Knife",
+      "klass": "knife8",
+      "year": "Unknown (Classic line ongoing since 1930s; current PEtec spec since ~2010s)",
+      "axes": {
+        "material": 80,
+        "sourcing": 38,
+        "construction": 90,
+        "assembly": 90,
+        "skill": 80,
+        "superstructure": 85
+      },
+      "comps": [
+        {
+          "id": "blade",
+          "n": "Blade/tang/bolster (single forged piece)",
+          "role": "Critical"
+        },
+        {
+          "id": "handle",
+          "n": "Handle scales",
+          "role": "Structural"
+        },
+        {
+          "id": "rivets",
+          "n": "Handle rivets",
+          "role": "Structural"
+        },
+        {
+          "id": "anode",
+          "n": "Sacrificial anode ring",
+          "role": "Functional"
+        }
+      ],
+      "materials": [
+        {
+          "c": "blade",
+          "n": "X50CrMoV15 (DIN 1.4116) chromium-molybdenum-vanadium martensitic stainless steel",
+          "share": 75,
+          "spec": "~0.5% C, ~15% Cr, plus Mo and V; hardened to 58 HRC",
+          "t": "e",
+          "src": 4,
+          "why": ""
+        },
+        {
+          "c": "handle",
+          "n": "Polyoxymethylene (POM) engineering polymer",
+          "share": 18,
+          "spec": "Injection-molded black synthetic scales, tight molecular structure",
+          "t": "e",
+          "src": 4,
+          "why": ""
+        },
+        {
+          "c": "rivets",
+          "n": "Stainless steel rivets (some SKUs listed as brass)",
+          "share": 3,
+          "spec": "Three exposed rivets fixing scales to tang",
+          "t": "l",
+          "src": 1,
+          "why": "Official Wüsthof page states rivets are stainless steel; one third-party spec sheet for a different SKU lists brass, so material may vary by batch/model"
+        },
+        {
+          "c": "anode",
+          "n": "Aluminum sacrificial anode ring",
+          "share": 1,
+          "spec": "Small aluminum ring fixed to tang under handle, corrodes preferentially to protect tang from moisture ingress",
+          "t": "e",
+          "src": 3,
+          "why": ""
+        }
+      ],
+      "sourcing": [
+        {
+          "c": "blade",
+          "m": "X50CrMoV15 stainless steel",
+          "o": "Germany",
+          "s": "Undisclosed German steel mill (Wüsthof-proprietary formulation)",
+          "t": "l",
+          "src": 0,
+          "why": "Wüsthof states steel is 'specially formulated German steel' worked entirely at its Solingen plant, implying domestic melt/supply",
+          "note": "Exact steel mill/supplier name not publicly disclosed"
+        },
+        {
+          "c": "handle",
+          "m": null,
+          "o": null,
+          "s": null,
+          "t": "u",
+          "src": null,
+          "why": "",
+          "note": "Manufacturer does not disclose POM resin supplier or country of polymer manufacture"
+        },
+        {
+          "c": "rivets",
+          "m": "Stainless steel rivet stock",
+          "o": "Germany",
+          "s": "Sourced/fitted within Wüsthof Solingen operations",
+          "t": "l",
+          "src": 1,
+          "why": "Official page describes rivet fixing as part of the same Solingen manufacturing process described for the whole knife",
+          "note": "No named rivet supplier; brass listed on one competing spec sheet suggests possible variant"
+        },
+        {
+          "c": "anode",
+          "m": "Aluminum alloy ring",
+          "o": "Germany",
+          "s": "Wüsthof (in-house patented component)",
+          "t": "l",
+          "src": 3,
+          "why": "Wüsthof describes the anode as its own patented invention, implying in-house production at its Solingen facility",
+          "note": "No external supplier identified"
+        }
+      ],
+      "construction": {
+        "mode": "Factory",
+        "t": "e",
+        "auto": "Both: robotic/laser precision steps for forging, grinding, and edge-sharpening combined with manual hand-buffing/polishing and assembly",
+        "tol": "Laser-guided edge sharpened to ~14 degrees per side (28 degrees inclusive); tang/bolster ground to precision profile",
+        "src": 2,
+        "why": "",
+        "steps": [
+          {
+            "c": "blade",
+            "p": "Upset forging of a single steel billet into blade, integral bolster, and full tang"
+          },
+          {
+            "c": "blade",
+            "p": "Heat treatment/hardening of forged blank to 58 HRC"
+          },
+          {
+            "c": "blade",
+            "p": "Grinding/profiling of blade geometry, then hand buffing and polishing of surface"
+          },
+          {
+            "c": "blade",
+            "p": "Laser-guided PEtec computer-controlled edge sharpening to ~14 degrees per side"
+          },
+          {
+            "c": "handle",
+            "p": "Injection-molding of POM scales; assembly onto tang with sacrificial anode and three rivets"
+          }
+        ]
+      },
+      "assembly": {
+        "sites": [
+          {
+            "l": "Solingen, Germany",
+            "o": "Wüsthof-owned production plants"
+          }
+        ],
+        "label": "Made in Solingen, Germany",
+        "count": "Single site",
+        "t": "u",
+        "src": 0,
+        "why": ""
+      },
+      "skill": {
+        "tier": "Skilled artisan + automated precision hybrid",
+        "t": "l",
+        "basis": "Combination of laser/robotic precision steps and manual hand-finishing (buffing, polishing, assembly) documented by manufacturer and retailer spec sheets",
+        "src": 5,
+        "why": "Manufacturer and retailer pages describe manual hand-buffing, polishing and assembly stages, but neither states a skill tier or training requirement — the tier is inferred from the operations they describe.",
+        "ops": [
+          [
+            "blade",
+            "forging temperature/pressure control",
+            "Skilled forge operator judgment during upset forging of blade/tang/bolster"
+          ],
+          [
+            "blade",
+            "hand buffing and polishing",
+            "Manual craftsman finishing of forged blade surface for uniform shine"
+          ],
+          [
+            "blade",
+            "edge sharpening calibration",
+            "Technician sets up/monitors laser-guided PEtec sharpening system"
+          ],
+          [
+            "handle",
+            "rivet fitting and scale alignment",
+            "Trained assembler aligns POM scales, anode, and rivets for seamless tang fit"
+          ]
+        ]
+      },
+      "parts": [
+        {
+          "c": "blade",
+          "n": "Forged steel blade/tang/bolster",
+          "m": "X50CrMoV15 stainless steel",
+          "crit": "Critical",
+          "t": "e",
+          "fail": "Edge chipping on bone/frozen food; rust if chronically neglected despite stainless formulation",
+          "src": 4,
+          "why": ""
+        },
+        {
+          "c": "handle",
+          "n": "POM handle scales",
+          "m": "Polyoxymethylene polymer",
+          "crit": "Structural",
+          "t": "e",
+          "fail": "Surface wear/scratching over decades; not typically prone to cracking",
+          "src": 4,
+          "why": ""
+        },
+        {
+          "c": "rivets",
+          "n": "Handle rivets",
+          "m": "Stainless steel (or brass on some SKUs)",
+          "crit": "Structural",
+          "t": "l",
+          "fail": "Loosening or scale separation from tang over very long-term heavy use",
+          "src": 1,
+          "why": "Rivets are the sole mechanical fastener between tang and scales per official description"
+        },
+        {
+          "c": "anode",
+          "n": "Sacrificial anode ring",
+          "m": "Aluminum alloy",
+          "crit": "Functional",
+          "t": "e",
+          "fail": "Anode designed to slowly dissolve over decades by design, protecting tang from corrosion",
+          "src": 3,
+          "why": ""
+        }
+      ],
+      "issues": [
+        "Some retail units reportedly lacked 'Solingen Germany' country-of-origin marking on blade/box, per a user-reported bladeforums thread",
+        "Rivet material inconsistency across sources/SKUs: official brand page states stainless steel, one third-party spec sheet lists brass",
+        "Exact upstream suppliers for steel billet and POM resin are not publicly disclosed by the manufacturer"
+      ],
+      "gen": "2026-08-16",
+      "rev": false,
+      "sources": [
+        {
+          "t": "WÜSTHOF Production (Official)",
+          "u": "",
+          "deadUrl": "https://www.wusthof.com/en-al/production",
+          "httpStatus": 404
+        },
+        {
+          "t": "WÜSTHOF German Knives (Official)",
+          "u": "https://wusthof.com/pages/german-knives"
+        },
+        {
+          "t": "The Difference Between WÜSTHOF Forged and Stamped Kitchen Knives",
+          "u": "https://wusthof.com/blogs/the-chefs-table/forged-versus-non-forged-kitchen-knives"
+        },
+        {
+          "t": "WÜSTHOF Innovations: The Sacrificial Anode",
+          "u": "https://wusthof.com/blogs/the-chefs-table/wusthof-innovations-the-sacrificial-anode"
+        },
+        {
+          "t": "Wusthof Classic Chef's Knife spec sheet (X50CrMoV15, POM, dimensions) - Cutlery and More",
+          "u": "https://cutleryandmore.com/products/wusthof-classic-chefs-knife-40134"
+        },
+        {
+          "t": "Wusthof Classic Chef's Knife spec sheet - Cutlery and More (601)",
+          "u": "https://cutleryandmore.com/products/wusthof-classic-chefs-knife-601"
+        }
+      ],
+      "vlog": [
+        "Source “WÜSTHOF Production (Official)” returned 404 — anything citing it can no longer be EXACT",
+        "Source “Wusthof knife not marked country of origin - Bladeforums thread” answered 403 — left in place; a block or a timeout is not a dead page. It cited no claim and was removed below.",
+        "Assembly location was tagged EXACT without a working source — now UNKNOWN",
+        "Skill tier was tagged EXACT against a retailer listing, which can evidence a specification but not a labour practice — now LIKELY, with the inference stated",
+        "3 source(s) were listed but cited by no claim — removed, so the evidence list is what the report actually rests on"
+      ],
+      "srcAdj": {
+        "derived": true,
+        "model": 40,
+        "value": 38,
+        "diff": -2,
+        "rows": 4
+      }
+    }
+  ]
+}
