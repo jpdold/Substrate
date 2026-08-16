@@ -802,6 +802,30 @@ console.log("\nscheduled rebuild");
   if (!/concurrency/.test(wf)) fail("two runs could race on the same branch");
   ok("workflow: manual trigger, keyed from secrets, gated on review, tested before and after");
 
+  /* Preflight turns N identical 401s into one message that names the cause.
+     Driven against a stubbed transport so it costs nothing to test. */
+  {
+    const realFetch = globalThis.fetch;
+    const cases = [
+      [{ ok: true, status: 200 }, true, null],
+      [{ ok: false, status: 401, text: async () => "{}" }, false, /Settings → API keys/],
+      [{ ok: false, status: 400, text: async () => '{"error":{"message":"credit balance is too low"}}' }, false, /Billing/],
+      [{ ok: false, status: 529, text: async () => "overloaded" }, false, /529/],
+    ];
+    try {
+      for (const [resp, wantOk, wantWhy] of cases) {
+        globalThis.fetch = async () => resp;
+        const r = await build.preflight("sk-ant-api03-test");
+        if (r.ok !== wantOk) fail(`preflight returned ok=${r.ok} for status ${resp.status}`);
+        if (wantWhy && !wantWhy.test(r.why || "")) fail(`preflight message for ${resp.status} unhelpful: ${r.why}`);
+      }
+      globalThis.fetch = async () => { throw new Error("ENOTFOUND"); };
+      const off = await build.preflight("k");
+      if (off.ok || !/could not reach/.test(off.why)) fail("preflight does not distinguish a network failure from a bad key");
+    } finally { globalThis.fetch = realFetch; }
+    ok("preflight: names a rejected key, no credit, an API error, and a network failure");
+  }
+
   /* The queue is tracked on purpose — the build reads it in CI. Every entry
      that pins an id must pin a real one, or the rebuild lands beside the
      product it meant to replace and the site shows both. */

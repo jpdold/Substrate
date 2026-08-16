@@ -96,6 +96,31 @@ RULES — these decide whether the report is usable:
 - Every string under 160 chars. Terse.`;
 
 /* -------------------------------------------------------------- transport */
+/* One free call before any research. Without it a bad key fails once per
+   queued product — nine identical 401s at --max=9, none of which say "your
+   key is the problem". /v1/models costs nothing and no tokens. */
+export async function preflight(key = KEY) {
+  let res;
+  try {
+    res = await fetch("https://api.anthropic.com/v1/models", {
+      headers: { "x-api-key": key, "anthropic-version": "2023-06-01" }
+    });
+  } catch (e) {
+    return { ok: false, why: `could not reach the API: ${e.message}` };
+  }
+  if (res.ok) return { ok: true };
+  const body = await res.text().catch(() => "");
+  if (res.status === 401) return { ok: false, why:
+    `the API key was rejected (401).\n` +
+    `  · A key looks like sk-ant-api03-… — an sk-ant-oat01-… token is an OAuth\n` +
+    `    credential and will not authenticate here.\n` +
+    `  · Check the key still exists and is enabled under Settings → API keys,\n` +
+    `    and that you are looking at the organization that issued it.` };
+  if (res.status === 400 && /credit|balance/i.test(body)) return { ok: false, why:
+    `the key is valid but the organization has no credit. Add funds under Settings → Billing.` };
+  return { ok: false, why: `the API answered ${res.status}: ${body.slice(0, 200)}` };
+}
+
 export async function callModel(query) {
   const messages = [{
     role: "user",
@@ -326,6 +351,13 @@ if (existsSync(reqPath)) {
 }
 
 const { take, deferred } = workList(queue, corpus, { stale: STALE, max: MAX });
+
+/* Only worth checking if there is something to spend on. */
+if (take.length) {
+  const pre = await preflight();
+  if (!pre.ok) { console.error(`Cannot start: ${pre.why}`); process.exit(1); }
+  console.log(`auth   ok — building ${take.length} report(s)`);
+}
 if (deferred.length)
   console.log(`note   ${deferred.length} over the ${MAX}-per-run cap, deferred to the next run:\n` +
     deferred.map(d => `         · ${d.q}  (${d.why})`).join("\n"));
