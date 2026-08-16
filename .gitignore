@@ -9,9 +9,6 @@ secrets.json
 # Local scratch from the request queue's JSON export.
 requests.json
 
-# Transfer artefact — CLAUDE.md and test.mjs already live at the root.
-claude/
-
 # Tooling that shouldn't follow the site.
 node_modules/
 npm-debug.log*
