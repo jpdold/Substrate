@@ -1,0 +1,25 @@
+# Secrets. build-corpus.mjs reads ANTHROPIC_API_KEY from the environment and
+# never from a file in the tree — invariant 3 keeps the key out of the repo so
+# this stays safe to publish. These patterns are the backstop.
+.env
+.env.*
+*.key
+secrets.json
+
+# Local scratch from the request queue's JSON export.
+requests.json
+
+# Transfer artefact — CLAUDE.md and test.mjs already live at the root.
+claude/
+
+# Tooling that shouldn't follow the site.
+node_modules/
+npm-debug.log*
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# corpus.json is deliberately NOT ignored. It is absent today and the site
+# falls back to the embedded corpus, but the scheduled rebuild is meant to
+# commit it through a reviewed PR — that PR is the rev:false review gate.
