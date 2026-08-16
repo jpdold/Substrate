@@ -487,6 +487,105 @@ console.log("\nindex.html vs build-corpus.mjs");
      missing API key would take this suite down with it. */
   if (typeof build.verify !== "function") fail("build-corpus.mjs did not export verify");
   ok("build-corpus.mjs is importable without executing its main flow");
+
+  /* The request shape cannot be exercised without an API key and a live call,
+     so assert the parts that silently degrade rather than error. */
+  const src = readFileSync("build-corpus.mjs", "utf8");
+
+  if (build.MODEL !== "claude-sonnet-5") fail(`unexpected model: ${build.MODEL}`);
+  /* max_tokens bounds thinking and text together on this model, and the call is
+     not streamed — too low truncates the JSON, too high risks an HTTP timeout. */
+  if (build.MAX_TOKENS < 16000) fail(`max_tokens ${build.MAX_TOKENS} risks truncating the report`);
+  if (build.MAX_TOKENS > 16000) fail(`max_tokens ${build.MAX_TOKENS} needs streaming to avoid an HTTP timeout`);
+
+  if (!src.includes("web_search_20260209")) fail("web search is not on the dynamic-filtering version");
+  if (src.includes("web_search_20250305")) fail("the superseded web search version is still declared");
+  /* Dynamic filtering runs code execution internally; declaring the tool as
+     well gives the model a second execution environment and confuses it. */
+  if (/type:\s*"code_execution/.test(src)) fail("code_execution declared alongside the filtering web search");
+  /* Thinking is on by default on this model but was off on the previous one —
+     state it, so the script does not silently change behaviour with the model. */
+  if (!/thinking:\s*\{\s*type:\s*"adaptive"/.test(src)) fail("adaptive thinking is not stated explicitly");
+  /* Both are rejected outright on this model. */
+  if (/\b(temperature|top_p|top_k)\s*:/.test(src)) fail("a sampling parameter would be rejected by this model");
+  if (/budget_tokens/.test(src)) fail("budget_tokens is removed on this model");
+
+  if (!/stop_reason\s*===\s*"refusal"/.test(src)) fail("refusal stop reason is unhandled");
+  if (!/stop_reason\s*!==\s*"pause_turn"/.test(src)) fail("pause_turn is unhandled — server tools can stall mid-report");
+  ok(`request shape: ${build.MODEL}, ${build.MAX_TOKENS} tokens, filtering web search, stalls and refusals handled`);
+
+  /* Drive callModel against a stubbed transport. The continuation loop and the
+     stop-reason guards are the parts most likely to be wrong and the parts a
+     dry run never reaches — without this they would first execute against a
+     paid API call. */
+  const realFetch = globalThis.fetch;
+  const reply = body => ({ ok: true, json: async () => body });
+  const payload = '{"klassLabel":"K","target":{},"peers":[],"sources":[]}';
+  const searchOK = { type: "web_search_tool_result", content: [{ title: "t" }] };
+  const searchBad = { type: "web_search_tool_result", content: { error_code: "max_uses_exceeded" } };
+  let sent = [];
+
+  const run = async responses => {
+    sent = [];
+    let i = 0;
+    globalThis.fetch = async (_url, opts) => {
+      sent.push(JSON.parse(opts.body));
+      return reply(responses[Math.min(i++, responses.length - 1)]);
+    };
+    try { return await build.callModel("thing"); }
+    finally { globalThis.fetch = realFetch; }
+  };
+
+  try {
+    // a plain successful turn
+    let out = await run([{ stop_reason: "end_turn", content: [searchOK, { type: "text", text: payload }] }]);
+    if (out.klassLabel !== "K") fail("callModel did not parse the report");
+    if (out._searches !== 1 || out._searchErrors !== 0) fail("search counting wrong on a clean turn");
+    if (sent.length !== 1) fail(`expected 1 request, made ${sent.length}`);
+
+    // a failed search is not research — it must not inflate the count
+    out = await run([{ stop_reason: "end_turn", content: [searchOK, searchBad, { type: "text", text: payload }] }]);
+    if (out._searches !== 1 || out._searchErrors !== 1) fail("a failed web search was counted as a result set");
+
+    /* Stalled server-tool loop: continue, and stitch the text across turns.
+       A regression here throws while parsing the paused turn's partial JSON, so
+       catch it — an uncaught throw aborts the suite and hides everything below. */
+    try {
+      out = await run([
+        { stop_reason: "pause_turn", content: [searchOK, { type: "text", text: '{"klassLabel":"K",' }] },
+        { stop_reason: "end_turn", content: [{ type: "text", text: '"target":{},"peers":[],"sources":[]}' }] },
+      ]);
+      if (sent.length !== 2) fail(`pause_turn did not continue (${sent.length} request(s))`);
+      if (sent[1].messages.length !== 2 || sent[1].messages[1].role !== "assistant")
+        fail("continuation did not resend the paused assistant turn");
+      if (out.klassLabel !== "K") fail("text was not stitched across the continuation");
+      if (out._searches !== 1) fail("searches from the paused turn were lost");
+    } catch (e) {
+      fail(`pause_turn not continued — the stalled turn's partial JSON was treated as final (${e.message})`);
+    }
+
+    // a loop that never settles must stop, not spin
+    let threw = "";
+    try {
+      await run([{ stop_reason: "pause_turn", content: [{ type: "text", text: "" }] }]);
+    } catch (e) { threw = e.message; }
+    if (!/still paused/.test(threw)) fail(`endless pause_turn not bounded: ${threw}`);
+
+    // the two stops that would otherwise read as "no JSON object in response"
+    for (const [stop, extra, re] of [
+      ["max_tokens", {}, /truncated/],
+      ["refusal", { stop_details: { category: "cyber" } }, /declined by safety/],
+    ]) {
+      threw = "";
+      try {
+        await run([{ stop_reason: stop, content: [{ type: "text", text: "partial" }], ...extra }]);
+      } catch (e) { threw = e.message; }
+      if (!re.test(threw)) fail(`${stop} did not report clearly: ${threw}`);
+    }
+    ok("callModel: continues on stall, bounds it, counts real searches, reports refusal and truncation");
+  } finally {
+    globalThis.fetch = realFetch;
+  }
 }
 
 /* ----------------------------------------------------------------- done */

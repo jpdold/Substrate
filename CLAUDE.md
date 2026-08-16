@@ -142,7 +142,22 @@ how much damage they cause:
    them different because one is 58 HRC and another 56 — losing the finding the
    view exists for.
 
-10. **Stubs render.** Generated peers have no component tree. `quickView` and
+10. **The build request is pinned on both sides, and `test.mjs` asserts it.**
+    `build-corpus.mjs` runs `claude-sonnet-5` with `max_tokens` at 16000 — and
+    that number is bounded in *both* directions. This model thinks by default
+    and `max_tokens` caps thinking plus response text together, so a lower value
+    truncates the report mid-JSON; the call is not streamed, so a higher one
+    risks an HTTP timeout. Moving it means switching to a streaming request.
+
+    Three related rules: state `thinking` explicitly rather than inheriting it
+    (the previous model defaulted it off, so an unstated default silently
+    changes behaviour with the model); never declare `code_execution` alongside
+    `web_search_20260209`, which already runs it internally for filtering; and
+    leave the `pause_turn` continuation in place — a stalled server-tool loop
+    otherwise returns a partial report that parses as "no JSON object in
+    response".
+
+11. **Stubs render.** Generated peers have no component tree. `quickView` and
    `fullView` both short-circuit on `p.stub`. Anything new that walks
    `p.materials[0]` or `p.parts[1]` needs a length guard — that exact bug has
    been fixed twice.

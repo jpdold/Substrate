@@ -22,8 +22,18 @@ import { pathToFileURL } from "node:url";
 
 const SCHEMA = 1;
 const TTL_DAYS = 180;
-const MODEL = "claude-sonnet-4-6";
+export const MODEL = "claude-sonnet-5";
 const KEY = process.env.ANTHROPIC_API_KEY;
+
+/* max_tokens bounds thinking AND response text together, and this model thinks
+   by default — 8000 was sized for a thinking-off model and would now truncate
+   mid-JSON. 16000 is the ceiling that still keeps a non-streaming request under
+   the HTTP timeout; above that this would have to stream. */
+export const MAX_TOKENS = 16000;
+
+/* A server-side tool loop that hits its iteration limit comes back as
+   stop_reason "pause_turn" with no final answer. Resending continues it. */
+const MAX_CONTINUATIONS = 5;
 
 const [, , reqPath = "requests.json", outPath = "corpus.json"] = process.argv;
 const REFRESH = process.argv.includes("--refresh");
@@ -63,36 +73,68 @@ RULES — these decide whether the report is usable:
 - Every string under 160 chars. Terse.`;
 
 /* -------------------------------------------------------------- transport */
-async function callModel(query) {
-  const res = await fetch("https://api.anthropic.com/v1/messages", {
-    method: "POST",
-    headers: {
-      "content-type": "application/json",
-      "x-api-key": KEY,
-      "anthropic-version": "2023-06-01"
-    },
-    body: JSON.stringify({
-      model: MODEL,
-      max_tokens: 8000,
-      tools: [{ type: "web_search_20250305", name: "web_search" }],
-      messages: [{
-        role: "user",
-        content:
-          `Research the consumer product: "${query}".\n\n` +
-          `Search for teardowns, spec sheets, manufacturer material disclosures, patents, ` +
-          `and country-of-origin filings. Then produce a composition report describing ` +
-          `WHAT EACH PART IS MADE OF and HOW IT WAS FORMED.\n\n` + SCHEMA_NOTE
-      }]
-    })
-  });
-  if (!res.ok) throw new Error(`API ${res.status}: ${(await res.text()).slice(0, 200)}`);
-  const data = await res.json();
-  const text = data.content.filter(b => b.type === "text").map(b => b.text).join("\n");
-  const raw = text.replace(/```json|```/g, "").trim();
-  const a = raw.indexOf("{"), b = raw.lastIndexOf("}");
-  if (a < 0 || b < 0) throw new Error("no JSON object in response");
-  const obj = JSON.parse(raw.slice(a, b + 1));
-  obj._searches = data.content.filter(b => b.type === "web_search_tool_result").length;
+export async function callModel(query) {
+  const messages = [{
+    role: "user",
+    content:
+      `Research the consumer product: "${query}".\n\n` +
+      `Search for teardowns, spec sheets, manufacturer material disclosures, patents, ` +
+      `and country-of-origin filings. Then produce a composition report describing ` +
+      `WHAT EACH PART IS MADE OF and HOW IT WAS FORMED.\n\n` + SCHEMA_NOTE
+  }];
+
+  const chunks = [];
+  let searches = 0, searchErrors = 0, data;
+
+  for (let turn = 0; ; turn++) {
+    if (turn > MAX_CONTINUATIONS)
+      throw new Error(`still paused after ${MAX_CONTINUATIONS} continuations`);
+
+    const res = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-api-key": KEY,
+        "anthropic-version": "2023-06-01"
+      },
+      body: JSON.stringify({
+        model: MODEL,
+        max_tokens: MAX_TOKENS,
+        thinking: { type: "adaptive" },   // stated rather than inherited: 4.6 defaulted this off
+        output_config: { effort: "high" },
+        tools: [{ type: "web_search_20260209", name: "web_search" }],
+        messages
+      })
+    });
+    if (!res.ok) throw new Error(`API ${res.status}: ${(await res.text()).slice(0, 200)}`);
+    data = await res.json();
+
+    /* A failed search still arrives as a 200 with a web_search_tool_result
+       block — success carries a list, failure carries an error object. Counting
+       both as searches would report research that never happened. */
+    for (const blk of data.content) {
+      if (blk.type === "web_search_tool_result")
+        Array.isArray(blk.content) ? searches++ : searchErrors++;
+      if (blk.type === "text") chunks.push(blk.text);
+    }
+
+    if (data.stop_reason !== "pause_turn") break;
+    messages.push({ role: "assistant", content: data.content });
+  }
+
+  /* Fail loudly on the two stops that otherwise surface as an unhelpful
+     "no JSON object in response". */
+  if (data.stop_reason === "refusal")
+    throw new Error(`declined by safety classifiers (${data.stop_details?.category ?? "no category"})`);
+  if (data.stop_reason === "max_tokens")
+    throw new Error(`hit the ${MAX_TOKENS}-token ceiling before finishing the report — the JSON is truncated`);
+
+  const raw = chunks.join("\n").replace(/```json|```/g, "").trim();
+  const open = raw.indexOf("{"), close = raw.lastIndexOf("}");
+  if (open < 0 || close < 0) throw new Error("no JSON object in response");
+  const obj = JSON.parse(raw.slice(open, close + 1));
+  obj._searches = searches;
+  obj._searchErrors = searchErrors;
   return obj;
 }
 
@@ -229,7 +271,9 @@ for (const r of reqs) {
       const i = corpus.products.findIndex(x => x.id === p.id);
       if (i >= 0) corpus.products[i] = p; else corpus.products.push(p);
     }
-    console.log(`ok  (${o._searches} search result set(s), ${o._vlog.length} claim(s) adjusted)`);
+    console.log(`ok  (${o._searches} search result set(s)` +
+      `${o._searchErrors ? `, ${o._searchErrors} search(es) FAILED` : ""}` +
+      `, ${o._vlog.length} claim(s) adjusted)`);
     o._vlog.forEach(l => console.log(`         ↓ ${l}`));
 
     /* The pass judges a sourcing score; the rows decide it. Where those
