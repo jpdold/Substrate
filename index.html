@@ -304,6 +304,14 @@ header{
 }
 .genbtn:hover{filter:brightness(1.08)}
 .genbtn[disabled]{opacity:.4;cursor:default;filter:none}
+
+/* ---------- method page prose ---------- */
+.mprose{color:var(--fg-2);font-size:13.5px;max-width:74ch;margin-top:11px}
+.mprose b{color:var(--fg);font-weight:600}
+.mform{
+  font-family:var(--mono);font-size:12.5px;color:var(--fg-2);
+  border-left:2px solid var(--line);padding:11px 0 11px 15px;margin:16px 0;
+}
 .stages{margin-top:22px;border-top:1px solid var(--line-soft);padding-top:16px}
 .stage{display:flex;gap:11px;align-items:flex-start;padding:6px 0;font-size:13px;color:var(--fg-3)}
 .stage i{
@@ -414,8 +422,8 @@ footer .frow{display:flex;gap:26px;flex-wrap:wrap}
     <div class="hsearch"><input id="hq" type="search" placeholder="Search a product, brand, or model number" aria-label="Search products"></div>
     <nav class="hnav">
       <button onclick="goHome()">Products</button>
-      <button onclick="openGen('')">Generate report</button>
-      <button onclick="alert('Methodology: scoring model, inference rules for LIKELY, and delta math. Not built in this pass.')">Method</button>
+      <button onclick="openGen('')">Request</button>
+      <button onclick="openMethod()">Method</button>
     </nav>
   </div>
 </header>
@@ -478,6 +486,21 @@ const AXES = [
   ["superstructure","Superstructural parts"]
 ];
 const DEFAULT_W = {material:1.0,sourcing:0.8,construction:1.2,assembly:0.8,skill:1.0,superstructure:1.4};
+
+/* Delta severity bands, in axis points away from the peer mean. renderMethod()
+   publishes these numbers, so they live here rather than inline in deltas() —
+   a documented threshold that drifts from the one in force is a lie on the page. */
+const SEV = {dq:22, fn:10};
+
+/* One line per axis, shown on the Method page. What the axis is actually judging. */
+const AXIS_NOTE = {
+  material:"What each part is made of, and how specifically the alloy, grade, or formulation is named.",
+  sourcing:"Where the raw material came from, and how far back up the chain it stays traceable.",
+  construction:"How the parts were formed — forged, cast, stamped, extruded — and how much of that is automated.",
+  assembly:"Where the parts were brought together, and whether that is one site or several.",
+  skill:"How much human judgment the process demands, and at what tier of training.",
+  superstructure:"The parts that carry load or fail first, and what those are made of."
+};
 
 const P = [
 {
@@ -868,7 +891,7 @@ function deltas(p){
     const avg=ps.reduce((s,x)=>s+x.axes[k],0)/ps.length;
     const d=Math.round(p.axes[k]-avg);
     out.push({k,label,d,best,worst,
-      sev: Math.abs(d)>=22?"Disqualifying at this tier":Math.abs(d)>=10?"Functional":"Cosmetic"});
+      sev: Math.abs(d)>=SEV.dq?"Disqualifying at this tier":Math.abs(d)>=SEV.fn?"Functional":"Cosmetic"});
   });
   return out.sort((a,b)=>Math.abs(b.d)-Math.abs(a.d));
 }
@@ -960,8 +983,8 @@ function renderList(){
     </button>`;
   }).join("") : (S.q
     ? `<div class="empty"><b>No report yet for “${S.q}”.</b>
-        Substrate can research it now — search the web, build a component-scoped report, and verify each claim before showing it.
-        <div><button class="genbtn" onclick="openGen('${S.q.replace(/'/g,"\\'")}')">Generate a report for “${S.q}”</button></div></div>`
+        Reports are built in batches, checked against their sources, and published together. Name this product and it goes into the next build.
+        <div><button class="genbtn" onclick="openGen('${S.q.replace(/'/g,"\\'")}')">Request “${S.q}”</button></div></div>`
     : `<div class="empty"><b>No products match these filters.</b>
         Lower the certainty floor or clear a facet to widen the set.</div>`);
 
@@ -1050,7 +1073,7 @@ function fullView(p){
   if(p.stub) return `<div class="sec"><div class="empty">
     <b>This peer has not been researched.</b>
     It was included to give the delta matrix a comparison point. Its axis scores come from the same pass that built the target report.
-    <div><button class="genbtn" onclick="openGen('${(p.brand+" "+p.model).replace(/'/g,"\\'")}')">Generate the full report</button></div></div></div>`;
+    <div><button class="genbtn" onclick="openGen('${(p.brand+" "+p.model).replace(/'/g,"\\'")}')">Request this report</button></div></div></div>`;
   const body = S.pivot==="comp"
     ? compView(p)
     : matSec(p)+srcSec(p)+conSec(p)+asmSec(p)+skillSec(p)+partSec(p);
@@ -1216,7 +1239,7 @@ function customView(p){
       <div class="pscore">${cs}</div>
       <div class="pdelta">${diff===0?"same as default weighting":(diff>0?"+":"")+diff+" vs default weighting"}</div>
       <ul>${AXES.filter(a=>S.secs.has(a[0])).map(a=>`<li>${a[1]} · ${p.axes[a[0]]}</li>`).join("")||"<li>No sections selected</li>"}</ul>
-      <button class="btn" onclick="alert('Export not built in this pass. Would produce PDF, JSON, and comparison sheet.')">Generate report</button>
+      <button class="btn" onclick="alert('Export not built in this pass. Would produce PDF, JSON, and comparison sheet.')">Export</button>
       <button class="btn ghost" onclick="S.w={...DEFAULT_W};S.secs=new Set(AXES.map(a=>a[0]));render()">Reset to defaults</button>
     </div>
   </div></div>`;
@@ -1425,11 +1448,106 @@ function vpanel(p){
   </div>`;
 }
 
+/* ==================================================================
+   METHOD
+   ------------------------------------------------------------------
+   Weights come from DEFAULT_W, severity bands from SEV, the review
+   cycle from META. Nothing here is transcribed by hand: a methodology
+   page that documents a rule the code stopped following is worse than
+   no page at all.
+   ================================================================== */
+function openMethod(){ S.view="method"; render(); window.scrollTo({top:260}); }
+
+function renderMethod(){
+  const wrows = AXES.map(([k,l])=>`<tr>
+    <td class="k">${l}</td>
+    <td class="v mono">${DEFAULT_W[k].toFixed(1)}</td>
+    <td class="v">${AXIS_NOTE[k]}</td></tr>`).join("");
+  const formula = AXES.map(([k])=>`${DEFAULT_W[k].toFixed(1)}·${k}`).join("  +  ");
+  const wsum = AXES.reduce((s,[k])=>s+DEFAULT_W[k],0).toFixed(1);
+
+  const check = (c,e)=>`<tr><td class="k">${c}</td><td class="v">${e}</td></tr>`;
+
+  return `
+  <button class="back" onclick="goHome()">← Back to results</button>
+  <div class="genwrap">
+    <h3>Method</h3>
+    <p>Substrate publishes what it can confirm and marks the rest as missing. This page sets out the three certainty tags and what earns each one, the checks a claim has to survive before it renders, how the composite score is computed, and how a product is placed against its peers.</p>
+    <p>Every number on this page is read out of the running code rather than typed into the copy, so a rule described here is the rule in force.</p>
+  </div>
+
+  <div class="sec">
+    <div class="sechead"><h3>The three tags</h3>
+      <span class="note">Every field on every report carries exactly one.</span></div>
+    <table class="dt">
+      ${check(tag("e"), `Stated in manufacturer literature, a spec sheet, a teardown, or a regulatory filing, with a link that resolves.
+        <span class="sub">A claim holds this tag only while its source index points at a working http or https URL in that report's own source list. If the link breaks, the claim is downgraded on the next load.</span>`)}
+      ${check(tag("l"), `Not stated anywhere, but inferred from class norms, price tier, or material analysis — with the inference chain written down and shown on the report.
+        <span class="sub">A LIKELY with no recorded chain is not a weaker claim, it is an unsupported one, and it is treated as missing.</span>`)}
+      ${check(tag("u"), `No basis to state a value. The value is discarded and the field renders as ${gap("a visible gap")}
+        <span class="sub">Nothing is interpolated from a peer, a class average, or a plausible default. A report with holes in it is the correct output when the holes are real.</span>`)}
+    </table>
+  </div>
+
+  <div class="sec">
+    <div class="sechead"><h3>What a claim has to survive</h3>
+      <span class="note">Runs once when the corpus is built, then again in your browser on load.</span></div>
+    <p class="mprose">Reports are assembled by a model, and model output is untrusted. Before anything reaches the page it goes through a verifier that can only ever remove confidence, never add it. It does not check whether a claim is true — it checks whether the claim is carrying the evidence its tag asserts.</p>
+    <table class="dt" style="margin-top:16px">
+      <tr><th>Condition</th><th>Effect</th></tr>
+      ${check("EXACT, source does not resolve","Downgraded to LIKELY. The claim may still be right, but it is no longer cited.")}
+      ${check("LIKELY, no inference chain","Downgraded to UNKNOWN. Reasoning that was never written down cannot be audited.")}
+      ${check("Lands on UNKNOWN","The value is nulled and the field renders as a gap, whatever it originally said.")}
+      ${check("Bound to an undeclared component","The row is dropped. A claim about a part that is not on the roster cannot be read.")}
+      ${check("Material shares over 105%","Flagged, and mass figures on that report are marked approximate.")}
+      ${check("Nothing confirmed anywhere","Said out loud on the report rather than left for the reader to notice.")}
+    </table>
+    <p class="mprose">A claim can fall two steps in one pass — EXACT to LIKELY to UNKNOWN — and that cascade is recorded as a single entry, not two. Every adjustment appears in the provenance panel at the top of the report it affected, so a downgrade is visible on the page rather than buried in a build log.</p>
+  </div>
+
+  <div class="sec">
+    <div class="sechead"><h3>The composite score</h3>
+      <span class="note">Weighted mean of six axes, each 0–100.</span></div>
+    <p class="mprose">Each product carries six axis scores. The composite shown on the results row and at the top of each report is their weighted mean, rounded to a whole number:</p>
+    <div class="mform">score = ( ${formula} ) / ${wsum}</div>
+    <table class="dt">
+      <tr><th>Axis</th><th>Weight</th><th>What it judges</th></tr>
+      ${wrows}
+    </table>
+    <p class="mprose">These weights are an editorial judgment about what matters in a durable object, not a derived quantity. They are the default only — <b>Build custom</b> on any report re-runs the same arithmetic against weights you set yourself, over the same peer set.</p>
+    <p class="mprose"><b>The axis scores are the least verified thing on this site.</b> Materials, forming process, and origin are checked against sources and tagged accordingly. The six 0–100 values are the model's judgment and carry no certainty tag of their own, which means an unchecked number is driving a visible ranking. When you want to know how much of a report is actually confirmed, read the certainty bar, not the score.</p>
+  </div>
+
+  <div class="sec">
+    <div class="sechead"><h3>Peer deltas</h3>
+      <span class="note">How a product is placed against its own class.</span></div>
+    <p class="mprose">Peers are the other products in the same functional class. For each axis, Substrate averages the peers' scores and subtracts that from the product's own, rounded to whole points:</p>
+    <div class="mform">delta = product axis − mean( peer axes on that axis )</div>
+    <p class="mprose">A positive delta puts the product above its class mean on that axis, a negative one below. Deltas are sorted by absolute size so the widest separation leads, and each is banded by how much the gap is likely to matter in use:</p>
+    <table class="dt" style="margin-top:14px">
+      <tr><th>Distance from the mean</th><th>Band</th></tr>
+      ${check(`${SEV.dq} points or more`,`Disqualifying at this tier <span class="sub">A difference a buyer at this price would reject the product over.</span>`)}
+      ${check(`${SEV.fn} to ${SEV.dq-1} points`,`Functional <span class="sub">Changes how the object behaves or how long it lasts.</span>`)}
+      ${check(`Under ${SEV.fn} points`,`Cosmetic <span class="sub">Real, measurable, and unlikely to be noticed in use.</span>`)}
+    </table>
+    <p class="mprose">Deltas currently compare whole products. A component-level comparison — the same alloy formed two different ways, one blade against another — is the comparison most readers actually want, and it is not built yet.</p>
+  </div>
+
+  <div class="sec">
+    <div class="sechead"><h3>What this does not do</h3>
+      <span class="note">The limits are part of the method.</span></div>
+    <p class="mprose">The verifier is mechanical. It confirms that a claim tagged EXACT has a source attached and that a claim tagged LIKELY has reasoning attached. It cannot tell whether the source is correct, whether the manufacturer's own literature is accurate, or whether a specification changed after it was published. An unsourced claim is caught every time; a well-sourced wrong claim is not caught at all.</p>
+    <p class="mprose">For that reason every report is published unreviewed and says so on its face — machine-built, source-checked only — until a person has read it and flipped it. Composition is rebuilt on a ${META.ttlDays}-day cycle, and a report older than that shows as due for review rather than quietly ageing.</p>
+    <p class="mprose">Substrate does not research on demand. An unmatched search becomes a request that enters the next batch, which is why the same product returns the same report every time and any correction can be traced to a version.</p>
+  </div>`;
+}
+
 /* ============================ RENDER ============================ */
 function render(){
   renderRail();
   if(S.view==="gen"){ document.getElementById("main").innerHTML=renderGen();
     const el=document.getElementById("gq"); if(el){el.focus();el.setSelectionRange(el.value.length,el.value.length);} }
+  else if(S.view==="method"){ document.getElementById("main").innerHTML=renderMethod(); }
   else if(S.view==="report"&&S.cur) renderReport(); else renderList();
   renderTray();
 }
