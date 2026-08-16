@@ -115,7 +115,17 @@ how much damage they cause:
    `deriveAxes()` recomputes from the rows and never from the axis it wrote, so
    calling it twice is safe.
 
-9. **Stubs render.** Generated peers have no component tree. `quickView` and
+9. **Component ids are the join key across a class, and comparison happens on
+   the attribute key, not the raw string.** `compDeltas()` matches parts between
+   products by `comps[].id` — every class currently shares them (`blade`,
+   `edge`, `handle`; `body`, `surface`, `season`). A new product that invents
+   its own ids still renders, it just silently compares against nothing, so
+   reuse the class's existing ids. And compare the *name* separately from the
+   *spec*: all three knives are X50CrMoV15, and a raw string comparison calls
+   them different because one is 58 HRC and another 56 — losing the finding the
+   view exists for.
+
+10. **Stubs render.** Generated peers have no component tree. `quickView` and
    `fullView` both short-circuit on `p.stub`. Anything new that walks
    `p.materials[0]` or `p.parts[1]` needs a length guard — that exact bug has
    been fixed twice.
@@ -178,11 +188,6 @@ other five remain the generating pass's unverified opinion. There is no
 arithmetic fix for them — see the reasoning in *Derived axes* before trying
 one. Closing this properly means source-checking the axes themselves, not
 computing them from disclosure.
-
-**Delta matrix should pivot by component.** Right now deltas compare whole
-objects. "Same alloy, different forming" is a component-level fact — comparing
-the Wüsthof blade against the Victorinox blade is the comparison a reader wants,
-and whole-object scoring blurs it.
 
 **Compare tray and export are stubs.** Both `alert()`. The tray collects
 selections correctly; the side-by-side workspace with user weighting isn't

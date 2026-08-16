@@ -37,7 +37,8 @@ const mod = await import(
     "quickView, fullView, peerView, customView, vpanel, matches, results, stale, ageDays, " +
     "norm, addReq, REQS, renderGen, renderMethod, AXES, DEFAULT_W, SEV, " +
     "gapView, gapFields, classSilence, TABL, " +
-    "srcDensity, deriveAxes, DERIVED_AXES, EVW, srcNote };"
+    "srcDensity, deriveAxes, DERIVED_AXES, EVW, srcNote, " +
+    "compDeltas, compDeltaView, CATTR };"
   )
 );
 
@@ -46,7 +47,8 @@ const {
   quickView, fullView, peerView, customView, vpanel, results, stale, norm,
   renderMethod, AXES, DEFAULT_W, SEV,
   gapView, gapFields, classSilence, TABL,
-  srcDensity, deriveAxes, DERIVED_AXES, EVW, srcNote
+  srcDensity, deriveAxes, DERIVED_AXES, EVW, srcNote,
+  compDeltas, compDeltaView, CATTR
 } = mod;
 
 /* ---------------------------------------------------------- 1. integrity */
@@ -79,7 +81,8 @@ for (const p of P) {
     try {
       const c = certCount(p), d = deltas(p);
       const out = quickView(p, c, d.filter(x => x.d > 0), d.filter(x => x.d < 0))
-        + fullView(p) + peerView(p, d) + customView(p) + vpanel(p) + gapView(p);
+        + fullView(p) + customView(p) + vpanel(p) + gapView(p) + srcNote(p)
+        + ["axis", "comp"].map(dp => { S.dpiv = dp; return peerView(p, d); }).join("");
       if (/undefined|NaN|\[object Object\]/.test(out)) fail(`${p.id}/${pivot}: stray value in output`);
       rendered++;
     } catch (e) { fail(`${p.id}/${pivot}: ${e.message}`); }
@@ -299,6 +302,83 @@ if (!/0\.5/.test(m2)) fail("method page does not publish the half-credit rule");
 if (/The axis scores are the least verified/.test(m2))
   fail("method page still claims all six axes are unverified judgment");
 ok("method page documents the derivation and no longer claims all six are judged");
+
+/* --------------------------------------------------- 9. component deltas */
+console.log("\ncomponent deltas");
+
+/* The join key is the component id, which is shared within a class. If that
+   ever stops being true the view silently compares nothing. */
+{
+  const byClass = {};
+  P.filter(p => !p.stub).forEach(p => (byClass[p.klass] ||= []).push(p));
+  let shared = 0;
+  for (const ps of Object.values(byClass)) {
+    if (ps.length < 2) continue;
+    const sets = ps.map(p => new Set(p.comps.map(c => c.id)));
+    const common = [...sets[0]].filter(id => sets.every(s => s.has(id)));
+    if (!common.length) fail(`class ${ps[0].klass}: no component id shared by every product`);
+    shared += common.length;
+  }
+  ok(`${shared} component ids shared across their whole class`);
+}
+
+/* The headline case: same alloy, different forming. Comparing raw strings
+   would miss it, because the specs differ on hardness. */
+{
+  const w = P.find(p => p.brand.startsWith("W") && p.klass === "knife8");
+  const cd = compDeltas(w);
+  if (!cd) { fail("no component deltas for the knife class"); }
+  else {
+    const blade = cd.rows.find(r => r.id === "blade");
+    if (!blade) fail("blade component not in the delta rows");
+    else {
+      const mat = blade.attrs.find(a => a.a.k === "material");
+      const frm = blade.attrs.find(a => a.a.k === "forming");
+      if (mat.state !== "same") fail(`blade material should read same across class, got ${mat.state}`);
+      if (!/X50CrMoV15/.test(mat.shared || "")) fail("shared alloy not surfaced on the blade row");
+      if (frm.state !== "differs") fail(`blade forming should differ, got ${frm.state}`);
+      ok("blade: same alloy across the class, forming differs — the note's case");
+    }
+  }
+}
+
+/* A part a peer declares and this product does not is a comparison, not an
+   omission — it must still appear, flagged. */
+{
+  const v = P.find(p => p.id && p.klass === "knife8" && p.comps.some(c => c.id === "tang"));
+  const cd = compDeltas(v);
+  const rivets = cd.rows.find(r => r.id === "rivets");
+  if (!rivets) fail("a peer-only component was dropped from the matrix");
+  else {
+    if (rivets.onTarget) fail("rivets wrongly marked as on the Victorinox roster");
+    if (!/not on this roster/.test(compDeltaView(v))) fail("absent component not disclosed in the view");
+    ok("peer-only components appear and are flagged as absent here");
+  }
+}
+
+/* Stubs have no component tree and must not produce an empty comparison. */
+{
+  const stubP = P.find(p => p.stub);
+  if (compDeltas(stubP) !== null) fail("a stub produced component deltas");
+  const genP = P.find(p => p.klass.startsWith("gen-") && !p.stub);
+  if (genP && compDeltas(genP) !== null) fail("a class of stubs produced component deltas");
+  if (genP && !/No researched peer/.test(compDeltaView(genP)))
+    fail("view does not explain why there are no component deltas");
+  ok("stubs excluded; a class without researched peers says so");
+}
+
+/* Both pivots must route, and every attribute must be reachable. */
+if (CATTR.length !== 4) fail(`expected 4 comparison attributes, found ${CATTR.length}`);
+if (CATTR.some(a => a.k === "role")) fail("role is in the header, not a compared row");
+{
+  S.dpiv = "comp";
+  const w = P.find(p => p.klass === "knife8" && !p.stub);
+  const out = peerView(w, deltas(w));
+  if (!/Component deltas/.test(out)) fail("By component pivot did not route to the component view");
+  S.dpiv = "axis";
+  if (!/Peer set/.test(peerView(w, deltas(w)))) fail("By axis pivot did not route to the axis matrix");
+  ok("both peer pivots route correctly");
+}
 
 /* ----------------------------------------------------------------- done */
 console.log("");

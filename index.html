@@ -305,6 +305,26 @@ header{
 .genbtn:hover{filter:brightness(1.08)}
 .genbtn[disabled]{opacity:.4;cursor:default;filter:none}
 
+/* ---------- component deltas ---------- */
+/* Prose values, not numbers, so this is a stack rather than a grid — a matrix
+   cell cannot hold "drop-forged from a single billet" legibly. Agreement is
+   carried by the label, not by hue. */
+.cdelta{border:1px solid var(--line);border-radius:var(--r);background:var(--bg-2);padding:16px 18px;margin-bottom:12px}
+.cdelta.absent{border-style:dashed}
+.cdhead{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;margin-bottom:10px}
+.cdhead h4{font-size:14.5px;font-weight:600;letter-spacing:-.01em}
+.cdsum{font-family:var(--mono);font-size:10.5px;color:var(--fg-3);margin-left:auto}
+.cdrow{display:grid;grid-template-columns:132px 1fr;gap:14px;padding:10px 0;border-top:1px solid var(--line-soft)}
+.cdk{display:flex;flex-direction:column;gap:3px}
+.cdflag{font-family:var(--mono);font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:var(--fg-3)}
+.cdrow.differs .cdflag{color:var(--fg-2)}
+.cdshared{font-size:13px;color:var(--fg-2)}
+.cdp{font-size:13px;color:var(--fg-2);padding:3px 0;display:flex;gap:11px;align-items:baseline}
+.cdp b{color:var(--fg-3);font-weight:600;min-width:96px;flex:none;font-size:12px;font-family:var(--mono)}
+.cdp.self b{color:var(--fg)}
+.cdsub{display:block;color:var(--fg-3);font-size:12px;margin-top:2px}
+@media(max-width:720px){ .cdrow{grid-template-columns:1fr} .cdp{flex-direction:column;gap:1px} }
+
 /* ---------- gap report ---------- */
 /* No new accent colour: the only saturated thing here is the UNKNOWN slate,
    which is exactly what this view is about. Class-wide versus product-specific
@@ -963,7 +983,7 @@ deriveAll();
 /* ============================ STATE ============================ */
 let S = {
   q:"", klass:new Set(), mode:new Set(), skillT:new Set(), sites:new Set(),
-  floor:0, sort:"score", view:"list", cur:null, tab:"quick", pivot:"attr",
+  floor:0, sort:"score", view:"list", cur:null, tab:"quick", pivot:"attr", dpiv:"axis",
   cmp:new Set(), w:{...DEFAULT_W}, secs:new Set(AXES.map(a=>a[0])), genq:"", gen:null
 };
 
@@ -1258,7 +1278,24 @@ function issueSec(p){
     <table class="dt">${p.issues.map(i=>`<tr><td class="v">${i}</td></tr>`).join("")}</table></div>`;
 }
 
+/* The peer tab has two pivots for the same peer set: whole-object axis scores,
+   or the same products compared part by part. */
+function dpivotBar(){
+  return `<div class="pivot">
+    <span class="eyebrow">Compare</span>
+    <button class="pv ${S.dpiv!=="comp"?"on":""}" onclick="setDpiv('axis')">By axis</button>
+    <button class="pv ${S.dpiv==="comp"?"on":""}" onclick="setDpiv('comp')">By component</button>
+    <span class="pvnote">${S.dpiv==="comp"
+      ? "Part against part. Where the class agrees, and where it does not."
+      : "Whole-object scores against the peer set."}</span>
+  </div>`;
+}
+
 function peerView(p,ds){
+  return dpivotBar()+(S.dpiv==="comp"?compDeltaView(p):peerAxisView(p,ds));
+}
+
+function peerAxisView(p,ds){
   const ps=peers(p), all=[p,...ps];
   const pos=ds.filter(d=>d.d>0), neg=ds.filter(d=>d.d<0);
   return `<div class="sec"><div class="sechead"><h3>Peer set</h3>
@@ -1283,6 +1320,119 @@ function peerView(p,ds){
     </div>
   </div></div>`;
 }
+
+/* ==================================================================
+   COMPONENT DELTAS
+   ------------------------------------------------------------------
+   The axis matrix compares whole objects, which blurs the comparison a
+   reader actually wants. Every chef's knife here is the same alloy —
+   X50CrMoV15 — and the blades are drop-forged, stamped, and "forged
+   per manufacturer claim" respectively. That is the fact that decides
+   the purchase, and a single sourcing or material score cannot carry it.
+
+   Component ids are shared within a class, so they join directly. What
+   is compared is the KEY of an attribute, with the detail shown under
+   it: comparing raw strings would call two blades different because
+   one is 58 HRC and the other 56, and miss that the alloy is identical.
+   ================================================================== */
+
+/* Role is deliberately absent: it sits in the component header already, and as
+   a compared row it reads "same across class" on nearly every component while
+   padding the differ-count denominator. */
+const CATTR = [
+  {k:"material", l:"Material", get:(p,id)=>{
+    const m=(p.materials||[]).filter(x=>x.c===id); if(!m.length) return null;
+    return {key:m.map(x=>x.n).join(" + "),
+            detail:m.map(x=>x.spec).filter(Boolean).join(" · ")||null, t:m[0].t}; }},
+  {k:"origin", l:"Origin", get:(p,id)=>{
+    const s=(p.sourcing||[]).filter(x=>x.c===id); if(!s.length) return null;
+    return {key:s.map(x=>x.o).filter(Boolean).join(" + ")||null, t:s[0].t}; }},
+  {k:"forming", l:"Forming", get:(p,id)=>{
+    const st=((p.construction||{}).steps||[]).filter(x=>x.c===id); if(!st.length) return null;
+    return {key:st.map(x=>x.p).join(" → ")}; }},
+  {k:"skill", l:"Skill", get:(p,id)=>{
+    const o=((p.skill||{}).ops||[]).filter(x=>x[0]===id); if(!o.length) return null;
+    return {key:[...new Set(o.map(x=>x[2]))].join(", ")}; }}
+];
+
+/* Null when there is nothing researched to compare against. Stubs carry no
+   component tree, so they cannot take part. */
+function compDeltas(p){
+  const ps=peers(p).filter(x=>!x.stub);
+  if(!ps.length || p.stub) return null;
+  const all=[p,...ps];
+
+  /* the target's roster first, then components only its peers declare —
+     a part a peer has and this one does not is itself a comparison */
+  const ids=[];
+  (p.comps||[]).forEach(c=>ids.push(c.id));
+  all.forEach(x=>(x.comps||[]).forEach(c=>{ if(!ids.includes(c.id)) ids.push(c.id); }));
+
+  const rows=ids.map(id=>{
+    const owner=all.find(x=>(x.comps||[]).some(c=>c.id===id));
+    const mine=(p.comps||[]).find(c=>c.id===id);
+    const attrs=CATTR.map(a=>{
+      const vals=all.map(x=>({
+        p:x,
+        has:(x.comps||[]).some(c=>c.id===id),
+        v:(x.comps||[]).some(c=>c.id===id)?a.get(x,id):null
+      }));
+      const keys=vals.map(x=>x.v&&x.v.key).filter(Boolean);
+      const uniq=new Set(keys.map(norm));
+      return {a, vals,
+        state: keys.length<2?"thin":uniq.size===1?"same":"differs",
+        shared: uniq.size===1?keys[0]:null};
+    }).filter(x=>x.vals.some(v=>v.v));
+    return {id, name:(mine||owner.comps.find(c=>c.id===id)).n,
+            role:(mine||owner.comps.find(c=>c.id===id)).role,
+            onTarget:!!mine, attrs,
+            differs:attrs.filter(x=>x.state==="differs").length};
+  });
+  return {all, rows};
+}
+
+function compDeltaView(p){
+  const cd=compDeltas(p);
+  if(!cd) return `<div class="sec"><div class="empty">
+    <b>No researched peer to compare against.</b>
+    Component deltas need at least one peer with a component tree. The peers in this class carry axis scores only.</div></div>`;
+
+  const blocks=cd.rows.filter(r=>r.attrs.length).map(r=>{
+    const rows=r.attrs.map(at=>{
+      const flag = at.state==="same" ? "same across class"
+                 : at.state==="differs" ? "differs"
+                 : "only one disclosed";
+      const body = at.state==="same"
+        ? `<div class="cdshared">${at.shared}</div>` +
+          at.vals.filter(v=>v.v&&v.v.detail).map(v=>
+            `<div class="cdp ${v.p.id===p.id?"self":""}"><b>${v.p.brand}</b><span class="cdsub" style="margin:0">${v.v.detail}</span></div>`).join("")
+        : at.vals.map(v=>{
+            if(!v.has) return `<div class="cdp"><b>${v.p.brand}</b><span>${gap("not on this roster")}</span></div>`;
+            if(!v.v||!v.v.key) return `<div class="cdp ${v.p.id===p.id?"self":""}"><b>${v.p.brand}</b><span>${gap("not disclosed")}</span></div>`;
+            return `<div class="cdp ${v.p.id===p.id?"self":""}"><b>${v.p.brand}</b><span>${v.v.key}${
+              v.v.detail?`<span class="cdsub">${v.v.detail}</span>`:""}</span></div>`;
+          }).join("");
+      return `<div class="cdrow ${at.state}">
+        <div class="cdk"><span class="eyebrow">${at.a.l}</span><span class="cdflag">${flag}</span></div>
+        <div>${body}</div></div>`;
+    }).join("");
+
+    return `<div class="cdelta ${r.onTarget?"":"absent"}">
+      <div class="cdhead"><span class="crole">${r.role}</span><h4>${r.name}</h4>
+        <span class="cdsum">${r.onTarget?"":"not on this product · "}${
+          r.differs} of ${r.attrs.length} differ</span></div>
+      ${rows}</div>`;
+  }).join("");
+
+  return `<div class="sec">
+    <div class="sechead"><h3>Component deltas</h3>
+      <span class="note">Compared part by part against ${cd.all.length-1} researched peer${cd.all.length===2?"":"s"}.</span></div>
+    <p class="mprose">An attribute marked <b>same across class</b> is a class norm and tells you nothing about this product in particular. The rows marked <b>differs</b> are what actually separates these products from one another.</p>
+    <div style="margin-top:18px">${blocks}</div>
+  </div>`;
+}
+
+function setDpiv(v){ S.dpiv=v; render(); }
 
 function customView(p){
   const rows=AXES.map(([k,l])=>`<div class="wrow"><span>${l}</span>
