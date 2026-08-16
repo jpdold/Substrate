@@ -297,6 +297,23 @@ that does not exist cannot resolve. Do not attempt to fix it by adding a blanket
 and buying a pass from the verifier with one is exactly the move the thesis
 forbids.
 
+**Where this stands.** Wüsthof is researched, reviewed and published — it is the
+only product on the live site with citations, and the only one whose provenance
+panel renders. The other eight were built on branch `corpus/eight-reports` but
+are **not** merged, for the reason below. The unbranded skillet (`import`) failed
+on a transient `fetch failed` and was never built at all; it needs one retry.
+
+*Do not merge that branch as it stands.* Those reports were built before the
+schema note required a certainty tag on `construction`, `assembly` and `skill` —
+the three fields that are single objects rather than array rows — and the pass
+omitted it on seven of eight, costing twelve claims. That is safe in itself, but
+it poisons the class-silence reduction: instant coffee now reports construction
+and assembly as class-wide silent when in truth the tags were simply missing.
+Publishing that states something false about an industry, which is worse than
+stating nothing. The prompt is fixed; re-run the seven and the finding becomes
+trustworthy. One report also came back with material shares totalling 397%,
+which the verifier can only flag — that rule is now in the schema note too.
+
 **All nine are queued in `queue.json`, pinned to their existing ids and
 classes.** Run `node build-corpus.mjs --max=1` first and read one report before
 spending on the rest. Researching them through the pipeline is deliberate rather
