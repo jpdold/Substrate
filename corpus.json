@@ -282,6 +282,2115 @@
         "diff": -2,
         "rows": 4
       }
+    },
+    {
+      "id": "victorinox",
+      "brand": "Victorinox",
+      "model": "Fibrox Pro 8\" Chef's Knife (5.2063.20)",
+      "klass": "knife8",
+      "year": "unspecified",
+      "axes": {
+        "material": 35,
+        "sourcing": 50,
+        "construction": 45,
+        "assembly": 80,
+        "skill": 40,
+        "superstructure": 20
+      },
+      "comps": [
+        {
+          "id": "blade",
+          "n": "Chef's knife blade",
+          "role": "Critical"
+        },
+        {
+          "id": "tang",
+          "n": "Partial tang (blade extension into handle)",
+          "role": "Structural"
+        },
+        {
+          "id": "handle",
+          "n": "Fibrox Pro handle",
+          "role": "Critical"
+        }
+      ],
+      "materials": [
+        {
+          "c": "blade",
+          "n": "High-carbon stainless steel",
+          "share": 65,
+          "spec": "X50CrMoV15, ~55-56 HRC",
+          "t": "l",
+          "src": 2,
+          "why": "Gear Patrol names X50CrMoV15; other reviewers cite X55CrMo14 for same SKU, exact alloy unconfirmed by Victorinox"
+        },
+        {
+          "c": "tang",
+          "n": "Same stainless steel stock as blade",
+          "share": 5,
+          "spec": "Integral piece, not a separate alloy",
+          "t": "e",
+          "src": 1,
+          "why": ""
+        },
+        {
+          "c": "handle",
+          "n": "Thermoplastic elastomer (Fibrox/TPE)",
+          "share": 30,
+          "spec": "Patented proprietary TPE compound",
+          "t": "e",
+          "src": 4,
+          "why": ""
+        }
+      ],
+      "sourcing": [
+        {
+          "c": "blade",
+          "m": "Stainless steel coil, grade unspecified by mfr",
+          "o": "Raw origin undisclosed; finished Ibach, Switzerland",
+          "s": "Victorinox AG",
+          "t": "l",
+          "src": 9,
+          "why": "Firm states Swiss cutlery uses French/German steel blend; not confirmed specifically for this SKU",
+          "note": "Raw steel supplier not publicly disclosed"
+        },
+        {
+          "c": "blade",
+          "m": null,
+          "o": null,
+          "s": null,
+          "t": "u",
+          "src": 0,
+          "why": "",
+          "note": "Retailer states end-to-end production at single Swiss site"
+        },
+        {
+          "c": "handle",
+          "m": "TPE resin",
+          "o": "Ibach, Switzerland (in-house molding)",
+          "s": "Victorinox AG",
+          "t": "l",
+          "src": 0,
+          "why": "Same source states whole knife made end-to-end in Ibach, implying co-located molding",
+          "note": ""
+        },
+        {
+          "c": "tang",
+          "m": "n/a, integral with blade steel",
+          "o": "Ibach, Switzerland",
+          "s": "Victorinox AG",
+          "t": "e",
+          "src": 1,
+          "why": "",
+          "note": "Stamped as one piece with blade from single sheet"
+        }
+      ],
+      "construction": {
+        "mode": "Factory",
+        "t": "u",
+        "auto": "Mostly automated stamping, hardening, grinding; final edge/polish steps hand-finished",
+        "tol": "Not disclosed for this SKU; general Victorinox blade tolerance claimed ~0.02mm",
+        "src": 10,
+        "why": "Tolerance figure comes from a general Victorinox factory process description, not an SKU-specific spec sheet",
+        "steps": [
+          {
+            "c": "blade",
+            "p": "Blanked/stamped from cold-rolled high-carbon stainless steel sheet"
+          },
+          {
+            "c": "blade",
+            "p": "Hardened in furnace (~1050°C) then quenched to martensitic structure"
+          },
+          {
+            "c": "blade",
+            "p": "Tempered, ground, polished and edge-honed to final profile"
+          },
+          {
+            "c": "tang",
+            "p": "Left as stamped integral extension, sized to partial-tang length"
+          },
+          {
+            "c": "handle",
+            "p": "TPE overmolded/injection-molded directly onto tang, bonding seamlessly"
+          }
+        ]
+      },
+      "assembly": {
+        "sites": [
+          {
+            "l": "Ibach, Switzerland",
+            "o": "Victorinox AG"
+          }
+        ],
+        "label": "Made in Switzerland",
+        "count": "Single site",
+        "t": "u",
+        "src": 0,
+        "why": ""
+      },
+      "skill": {
+        "tier": "Mixed: automated stamping/molding + manual finishing",
+        "t": "l",
+        "basis": "Retail/marketing copy repeatedly cites hand-finishing by skilled craftsmen after automated stamping and grinding",
+        "src": 0,
+        "why": "Multiple retailer descriptions (sourced from Victorinox copy) describe a hand-finishing step alongside automated stamping",
+        "ops": [
+          [
+            "blade",
+            "grinding/polishing/edge-honing",
+            "Manual hand-finishing by skilled workers"
+          ],
+          [
+            "blade",
+            "hardening & tempering",
+            "Automated furnace process, closely monitored"
+          ],
+          [
+            "handle",
+            "TPE overmolding",
+            "Automated injection-molding machine"
+          ]
+        ]
+      },
+      "parts": [
+        {
+          "c": "blade",
+          "n": "Cutting blade",
+          "m": "High-carbon stainless steel",
+          "crit": "Critical",
+          "t": "l",
+          "fail": "Edge rolls/dulls with heavy use; easily resharpened due to soft ~55-56HRC temper",
+          "src": 5,
+          "why": "HRC 55-56 cited; soft steel eases sharpening but limits edge retention vs harder forged blades"
+        },
+        {
+          "c": "tang",
+          "n": "Partial tang",
+          "m": "Same steel as blade, embedded ~half handle length",
+          "crit": "Structural",
+          "t": "e",
+          "src": 7,
+          "why": ""
+        },
+        {
+          "c": "handle",
+          "n": "Fibrox Pro grip",
+          "m": "TPE overmold",
+          "crit": "Critical",
+          "t": "e",
+          "src": 3,
+          "why": ""
+        }
+      ],
+      "issues": [
+        "Blade alloy designation conflicts across sources (X50CrMoV15 vs X55CrMo14)",
+        "Raw steel supplier/origin not publicly disclosed by Victorinox",
+        "No public patent number located for Fibrox handle material, only 'patented' marketing claims"
+      ],
+      "gen": "2026-08-16",
+      "rev": false,
+      "sources": [
+        {
+          "t": "The Award-Winning Victorinox Fibrox Pro 8\" Chef's Knife – Swiss Knife Shop",
+          "u": "",
+          "deadUrl": "https://www.swissknifeshop.com/products/fibrox-pro-8-s-chef-s-knife-by-victorinox",
+          "httpStatus": 404
+        },
+        {
+          "t": "Victorinox Fibrox 8\" Chef's Knife – Cutlery and More",
+          "u": "https://cutleryandmore.com/products/victorinox-fibrox-chefs-knife-42192"
+        },
+        {
+          "t": "Victorinox Fibrox 8-inch Chef's Knife | Gear Patrol",
+          "u": "https://www.gearpatrol.com/home/a65137/victorinox-fibrox-8-inch-chefs-knife/",
+          "httpStatus": 403
+        },
+        {
+          "t": "Swiss Army Victorinox Forschner Kitchen Cutlery with Fibrox Handles – Knife Center",
+          "u": "https://www.knifecenter.com/series/victorinox-kitchen-knives/victorinox-fibrox-handle-cutlery-commercial-quality",
+          "httpStatus": 403
+        },
+        {
+          "t": "Victorinox 5.2003.25 Chef's Knife Straight, Fibrox Handle, 10\" – Hantover",
+          "u": "https://www.hantover.com/Victorinox-40521-Cheffts-Knife-Straight-Fibrox-Handle-10in/45497/p",
+          "httpStatus": 405
+        },
+        {
+          "t": "Victorinox Fibrox Pro 8 Inch Chef Knife | Knives Academy",
+          "u": "https://knivesacademy.com/victorinox-fibrox-pro-chef-knife/"
+        },
+        {
+          "t": "Victorinox Fibrox Pro 8-Inch Chef's Knife Review: 20 Years Tested",
+          "u": "https://www.chefapprovedtools.com/reviews/victorinox-fibrox-8-inch-chefs-knife"
+        },
+        {
+          "t": "Victorinox Fibrox Chef's Knife Review | Reliable Knife",
+          "u": "https://www.reliableknife.com/victorinox-fibrox-chefs-knife-review/",
+          "httpStatus": "unreachable"
+        },
+        {
+          "t": "Does It Matter If My Kitchen Knife Is Full Tang? | Gear Patrol",
+          "u": "https://www.gearpatrol.com/food/a34063304/knife-tang/",
+          "httpStatus": 403
+        },
+        {
+          "t": "Victorinox Brand History – Country Knives",
+          "u": "https://www.countryknives.com/brand-history/victorinox/",
+          "httpStatus": 403
+        },
+        {
+          "t": "Building The Swiss Army Knife: How Victorinox Does It? | GearPersonal",
+          "u": "https://www.gearpersonal.com/swiss-army-knife-making/"
+        },
+        {
+          "t": "Victorinox Fibrox vs Classic: A Tool Guy in the Kitchen",
+          "u": "https://knifeknowledge.com/victorinox-fibrox-vs-classic/"
+        },
+        {
+          "t": "Victorinox 8\" Chef Knife with Fibrox Handle – WebstaurantStore",
+          "u": "https://www.webstaurantstore.com/victorinox-47520-8-chef-knife-with-fibrox-handle/35347520.html"
+        }
+      ],
+      "vlog": [
+        "Source “The Award-Winning Victorinox Fibrox Pro 8\" Chef's Knife – Swiss Knife Shop” returned 404 — anything citing it can no longer be EXACT",
+        "Source “Victorinox Fibrox 8-inch Chef's Knife | Gear Patrol” answered 403 — left in place; a block or a timeout is not a dead page",
+        "Source “Swiss Army Victorinox Forschner Kitchen Cutlery with Fibrox Handles – Knife Center” answered 403 — left in place; a block or a timeout is not a dead page",
+        "Source “Victorinox 5.2003.25 Chef's Knife Straight, Fibrox Handle, 10\" – Hantover” answered 405 — left in place; a block or a timeout is not a dead page",
+        "Source “Victorinox Fibrox Chef's Knife Review | Reliable Knife” answered unreachable — left in place; a block or a timeout is not a dead page",
+        "Source “Does It Matter If My Kitchen Knife Is Full Tang? | Gear Patrol” answered 403 — left in place; a block or a timeout is not a dead page",
+        "Source “Victorinox Brand History – Country Knives” answered 403 — left in place; a block or a timeout is not a dead page",
+        "Sourcing of “Stamp/harden/grind/polish finishing” was tagged EXACT without a working source — now UNKNOWN",
+        "Construction method had no certainty tag — treated as UNKNOWN",
+        "Assembly location had no certainty tag — treated as UNKNOWN"
+      ],
+      "srcAdj": {
+        "derived": true,
+        "model": 45,
+        "value": 50,
+        "diff": 5,
+        "rows": 4
+      }
+    },
+    {
+      "id": "mercer",
+      "brand": "Mercer Culinary",
+      "model": "Genesis 8\" Forged Chef's Knife (M20608/M21078)",
+      "klass": "knife8",
+      "year": "Unknown",
+      "axes": {
+        "material": 62,
+        "sourcing": 38,
+        "construction": 60,
+        "assembly": 40,
+        "skill": 48,
+        "superstructure": 30
+      },
+      "comps": [
+        {
+          "id": "blade",
+          "n": "Blade",
+          "role": "Critical"
+        },
+        {
+          "id": "tang",
+          "n": "Full tang",
+          "role": "Structural"
+        },
+        {
+          "id": "bolster",
+          "n": "Bolster",
+          "role": "Functional"
+        },
+        {
+          "id": "handle",
+          "n": "Handle",
+          "role": "Structural"
+        },
+        {
+          "id": "rivet",
+          "n": "Logo rivet",
+          "role": "Cosmetic"
+        }
+      ],
+      "materials": [
+        {
+          "c": "blade",
+          "n": "X50CrMoV15 high-carbon German stainless steel",
+          "share": 55,
+          "spec": null,
+          "t": "u",
+          "src": 2,
+          "why": ""
+        },
+        {
+          "c": "tang",
+          "n": "Same X50CrMoV15 steel, integral full-length extension",
+          "share": 15,
+          "spec": "Full tang",
+          "t": "e",
+          "src": 1,
+          "why": ""
+        },
+        {
+          "c": "bolster",
+          "n": "Same forged steel, integral half-bolster",
+          "share": 5,
+          "spec": "Forged one-piece with blade",
+          "t": "e",
+          "src": 4,
+          "why": ""
+        },
+        {
+          "c": "handle",
+          "n": "Santoprene thermoplastic elastomer (TPE)",
+          "share": 22,
+          "spec": "Molded, black, non-slip",
+          "t": "e",
+          "src": 1,
+          "why": ""
+        },
+        {
+          "c": "rivet",
+          "n": "Stainless steel, Mercer logo-engraved",
+          "share": 3,
+          "spec": "Single decorative rivet",
+          "t": "e",
+          "src": 4,
+          "why": ""
+        }
+      ],
+      "sourcing": [
+        {
+          "c": "blade",
+          "m": "Steel alloy",
+          "o": "Germany",
+          "s": "Steel mill (e.g. ThyssenKrupp-type German alloy producer)",
+          "t": "l",
+          "src": 9,
+          "why": "X50CrMoV15/1.4116 is a proprietary German DIN alloy historically supplied by German steel mills"
+        },
+        {
+          "c": "blade",
+          "m": "Forging & final assembly",
+          "o": "Taiwan",
+          "s": "Contract cutlery factory",
+          "t": "e",
+          "src": 6,
+          "why": ""
+        },
+        {
+          "c": "handle",
+          "m": null,
+          "o": null,
+          "s": null,
+          "t": "u",
+          "src": 0,
+          "why": ""
+        },
+        {
+          "c": "rivet",
+          "m": null,
+          "o": null,
+          "s": null,
+          "t": "u",
+          "src": 0,
+          "why": ""
+        }
+      ],
+      "construction": {
+        "mode": "Factory",
+        "t": "u",
+        "auto": "Both",
+        "tol": "Edge angle 15° per side (30° inclusive); hardness held to 56 HRC ±1",
+        "src": 2,
+        "why": "",
+        "steps": [
+          {
+            "c": "blade",
+            "p": "Steel bar heated and precision-forged into blade blank with integral bolster"
+          },
+          {
+            "c": "blade",
+            "p": "Blade taper-ground for distal taper and stability"
+          },
+          {
+            "c": "blade",
+            "p": "Edge hand-polished and sharpened to 15° per side"
+          },
+          {
+            "c": "handle",
+            "p": "Santoprene molded around full tang to form handle"
+          },
+          {
+            "c": "rivet",
+            "p": "Logo rivet set, knife finished and NSF-certified"
+          }
+        ]
+      },
+      "assembly": {
+        "sites": [
+          {
+            "l": "Taiwan",
+            "o": "Mercer Culinary contract manufacturer"
+          }
+        ],
+        "label": "Made in Taiwan (using German-origin steel alloy)",
+        "count": "Single site",
+        "t": "u",
+        "src": 6,
+        "why": ""
+      },
+      "skill": {
+        "tier": "Mixed: mechanized forging/grinding plus skilled hand-finishing",
+        "t": "u",
+        "basis": "Product descriptions citing hand-polished, taper-ground edges alongside precision forging",
+        "src": 2,
+        "why": "",
+        "ops": [
+          [
+            "blade",
+            "precision forging of blade blank",
+            "mechanized drop-forge/die operation"
+          ],
+          [
+            "blade",
+            "hand-polishing and edge sharpening",
+            "skilled manual finishing"
+          ],
+          [
+            "handle",
+            "molding Santoprene over tang",
+            "automated/semi-automated molding"
+          ]
+        ]
+      },
+      "parts": [
+        {
+          "c": "blade",
+          "n": "Blade",
+          "m": null,
+          "crit": "Critical",
+          "t": "u",
+          "fail": "Chipping/rolling of edge if abused; corrosion resistant but not stain-proof under neglect",
+          "src": 2,
+          "why": ""
+        },
+        {
+          "c": "tang",
+          "n": "Full tang",
+          "m": "Same forged steel",
+          "crit": "Structural",
+          "t": "e",
+          "fail": "Handle separation if molding bond degrades; otherwise robust",
+          "src": 1,
+          "why": ""
+        },
+        {
+          "c": "handle",
+          "n": "Santoprene handle",
+          "m": "Thermoplastic elastomer",
+          "crit": "Functional",
+          "t": "e",
+          "fail": "Surface wear/tackiness over years of use, reported by owners",
+          "src": 6,
+          "why": ""
+        },
+        {
+          "c": "bolster",
+          "n": "Half bolster",
+          "m": "Same forged steel",
+          "crit": "Functional",
+          "t": "e",
+          "fail": "Provides balance/finger guard; no independent failure mode, integral to blade",
+          "src": 4,
+          "why": ""
+        }
+      ],
+      "issues": [
+        "Exact country of steel smelting is not disclosed by Mercer; inferred from alloy naming convention",
+        "Handle Santoprene compounder/molder location not disclosed",
+        "No teardown/patent filings publicly found specific to this SKU"
+      ],
+      "gen": "2026-08-16",
+      "rev": false,
+      "sources": [
+        {
+          "t": "Mercer Culinary Genesis Chefs Knife, 8 inch - Foodservicedirect",
+          "u": "https://www.foodservicedirect.com/mercer-culinary-genesis-chefs-knife-8-inch-243570.html"
+        },
+        {
+          "t": "Mercer Culinary M20608 Genesis 8\" Forged Chef Knife with Full Tang Blade - WebstaurantStore",
+          "u": "https://www.webstaurantstore.com/mercer-culinary-m20608-genesis-8-forged-chef-knife-with-full-tang-blade/470M20608.html"
+        },
+        {
+          "t": "Mercer Culinary Genesis 8-Inch Chef's Knife (M21078) Review - CulinaryLore",
+          "u": "",
+          "deadUrl": "https://culinarylore.com/tools:mercer-culinary-genesis-8-inch-chefs-knife-m21078-review/",
+          "httpStatus": 410
+        },
+        {
+          "t": "Mercer Genesis 8\" Chef Knife - Short Bolster M21078 - KnifeMerchant",
+          "u": "https://knifemerchant.com/mercer-genesis-8-in-chef-knife-with-modified-bolster.html",
+          "httpStatus": 403
+        },
+        {
+          "t": "Are Mercer Kitchen Knives Good? (In-Depth Review) - Prudent Reviews",
+          "u": "https://prudentreviews.com/mercer-knives-review/"
+        },
+        {
+          "t": "Where Are Mercer Knives Made? - AllAmerican.org",
+          "u": "https://allamerican.org/investigation/mercer-knives/"
+        },
+        {
+          "t": "Amazon Q&A: Mercer Culinary M20610 Genesis 10-Inch Chef's Knife",
+          "u": "https://www.amazon.com/ask/questions/Tx770ZCGC00J9S"
+        },
+        {
+          "t": "Mercer Culinary Genesis Forged Chef's Knife, 6 Inch - Exit15",
+          "u": "https://www.exit15.com/mercer-culinary-genesis-forged-chefs-knife-6-inch"
+        },
+        {
+          "t": "Mercer Knives Reviews: The Best Affordable Knife Sets? - LearningTheKitchen",
+          "u": "https://learningthekitchen.com/mercer-knives-reviews/"
+        },
+        {
+          "t": "X50CrMoV15 or 1.4116 Steel Has Excellent Knife-Making Qualities - Koi Knives",
+          "u": "https://www.koiknives.com/blogs/knife-steel-makers/x50crmov15-or-1-4116-steel-has-excellent-knife-making-qualities"
+        },
+        {
+          "t": "DIN X50CrMoV15 Knife Steel Composition Analysis - ZKnives",
+          "u": "https://zknives.com/knives/steels/x50crmov15.shtml"
+        }
+      ],
+      "vlog": [
+        "Source “Mercer Culinary Genesis 8-Inch Chef's Knife (M21078) Review - CulinaryLore” returned 410 — anything citing it can no longer be EXACT",
+        "Source “Mercer Genesis 8\" Chef Knife - Short Bolster M21078 - KnifeMerchant” answered 403 — left in place; a block or a timeout is not a dead page",
+        "Material “X50CrMoV15 high-carbon German stainless steel” was tagged EXACT without a working source — now UNKNOWN",
+        "Construction method had no certainty tag — treated as UNKNOWN",
+        "Assembly location had no certainty tag — treated as UNKNOWN",
+        "Skill tier had no certainty tag — treated as UNKNOWN",
+        "Component “Blade” was tagged EXACT without a working source — now UNKNOWN"
+      ],
+      "srcAdj": {
+        "derived": true,
+        "model": 55,
+        "value": 38,
+        "diff": -17,
+        "rows": 4
+      }
+    },
+    {
+      "id": "lodge",
+      "brand": "Lodge",
+      "model": "Classic 10.25\" Cast Iron Skillet (SKU L8SK3)",
+      "klass": "skillet",
+      "year": "Unknown exact SKU launch; company founded 1896, in continuous production",
+      "axes": {
+        "material": 85,
+        "sourcing": 83,
+        "construction": 90,
+        "assembly": 90,
+        "skill": 55,
+        "superstructure": 20
+      },
+      "comps": [
+        {
+          "id": "body",
+          "n": "Cooking basin/wall",
+          "role": "Critical"
+        },
+        {
+          "id": "handle",
+          "n": "Integral cast handle",
+          "role": "Structural"
+        },
+        {
+          "id": "spout",
+          "n": "Pour-spout rim lips",
+          "role": "Functional"
+        },
+        {
+          "id": "season",
+          "n": "Baked seasoning coating",
+          "role": "Functional"
+        }
+      ],
+      "materials": [
+        {
+          "c": "body",
+          "n": "Gray cast iron (Fe + ~3-3.5% C, ~2% Si)",
+          "share": 97,
+          "spec": "melted from pig iron + recycled steel/castings + alloys in electric induction furnace",
+          "t": "e",
+          "src": 1,
+          "why": ""
+        },
+        {
+          "c": "body",
+          "n": "Trace Mn/P/S alloying consistent with gray iron cookware grades",
+          "share": 0,
+          "spec": "~0.5% Mn, <0.15% S typical for ASTM A48-class gray iron",
+          "t": "l",
+          "src": 8,
+          "why": "Lodge doesn't publish an assay; composition matches published ASTM A48 gray-iron ranges for cookware castings"
+        },
+        {
+          "c": "handle",
+          "n": "Same gray cast iron, single-pour integral casting",
+          "share": 100,
+          "spec": "cast in one mold shot with basin, no fasteners or welds",
+          "t": "e",
+          "src": 0,
+          "why": ""
+        },
+        {
+          "c": "spout",
+          "n": "Same gray cast iron, integral pour lips",
+          "share": 100,
+          "spec": "formed by mold geometry as part of single casting",
+          "t": "e",
+          "src": 4,
+          "why": ""
+        },
+        {
+          "c": "season",
+          "n": "Polymerized soybean vegetable oil",
+          "share": 100,
+          "spec": "Kosher-certified soy oil, spray-applied then oven-baked to carbonize",
+          "t": "e",
+          "src": 3,
+          "why": ""
+        },
+        {
+          "c": "season",
+          "n": "Possible trace GMO-soy derivatives in oil",
+          "share": 0,
+          "spec": "~90% of US soybean crop is genetically modified",
+          "t": "l",
+          "src": 7,
+          "why": "Lodge states oil is soy-based/Kosher but doesn't confirm specific sourcing; likely commodity US soy oil"
+        }
+      ],
+      "sourcing": [
+        {
+          "c": "body",
+          "m": "Iron feedstock (pig iron + recycled steel/scrap castings)",
+          "o": "USA",
+          "s": "Melted & cast at Lodge foundries, South Pittsburg, TN",
+          "t": "e",
+          "src": 1,
+          "why": "",
+          "note": "Two foundries (original + '3rd Street') both in same town"
+        },
+        {
+          "c": "season",
+          "m": "Soybean vegetable oil",
+          "o": "USA (commodity soy, not individually traced)",
+          "s": "Kosher-certified supplier, applied in-plant",
+          "t": "l",
+          "src": 7,
+          "why": "Lodge confirms soy-based/Kosher oil but publishes no farm/region traceability",
+          "note": ""
+        },
+        {
+          "c": "body",
+          "m": "Finished skillet",
+          "o": "USA",
+          "s": "Country-of-origin labeling on retail packaging",
+          "t": "e",
+          "src": 9,
+          "why": "",
+          "note": "Consistent across Lodge retail listings"
+        }
+      ],
+      "construction": {
+        "mode": "Factory",
+        "t": "u",
+        "auto": "High: Disamatic machines mold 350-400 molds/hr; automated shakeout, shot-blast cleaning, and seasoning spray/bake conveyor",
+        "tol": "Not publicly specified; sand-cast texture retained except hand-ground sharp edges",
+        "src": 0,
+        "why": "",
+        "steps": [
+          {
+            "c": "body",
+            "p": "Melt pig iron + recycled steel/castings + alloys in electric induction furnace (~2000°F+, up to 10 metric tons)"
+          },
+          {
+            "c": "body",
+            "p": "Disamatic green-sand vertical flaskless molding presses sand-water-clay mix into molds (350-400/hr)"
+          },
+          {
+            "c": "body",
+            "p": "Pour molten iron into molds; cool; vibrating conveyor shakes off (recycled) molding sand"
+          },
+          {
+            "c": "body",
+            "p": "Tumble in rotating drum with iron media, then fine steel-shot blast; hand-inspect and grind sharp edges"
+          },
+          {
+            "c": "season",
+            "p": "Spray with soybean vegetable oil; bake at high heat to polymerize; inspect and burn off excess drips"
+          }
+        ]
+      },
+      "assembly": {
+        "sites": [
+          {
+            "l": "South Pittsburg, Tennessee, USA",
+            "o": "Lodge Manufacturing Company (original foundry + '3rd Street' foundry)"
+          }
+        ],
+        "label": "Made in USA",
+        "count": "Multiple sites",
+        "t": "e",
+        "src": 6,
+        "why": ""
+      },
+      "skill": {
+        "tier": "Semi-skilled industrial: automated casting plus trained hand-finishing",
+        "t": "l",
+        "basis": "Melting/molding/shakeout are machine-automated; hand-inspection, edge-grinding, and oil-touch-up are done by named foundry technicians",
+        "src": 0,
+        "why": "Lodge's own process description credits skilled technicians for finishing steps despite overall automation",
+        "ops": [
+          [
+            "body",
+            "edge grinding after shakeout",
+            "hand-ground by trained inspector to remove sharp casting edges"
+          ],
+          [
+            "season",
+            "excess-oil touch-up",
+            "skilled technicians burn off oil drips after spray-bake"
+          ],
+          [
+            "body",
+            "final visual QC",
+            "hand inspection before packing"
+          ]
+        ]
+      },
+      "parts": [
+        {
+          "c": "body",
+          "n": "Cooking basin/wall",
+          "m": "Gray cast iron",
+          "crit": "Critical",
+          "t": "e",
+          "fail": "Can crack under thermal shock or impact; may warp if overheated empty",
+          "src": 1,
+          "why": ""
+        },
+        {
+          "c": "handle",
+          "n": "Integral handle",
+          "m": "Same cast iron, single-pour",
+          "crit": "Structural",
+          "t": "e",
+          "fail": "No separate failure mode; integral casting eliminates joint/weld failure",
+          "src": 0,
+          "why": ""
+        },
+        {
+          "c": "season",
+          "n": "Seasoning coating",
+          "m": "Polymerized soybean oil",
+          "crit": "Functional",
+          "t": "l",
+          "fail": "Can flake/strip with abrasive cleaning, acidic foods, or over-scrubbing; needs reseasoning",
+          "src": 2,
+          "why": "Lodge's own care guidance describes seasoning wear and reseasoning needs"
+        },
+        {
+          "c": "spout",
+          "n": "Pour spout rim lips",
+          "m": "Same cast iron, integral",
+          "crit": "Cosmetic",
+          "t": "e",
+          "fail": "None distinct; formed as part of single casting",
+          "src": 4,
+          "why": ""
+        }
+      ],
+      "issues": [
+        "Exact chemical assay/ASTM class of the iron alloy is not publicly disclosed by Lodge",
+        "Specific soybean oil supplier/region for seasoning is not disclosed"
+      ],
+      "gen": "2026-08-16",
+      "rev": false,
+      "sources": [
+        {
+          "t": "How It's Made – Lodge Cast Iron",
+          "u": "https://www.lodgecastiron.com/pages/about-lodge-how-its-made"
+        },
+        {
+          "t": "Lodge Plant Tour - Cast Iron Skillets | The Kitchn",
+          "u": "https://www.thekitchn.com/how-lodge-cast-iron-skillets-are-made-in-tennessee-maker-tour-206834",
+          "httpStatus": 403
+        },
+        {
+          "t": "How to Season – Lodge Cast Iron",
+          "u": "https://www.lodgecastiron.com/pages/how-to-season"
+        },
+        {
+          "t": "What oils should you use for cast iron – Lodge Cast Iron",
+          "u": "https://www.lodgecastiron.com/pages/cleaning-and-care-cast-iron-oils-cast-iron-cooking-and-seasoning"
+        },
+        {
+          "t": "Lodge 10 11/16\" Round Seasoned Cast Iron Skillet (L8SK3) – Katom",
+          "u": "https://www.katom.com/261-L8SK3.html",
+          "httpStatus": 403
+        },
+        {
+          "t": "We embrace our legacy – Lodge Cast Iron (History)",
+          "u": "https://www.lodgecastiron.com/pages/about-lodge-history"
+        },
+        {
+          "t": "Second Lodge Foundry Now in Production – Lodge Cast Iron",
+          "u": "https://lodgecastiron.com/story/second-lodge-foundry-now-production"
+        },
+        {
+          "t": "Cast Iron Seasoning – Lodge Cast Iron (EU)",
+          "u": "https://lodgecastiron.eu/en/pages/cast-iron-seasoning"
+        },
+        {
+          "t": "A48/A48M Standard Specification for Gray Iron Castings – ASTM",
+          "u": "https://store.astm.org/a0048_a0048m-22.html"
+        },
+        {
+          "t": "Lodge Pre-Seasoned Cast Iron Skillet, PFAS-Free, 10.25 Inches – Amazon",
+          "u": "https://www.amazon.com/Lodge-Skillet-Pre-Seasoned-Ready-Stove/dp/B00006JSUA"
+        }
+      ],
+      "vlog": [
+        "Source “Lodge Plant Tour - Cast Iron Skillets | The Kitchn” answered 403 — left in place; a block or a timeout is not a dead page",
+        "Source “Lodge 10 11/16\" Round Seasoned Cast Iron Skillet (L8SK3) – Katom” answered 403 — left in place; a block or a timeout is not a dead page",
+        "Construction method had no certainty tag — treated as UNKNOWN",
+        "Material shares summed to 397% — treat mass figures as approximate"
+      ],
+      "srcAdj": {
+        "derived": true,
+        "model": 70,
+        "value": 83,
+        "diff": 13,
+        "rows": 3
+      }
+    },
+    {
+      "id": "smithey",
+      "brand": "Smithey Ironware Co.",
+      "model": "No. 12 Cast Iron Skillet",
+      "klass": "skillet",
+      "year": "2015 (company founded; current model ongoing production)",
+      "axes": {
+        "material": 68,
+        "sourcing": 75,
+        "construction": 78,
+        "assembly": 25,
+        "skill": 72,
+        "superstructure": 22
+      },
+      "comps": [
+        {
+          "id": "body",
+          "n": "Pan body (base, wall, cook surface, pour spouts)",
+          "role": "Critical"
+        },
+        {
+          "id": "handle",
+          "n": "Main handle",
+          "role": "Structural"
+        },
+        {
+          "id": "helper_handle",
+          "n": "3-hole helper handle",
+          "role": "Functional"
+        },
+        {
+          "id": "seasoning",
+          "n": "Factory seasoning coating",
+          "role": "Functional"
+        }
+      ],
+      "materials": [
+        {
+          "c": "body",
+          "n": "Grey cast iron, largely recycled scrap iron/steel melt",
+          "share": 85,
+          "spec": "Sand-cast grey iron, single monolithic pour, thick wall for heat retention",
+          "t": "e",
+          "src": 1,
+          "why": ""
+        },
+        {
+          "c": "handle",
+          "n": "Grey cast iron (same melt/pour as body)",
+          "share": 9,
+          "spec": "Integral cast handle, hand-ground and polished",
+          "t": "l",
+          "src": 1,
+          "why": "Foundry casting step forms whole skillet shape in one sand mold pour, per described process"
+        },
+        {
+          "c": "helper_handle",
+          "n": "Grey cast iron (same melt/pour as body)",
+          "share": 3,
+          "spec": "Integral loop with 3 identifying holes",
+          "t": "l",
+          "src": 5,
+          "why": "FAQ describes the 3 holes as a cast feature of the pan lip, implying one-piece casting"
+        },
+        {
+          "c": "seasoning",
+          "n": "Grapeseed oil, canola oil, vitamin E, beeswax blend",
+          "share": 1,
+          "spec": "2-3 thin baked-on layers applied before shipping",
+          "t": "e",
+          "src": 2,
+          "why": ""
+        }
+      ],
+      "sourcing": [
+        {
+          "c": "body",
+          "m": "Recycled scrap iron/steel",
+          "o": "USA (mixed domestic scrap, e.g. old railroad ties per founder)",
+          "s": "Scrap yards/recyclers",
+          "t": "l",
+          "src": 1,
+          "why": "Founder quoted describing use of scrapped iron such as old railroad ties bought from scrap yards",
+          "note": "Exact scrap suppliers not disclosed"
+        },
+        {
+          "c": "body",
+          "m": "Raw sand-cast iron blank",
+          "o": "USA - foundry in Indiana (name undisclosed)",
+          "s": "Contract foundry, Indiana",
+          "t": "e",
+          "src": 1,
+          "why": "",
+          "note": "Smithey does not publicly name its casting foundry"
+        },
+        {
+          "c": "body",
+          "m": "Finished/polished pan",
+          "o": "USA - North Charleston, SC (former Navy Yard)",
+          "s": "Smithey Ironware Co. own workshop, 1465 Pipefitter St.",
+          "t": "e",
+          "src": 3,
+          "why": "",
+          "note": "Hand-grinding, tumbling, machining, seasoning done here"
+        },
+        {
+          "c": "seasoning",
+          "m": "Oil/beeswax blend",
+          "o": "USA (packaged in USA)",
+          "s": "Third-party oil blender (unnamed)",
+          "t": "l",
+          "src": 2,
+          "why": "Product listing states oil blend is packaged in the USA, implying domestic bottling/blending",
+          "note": ""
+        }
+      ],
+      "construction": {
+        "mode": "Both",
+        "t": "u",
+        "auto": "Melting and mold pouring mechanized at foundry; grinding partly machine, polishing largely manual",
+        "tol": "No published dimensional tolerances; hand-finishing implies piece-to-piece surface variance",
+        "src": 1,
+        "why": "",
+        "steps": [
+          {
+            "c": "body",
+            "p": "Melt scrap iron/steel and pour into green-sand mold at Indiana foundry (casting)"
+          },
+          {
+            "c": "body",
+            "p": "Shake out sand, rough-clean raw casting (surface like heavy-grit sandpaper)"
+          },
+          {
+            "c": "body",
+            "p": "Machine-grind and hand-sand interior cook surface to smooth it in Charleston workshop"
+          },
+          {
+            "c": "handle",
+            "p": "Grind/polish handle and helper-handle edges to satin finish"
+          },
+          {
+            "c": "seasoning",
+            "p": "Apply 2-3 layers of grapeseed-oil-based seasoning, cure/bake before shipping"
+          }
+        ]
+      },
+      "assembly": {
+        "sites": [
+          {
+            "l": "Indiana, USA (foundry, name undisclosed)",
+            "o": "Contract foundry - iron melting & sand casting"
+          },
+          {
+            "l": "North Charleston, SC, USA (former Navy Yard)",
+            "o": "Smithey Ironware Co. workshop - grinding, polishing, seasoning"
+          }
+        ],
+        "label": "Made in USA: cast in Indiana, finished/seasoned in Charleston, SC",
+        "count": "Multiple sites",
+        "t": "e",
+        "src": 1,
+        "why": ""
+      },
+      "skill": {
+        "tier": "Skilled manual finishing on top of mechanized casting",
+        "t": "e",
+        "basis": "Founder estimates ~12 hours of labor per skillet, including hand-polishing and multi-step seasoning",
+        "src": 4,
+        "why": "",
+        "ops": [
+          [
+            "body",
+            "interior grinding/polishing",
+            "hand-sanding raw casting to glassy satin finish"
+          ],
+          [
+            "handle",
+            "edge deburring/grinding",
+            "manual smoothing of cast handle edges"
+          ],
+          [
+            "seasoning",
+            "oil seasoning & baking",
+            "controlled multi-layer oil application and curing"
+          ]
+        ]
+      },
+      "parts": [
+        {
+          "c": "body",
+          "n": "Cook surface & base",
+          "m": "Grey cast iron",
+          "crit": "Critical",
+          "t": "e",
+          "fail": "Cracking under thermal shock; warping if overheated while empty",
+          "src": 1,
+          "why": ""
+        },
+        {
+          "c": "handle",
+          "n": "Main handle",
+          "m": "Grey cast iron (integral)",
+          "crit": "Structural",
+          "t": "l",
+          "fail": "Stress fracture at thin handle-to-body junction over years of use",
+          "src": 1,
+          "why": "Single-piece casting means handle failure would occur at its narrowest cross-section"
+        },
+        {
+          "c": "helper_handle",
+          "n": "3-hole helper handle",
+          "m": "Grey cast iron (integral)",
+          "crit": "Functional",
+          "t": "l",
+          "fail": "Hairline crack across thin loop from repeated hot/cold cycling",
+          "src": 5,
+          "why": "Helper handle is thinner cast section per product description, more prone to stress than main handle"
+        },
+        {
+          "c": "seasoning",
+          "n": "Seasoning coating",
+          "m": "Polymerized oil/beeswax layer",
+          "crit": "Cosmetic",
+          "t": "e",
+          "fail": "Flaking/gumming if over-applied; rust exposure if seasoning wears through",
+          "src": 2,
+          "why": ""
+        }
+      ],
+      "issues": [
+        "No published ASTM/foundry alloy grade found; iron composition inferred as generic grey cast iron, not an exact Smithey spec sheet.",
+        "Casting foundry in Indiana is not named publicly; only state-level sourcing confirmed."
+      ],
+      "gen": "2026-08-16",
+      "rev": false,
+      "sources": [
+        {
+          "t": "No. 12 Skillet – Smithey Ironware",
+          "u": "https://smithey.com/products/no-12-cast-iron-skillet"
+        },
+        {
+          "t": "History of Smithey Cast Iron - Why You Should Buy Cast Iron Skillet Made in USA (Food52)",
+          "u": "https://food52.com/story/18897-an-all-american-cast-iron-skillet-made-the-vintage-way",
+          "httpStatus": 429
+        },
+        {
+          "t": "Seasoning Oil – Smithey Ironware",
+          "u": "https://smithey.com/products/seasoning-tin"
+        },
+        {
+          "t": "Smithey Ironware Expanding Charleston County Operations – SC Governor",
+          "u": "https://governor.sc.gov/news/2019-07/smithey-ironware-expanding-charleston-county-operations",
+          "httpStatus": 403
+        },
+        {
+          "t": "Isaac Morton Forges A Skillet to Last – The Local Palate",
+          "u": "https://thelocalpalate.com/articles/a-skillet-forged-to-last/"
+        },
+        {
+          "t": "FAQs – Smithey Ironware",
+          "u": "https://smithey.com/pages/faqs-a"
+        },
+        {
+          "t": "Smithey Ironware Traditional 12\" Cast Iron Skillet – Toque Blanche",
+          "u": "https://www.mytoque.com/products/smithey-12-traditional-skillet"
+        },
+        {
+          "t": "How It's Made – Lodge Cast Iron",
+          "u": "https://www.lodgecastiron.com/pages/about-lodge-how-its-made"
+        },
+        {
+          "t": "No. 12 Cast Iron Skillet - 13.3\" – Field Company (Everything Kitchens)",
+          "u": "https://www.everythingkitchens.com/field-company-no-12-cast-iron-skillet.html",
+          "httpStatus": 403
+        },
+        {
+          "t": "Smithey Ironware Seasoning Oil – Acme Tools",
+          "u": "https://www.acmetools.com/smithey-ironware-seasoning-oil-smith-ac-season/850017864153.html",
+          "httpStatus": 403
+        },
+        {
+          "t": "Smithey Ironware Company's Line of Cookware is 'As American-Made As You Can Get' – AAM",
+          "u": "https://www.americanmanufacturing.org/blog/smithey-ironware-companys-line-of-cookware-is-as-american-made-as-you-can-get/"
+        },
+        {
+          "t": "Lodge Plant Tour - Cast Iron Skillets – The Kitchn",
+          "u": "https://www.thekitchn.com/how-lodge-cast-iron-skillets-are-made-in-tennessee-maker-tour-206834",
+          "httpStatus": 403
+        }
+      ],
+      "vlog": [
+        "Source “History of Smithey Cast Iron - Why You Should Buy Cast Iron Skillet Made in USA (Food52)” answered 429 — left in place; a block or a timeout is not a dead page",
+        "Source “Smithey Ironware Expanding Charleston County Operations – SC Governor” answered 403 — left in place; a block or a timeout is not a dead page",
+        "Source “No. 12 Cast Iron Skillet - 13.3\" – Field Company (Everything Kitchens)” answered 403 — left in place; a block or a timeout is not a dead page",
+        "Source “Smithey Ironware Seasoning Oil – Acme Tools” answered 403 — left in place; a block or a timeout is not a dead page",
+        "Source “Lodge Plant Tour - Cast Iron Skillets – The Kitchn” answered 403 — left in place; a block or a timeout is not a dead page",
+        "Construction method had no certainty tag — treated as UNKNOWN"
+      ],
+      "srcAdj": {
+        "derived": true,
+        "model": 62,
+        "value": 75,
+        "diff": 13,
+        "rows": 4
+      }
+    },
+    {
+      "id": "nescafe",
+      "brand": "Nescafé",
+      "model": "Clásico Instant Coffee, 7 oz jar",
+      "klass": "instant",
+      "year": "current (ongoing SKU)",
+      "axes": {
+        "material": 20,
+        "sourcing": 25,
+        "construction": 60,
+        "assembly": 25,
+        "skill": 15,
+        "superstructure": 10
+      },
+      "comps": [
+        {
+          "id": "granules",
+          "n": "Instant coffee granules",
+          "role": "Critical"
+        },
+        {
+          "id": "jar",
+          "n": "Glass jar body",
+          "role": "Structural"
+        },
+        {
+          "id": "cap",
+          "n": "Plastic screw cap",
+          "role": "Critical"
+        },
+        {
+          "id": "seal",
+          "n": "Foil freshness seal",
+          "role": "Critical"
+        },
+        {
+          "id": "label",
+          "n": "Paper label",
+          "role": "Cosmetic"
+        }
+      ],
+      "materials": [
+        {
+          "c": "granules",
+          "n": "Dehydrated soluble coffee extract (100% pure coffee)",
+          "share": 55,
+          "spec": "Roasted Arabica/Robusta blend, water-extracted, dried",
+          "t": "e",
+          "src": 6,
+          "why": ""
+        },
+        {
+          "c": "jar",
+          "n": "Soda-lime glass",
+          "share": 33,
+          "spec": "Clear glass jar, screw-thread finish",
+          "t": "e",
+          "src": 0,
+          "why": ""
+        },
+        {
+          "c": "cap",
+          "n": "Polypropylene plastic",
+          "share": 6,
+          "spec": "Injection-molded screw cap, separately recyclable",
+          "t": "e",
+          "src": 1,
+          "why": ""
+        },
+        {
+          "c": "seal",
+          "n": "Aluminum foil laminate",
+          "share": 1,
+          "spec": "Induction/heat seal liner under cap, printed brand",
+          "t": "l",
+          "src": 8,
+          "why": "Documented on Nescafé Gold Cap glass jar; same cap/seal format used across Nescafé glass-jar line incl. Clásico"
+        },
+        {
+          "c": "label",
+          "n": "Paper",
+          "share": 2,
+          "spec": "Printed adhesive paper label wrapped on glass body",
+          "t": "l",
+          "src": 1,
+          "why": "Nescafé recycling guidance treats jar and label as glass-stream paper/glass, no plastic sleeve documented for Clásico jars"
+        }
+      ],
+      "sourcing": [
+        {
+          "c": "granules",
+          "m": "Green coffee beans (Arabica & Robusta)",
+          "o": "Ethiopia, Brazil, Vietnam",
+          "s": "Farm cooperatives via Nescafé Plan sourcing program",
+          "t": "l",
+          "src": 7,
+          "why": "Stated for Nescafé Clásico Dark Roast 7oz jar product page; Clásico line sources beans from same regions"
+        },
+        {
+          "c": "jar",
+          "m": null,
+          "o": null,
+          "s": null,
+          "t": "u",
+          "src": 0,
+          "why": ""
+        },
+        {
+          "c": "granules",
+          "m": "Roasted/extracted coffee solids",
+          "o": "Veracruz, Mexico (processing)",
+          "s": "Nestlé-owned Nescafé factory",
+          "t": "l",
+          "src": 4,
+          "why": "Nestlé's $340M Veracruz plant opened 2022 and became Nestlé's main global coffee producer as US Freehold, NJ plant wound down"
+        },
+        {
+          "c": "cap",
+          "m": null,
+          "o": null,
+          "s": null,
+          "t": "u",
+          "src": 1,
+          "why": ""
+        }
+      ],
+      "construction": {
+        "mode": "Factory",
+        "t": "u",
+        "auto": "Highly automated continuous process; jar filled by conveyor in under a second per unit",
+        "tol": null,
+        "src": 3,
+        "why": "",
+        "steps": [
+          {
+            "c": "granules",
+            "p": "Roast and grind beans, then extract with hot water through percolation columns to make coffee concentrate"
+          },
+          {
+            "c": "granules",
+            "p": "Concentrate extract, then dry via hot-air spray tower or freeze at -40C and vacuum-sublimate into granules"
+          },
+          {
+            "c": "granules",
+            "p": "Re-add captured aroma compounds with nitrogen gas; sieve/agglomerate for uniform granule size"
+          },
+          {
+            "c": "jar",
+            "p": "Automated conveyor fills glass jars with granules under protective atmosphere in under a second each"
+          },
+          {
+            "c": "cap",
+            "p": "Foil freshness seal applied, plastic screw cap fitted, paper label affixed on the automated line"
+          }
+        ]
+      },
+      "assembly": {
+        "sites": [
+          {
+            "l": "Nescafé factory, Veracruz, Mexico",
+            "o": "Nestlé S.A."
+          }
+        ],
+        "label": "Product of Mexico (current primary supply after 2023 Freehold, NJ plant closure)",
+        "count": "Single site",
+        "t": "l",
+        "src": 5,
+        "why": "Freehold, NJ was Nescafé's only US production plant; it closed with operations outsourced to Mexico, coinciding with Veracruz becoming Nestlé's main global coffee producer"
+      },
+      "skill": {
+        "tier": "Low",
+        "t": "l",
+        "basis": "Continuous automated extraction, drying, filling, capping and labeling line with minimal manual intervention",
+        "src": 3,
+        "why": "Described stages show conveyor-driven filling, automatic capping and labeling with workers only supervising/topping equipment",
+        "ops": [
+          [
+            "granules",
+            "roasting and drying",
+            "automated process-control operation, not manual craft"
+          ],
+          [
+            "jar",
+            "filling and capping",
+            "automated packaging-line operation"
+          ]
+        ]
+      },
+      "parts": [
+        {
+          "c": "jar",
+          "n": "Glass jar",
+          "m": "Soda-lime glass",
+          "crit": "Structural",
+          "t": "e",
+          "fail": "Cracks or shatters on impact or thermal shock",
+          "src": 0,
+          "why": ""
+        },
+        {
+          "c": "cap",
+          "n": "Screw cap",
+          "m": "Polypropylene",
+          "crit": "Critical",
+          "t": "e",
+          "fail": "Seal degradation lets moisture in, causing granule caking",
+          "src": 1,
+          "why": ""
+        },
+        {
+          "c": "seal",
+          "n": "Foil liner",
+          "m": "Aluminum foil laminate",
+          "crit": "Critical",
+          "t": "l",
+          "fail": "Puncture or incomplete seal lets air/moisture degrade freshness",
+          "src": 8,
+          "why": "Same foil-seal format documented on other Nescafé glass-jar SKUs"
+        },
+        {
+          "c": "granules",
+          "n": "Coffee granules",
+          "m": "Dehydrated coffee extract",
+          "crit": "Critical",
+          "t": "e",
+          "fail": "Absorbs humidity, clumps, loses solubility and aroma",
+          "src": 6,
+          "why": ""
+        }
+      ],
+      "issues": [
+        "Country-of-origin labeling inconsistent across retail listings: some show 'Made in the United States' while Nestlé has shifted Nescafé US supply to its Veracruz, Mexico plant since 2022-2023."
+      ],
+      "gen": "2026-08-16",
+      "rev": false,
+      "sources": [
+        {
+          "t": "Does Instant Coffee Have Microplastics? Nescafé, VIA & Folgers",
+          "u": "https://microplasticsapp.com/blog/does-instant-coffee-have-microplastics"
+        },
+        {
+          "t": "Sustainable Coffee Packaging | Nescafé Global",
+          "u": "https://www.nescafe.com/recycling"
+        },
+        {
+          "t": "NESCAFÉ instant coffee production | NESCAFÉ MENA",
+          "u": "https://www.nescafe.com/mena/en-ae/coffee-culture/coffee-knowledge/instant-production"
+        },
+        {
+          "t": "How Is Instant Coffee Made? (Amazing 9 Stage Process)",
+          "u": "https://elevencoffees.com/how-is-instant-coffee-made/"
+        },
+        {
+          "t": "Nestlé opens $340M Nescafé coffee factory in Mexico",
+          "u": "https://www.fooddive.com/news/nestle-opens-340m-nescafe-coffee-factory-in-mexico/628103/"
+        },
+        {
+          "t": "Communities Mourn NJ's Iconic Nabisco and Nescafé Factories",
+          "u": "https://njmonthly.com/articles/news/communities-mourn-nabisco-nescafe-factories/"
+        },
+        {
+          "t": "Nescafé Clásico Dark Roast Instant Coffee (7 oz) - UberEats listing",
+          "u": "https://www.ubereats.com/store/indian-groceries-1065-w-broad-st/AsSybQD5WDCjrHpbM0XW9w/f1b6ac77-3e02-538e-898b-067de0f88847/dae52265-d4d3-59b1-99a0-f019a7389e1b/69652737-23d1-59c7-99f2-de59fcb6eec5",
+          "httpStatus": 403
+        },
+        {
+          "t": "Dark Roast Instant Coffee 7 oz Jar | NESCAFÉ US",
+          "u": "https://www.nescafe.com/us/products/dark-roast-instant-coffee-7-oz-jar/"
+        },
+        {
+          "t": "I Tried Nescafe Gold Cap Colombia - My Review and Photos",
+          "u": "https://www.clearlycoffee.com/nescafe-gold-cap-colombia-review-photos/"
+        },
+        {
+          "t": "How instant coffee is made - madehow.com",
+          "u": "https://www.madehow.com/Volume-3/Instant-Coffee.html"
+        }
+      ],
+      "vlog": [
+        "Source “Nescafé Clásico Dark Roast Instant Coffee (7 oz) - UberEats listing” answered 403 — left in place; a block or a timeout is not a dead page",
+        "Construction method had no certainty tag — treated as UNKNOWN"
+      ],
+      "srcAdj": {
+        "derived": true,
+        "model": 55,
+        "value": 25,
+        "diff": -30,
+        "rows": 4
+      }
+    },
+    {
+      "id": "hagen",
+      "brand": "Mount Hagen",
+      "model": "Organic Freeze Dried Instant Coffee, 3.53 oz",
+      "klass": "instant",
+      "year": "unspecified",
+      "axes": {
+        "material": 25,
+        "sourcing": 63,
+        "construction": 45,
+        "assembly": 35,
+        "skill": 15,
+        "superstructure": 15
+      },
+      "comps": [
+        {
+          "id": "coffee",
+          "n": "Freeze-dried coffee granules",
+          "role": "Critical"
+        },
+        {
+          "id": "jar",
+          "n": "Glass jar",
+          "role": "Structural"
+        },
+        {
+          "id": "cap",
+          "n": "Plastic screw cap",
+          "role": "Functional"
+        },
+        {
+          "id": "seal",
+          "n": "Foil inner seal",
+          "role": "Functional"
+        },
+        {
+          "id": "label",
+          "n": "Paper label",
+          "role": "Cosmetic"
+        }
+      ],
+      "materials": [
+        {
+          "c": "coffee",
+          "n": "Soluble freeze-dried coffee extract (100% organic Arabica)",
+          "share": 45,
+          "spec": "100% organic Fairtrade Arabica, freeze-dried",
+          "t": "e",
+          "src": 0,
+          "why": ""
+        },
+        {
+          "c": "jar",
+          "n": "Glass (rectangular jar)",
+          "share": 40,
+          "spec": "Thick-walled glass, ~100g capacity",
+          "t": "l",
+          "src": 5,
+          "why": "Teardown describes a thick, rectangular glass jar holding the coffee"
+        },
+        {
+          "c": "cap",
+          "n": "Plastic (black screw cap)",
+          "share": 8,
+          "spec": "Twist-off closure",
+          "t": "l",
+          "src": 5,
+          "why": "Reviewer describes removing a black plastic cap before reaching the seal"
+        },
+        {
+          "c": "seal",
+          "n": "Aluminum foil induction seal",
+          "share": 2,
+          "spec": "Thin foil liner under cap, tears in pieces",
+          "t": "e",
+          "src": 5,
+          "why": ""
+        },
+        {
+          "c": "label",
+          "n": "Paper/adhesive label",
+          "share": 5,
+          "spec": null,
+          "t": "u",
+          "src": null,
+          "why": ""
+        }
+      ],
+      "sourcing": [
+        {
+          "c": "coffee",
+          "m": "Arabica coffee cherries",
+          "o": "Papua New Guinea",
+          "s": "Cooperative of 2500+ smallholder farmers",
+          "t": "e",
+          "src": 2,
+          "why": "",
+          "note": "Primary single-origin lot per brand messaging"
+        },
+        {
+          "c": "coffee",
+          "m": "Arabica coffee cherries",
+          "o": "Mexico, Honduras, Peru, Dominican Republic, Africa",
+          "s": "Regional smallholder cooperatives",
+          "t": "l",
+          "src": 2,
+          "why": "Brand history describes diversifying plantations to these regions",
+          "note": "Secondary/blend origins, not confirmed for this specific SKU"
+        },
+        {
+          "c": "coffee",
+          "m": "Extraction & freeze-drying, jar filling",
+          "o": "Germany",
+          "s": "Mount Hagen factory",
+          "t": "e",
+          "src": 3,
+          "why": "",
+          "note": "Label states Product of Germany"
+        },
+        {
+          "c": "jar",
+          "m": null,
+          "o": null,
+          "s": null,
+          "t": "u",
+          "src": null,
+          "why": "",
+          "note": "No disclosure found for glass jar supplier or manufacturing country"
+        }
+      ],
+      "construction": {
+        "mode": "Factory",
+        "t": "u",
+        "auto": "Highly automated: extraction, freezing, granulation, vacuum-drying, filling",
+        "tol": "Controlled residual moisture and granule size for shelf-stable instant coffee",
+        "src": 4,
+        "why": "Trade article details the standard roast-extract-freeze-granulate-sublimate sequence used for freeze-dried instant coffee",
+        "steps": [
+          {
+            "c": "coffee",
+            "p": "Roast & grind Arabica beans, hot-water extract to ~15-30% coffee solids liquor"
+          },
+          {
+            "c": "coffee",
+            "p": "Filter and concentrate the coffee extract"
+          },
+          {
+            "c": "coffee",
+            "p": "Freeze liquor to about -40°C forming a solid slab"
+          },
+          {
+            "c": "coffee",
+            "p": "Break frozen slab into granules"
+          },
+          {
+            "c": "coffee",
+            "p": "Vacuum freeze-dry (sublimate ice) into dry soluble granules"
+          }
+        ]
+      },
+      "assembly": {
+        "sites": [
+          {
+            "l": "Papua New Guinea (plus secondary origin countries)",
+            "o": "Bean cultivation, harvest, wet-processing"
+          },
+          {
+            "l": "Germany",
+            "o": "Extraction, freeze-drying, jar filling & labeling"
+          }
+        ],
+        "label": "Product of Germany",
+        "count": "Multiple sites",
+        "t": "u",
+        "src": 3,
+        "why": "Label confirms Product of Germany while brand history documents origin-country farming operations"
+      },
+      "skill": {
+        "tier": "Industrial/automated",
+        "t": "u",
+        "basis": "Freeze-drying instant coffee is a controlled plant process, not manual craft",
+        "src": 4,
+        "why": "Trade source describes batch/continuous industrial freeze-dryer plants for coffee",
+        "ops": [
+          [
+            "coffee",
+            "roasting",
+            "calibrated thermal profile control"
+          ],
+          [
+            "coffee",
+            "cupping/QC tasting",
+            "trained sensory panel evaluation"
+          ],
+          [
+            "coffee",
+            "freeze-dryer operation",
+            "vacuum/temperature process monitoring"
+          ]
+        ]
+      },
+      "parts": [
+        {
+          "c": "coffee",
+          "n": "Coffee granules",
+          "m": "Freeze-dried Arabica coffee extract",
+          "crit": "Critical",
+          "t": "e",
+          "fail": "Moisture ingress causes clumping and stale flavor",
+          "src": 0,
+          "why": ""
+        },
+        {
+          "c": "jar",
+          "n": "Glass jar",
+          "m": "Glass",
+          "crit": "Structural",
+          "t": "l",
+          "fail": "Cracks or shatters if dropped",
+          "src": 5,
+          "why": "Teardown describes a thick, durable glass jar body"
+        },
+        {
+          "c": "cap",
+          "n": "Screw cap",
+          "m": "Plastic",
+          "crit": "Functional",
+          "t": "l",
+          "fail": "Cross-threading or wear prevents airtight reseal",
+          "src": 5,
+          "why": "Reviewer identifies a black plastic twist cap on the jar"
+        },
+        {
+          "c": "seal",
+          "n": "Foil inner seal",
+          "m": "Aluminum foil",
+          "crit": "Functional",
+          "t": "e",
+          "fail": "Foil tears unevenly, fragments can fall into coffee",
+          "src": 5,
+          "why": ""
+        }
+      ],
+      "issues": [],
+      "gen": "2026-08-16",
+      "rev": false,
+      "sources": [
+        {
+          "t": "Mount Hagen 3.53oz Organic Freeze Dried Instant Coffee - Amazon listing",
+          "u": "https://www.amazon.com/Mount-Hagen-Organic-Freeze-Instant/dp/B00N9TYGVS"
+        },
+        {
+          "t": "Mount Hagen Coffee - Organic Instant Coffee (brand site)",
+          "u": "https://mounthagencoffee.com/"
+        },
+        {
+          "t": "The bird. The mountain. And our wonderfully weird story. - Mount Hagen",
+          "u": "https://www.mounthagen.de/en/responsibility/our-story/the-bird-the-mountain-and-our-crazy-story/"
+        },
+        {
+          "t": "Mount Hagen Organic Instant Coffee - A Little Taste",
+          "u": "https://alittletaste.com/products/mount-hagen-organic-instant-coffee",
+          "httpStatus": "unreachable"
+        },
+        {
+          "t": "Freeze-Drying in the Coffee Industry - New Food",
+          "u": "https://www.newfoodmagazine.com/article/16968/freeze-drying-in-the-coffee-industry/"
+        },
+        {
+          "t": "I Taste Tested Mount Hagen Organic Instant Coffee - ClearlyCoffee",
+          "u": "https://www.clearlycoffee.com/taste-mount-hagen-organic-instant-coffee/"
+        },
+        {
+          "t": "Regular Jars – Mount Hagen Coffee",
+          "u": "https://mounthagencoffee.com/products/regular-jars"
+        },
+        {
+          "t": "How freeze-dried food is made - MadeHow",
+          "u": "https://www.madehow.com/Volume-2/Freeze-Dried-Food.html"
+        }
+      ],
+      "vlog": [
+        "Source “Mount Hagen Organic Instant Coffee - A Little Taste” answered unreachable — left in place; a block or a timeout is not a dead page",
+        "Construction method had no certainty tag — treated as UNKNOWN",
+        "Assembly location had no certainty tag — treated as UNKNOWN",
+        "Skill tier had no certainty tag — treated as UNKNOWN"
+      ],
+      "srcAdj": {
+        "derived": true,
+        "model": 55,
+        "value": 63,
+        "diff": 8,
+        "rows": 4
+      }
+    },
+    {
+      "id": "folgers",
+      "brand": "Folgers (J.M. Smucker)",
+      "model": "Classic Roast Instant Coffee Crystals, 8 oz",
+      "klass": "instant",
+      "year": "2023",
+      "axes": {
+        "material": 25,
+        "sourcing": 50,
+        "construction": 70,
+        "assembly": 20,
+        "skill": 15,
+        "superstructure": 10
+      },
+      "comps": [
+        {
+          "id": "crystals",
+          "n": "Instant coffee crystals (soluble coffee solids)",
+          "role": "Critical"
+        },
+        {
+          "id": "jar",
+          "n": "Plastic jar/container",
+          "role": "Structural"
+        },
+        {
+          "id": "lid",
+          "n": "Flip-top lid",
+          "role": "Functional"
+        },
+        {
+          "id": "seal",
+          "n": "Freshness/tamper seal under lid",
+          "role": "Functional"
+        },
+        {
+          "id": "label",
+          "n": "Printed label/graphics",
+          "role": "Cosmetic"
+        }
+      ],
+      "materials": [
+        {
+          "c": "crystals",
+          "n": "Dehydrated soluble coffee extract",
+          "share": 85,
+          "spec": "100% pure coffee, no preservatives/additives",
+          "t": "e",
+          "src": 13,
+          "why": ""
+        },
+        {
+          "c": "crystals",
+          "n": "Green Arabica/Robusta coffee beans (raw input)",
+          "share": 0,
+          "spec": "Blend sourced primarily from Brazil and Vietnam",
+          "t": "l",
+          "src": 9,
+          "why": "Smucker CFO stated unroasted beans procured mainly from Brazil and Vietnam"
+        },
+        {
+          "c": "jar",
+          "n": "Polypropylene (PP), resin code 5",
+          "share": 10,
+          "spec": "Rigid injection-molded jar body",
+          "t": "e",
+          "src": 7,
+          "why": ""
+        },
+        {
+          "c": "lid",
+          "n": "Polypropylene hinge/flip-top cap",
+          "share": 3,
+          "spec": "Snap-hinge closure",
+          "t": "l",
+          "src": 6,
+          "why": "Industry source lists Folgers coffee containers/flip tops among common PP food packaging uses"
+        },
+        {
+          "c": "seal",
+          "n": "Foil/paper freshness membrane",
+          "share": 1,
+          "spec": "Thin peelable barrier under cap",
+          "t": "l",
+          "src": 12,
+          "why": "Folgers FAQ confirms a 'protective seal' can expand under packaging pressure, implying a foil/membrane liner"
+        },
+        {
+          "c": "label",
+          "n": "UV-cured ink printed directly on jar (dry-offset/in-mold)",
+          "share": 1,
+          "spec": "Graphics fused to plastic surface, not a paper sticker",
+          "t": "l",
+          "src": 10,
+          "why": "Restoration forum analysis of a Folgers container identifies dry-offset or in-mold printing with UV-cured ink"
+        }
+      ],
+      "sourcing": [
+        {
+          "c": "crystals",
+          "m": "Green Arabica/Robusta beans",
+          "o": "Brazil",
+          "s": "Grown/exported green, then roasted and extracted in US",
+          "t": "l",
+          "src": 9,
+          "why": "CFO cited Brazil as a primary unroasted-bean source amid tariff exposure",
+          "note": "agricultural commodity, not domestically grown"
+        },
+        {
+          "c": "crystals",
+          "m": "Green Robusta beans",
+          "o": "Vietnam",
+          "s": "Co-primary origin for robusta component",
+          "t": "l",
+          "src": 9,
+          "why": "Same CFO statement names Vietnam alongside Brazil as main bean sources"
+        },
+        {
+          "c": "crystals",
+          "m": "Roasting/extraction/spray-drying",
+          "o": "USA (New Orleans, LA)",
+          "s": "Owned Folgers facility performs roasting and production",
+          "t": "e",
+          "src": 5,
+          "why": ""
+        },
+        {
+          "c": "jar",
+          "m": null,
+          "o": null,
+          "s": null,
+          "t": "u",
+          "src": 0,
+          "why": ""
+        }
+      ],
+      "construction": {
+        "mode": "Factory",
+        "t": "u",
+        "auto": "Highly automated spray-drying towers and filling/capping lines; minimal manual touch",
+        "tol": "Process-controlled by moisture %, particle size (mesh/micron) rather than mechanical tolerance",
+        "src": 3,
+        "why": "",
+        "steps": [
+          {
+            "c": "crystals",
+            "p": "Brew roasted beans into concentrated liquid coffee extract"
+          },
+          {
+            "c": "crystals",
+            "p": "Spray-dry concentrate: atomize into hot air tower (~250°C) to flash off water"
+          },
+          {
+            "c": "crystals",
+            "p": "Agglomerate dried powder (re-moisten/tumble) to fuse into coffee-ground-like crystals"
+          },
+          {
+            "c": "jar",
+            "p": "Injection-mold PP jar body and separately mold PP flip-top lid"
+          },
+          {
+            "c": "seal",
+            "p": "Fill jar with crystals, apply freshness seal, snap-fit lid, apply printed label"
+          }
+        ]
+      },
+      "assembly": {
+        "sites": [
+          {
+            "l": "New Orleans, LA, USA",
+            "o": "J.M. Smucker / Folgers Coffee Co."
+          }
+        ],
+        "label": "Roasted in New Orleans",
+        "count": "Single site",
+        "t": "l",
+        "src": 14,
+        "why": "J.M. Smucker consolidated Folgers production into two New Orleans plants per industry news report"
+      },
+      "skill": {
+        "tier": "Low",
+        "t": "l",
+        "basis": "Fully mechanized spray-drying, molding, and filling lines typical of large-scale packaged-food manufacturing",
+        "src": 3,
+        "why": "Patent literature describes standardized industrial spray-dry/agglomeration equipment, implying operator (not artisan) skill level",
+        "ops": [
+          [
+            "crystals",
+            "Spray-drying/agglomeration",
+            "Machine-tended process control, low manual skill"
+          ],
+          [
+            "jar",
+            "Injection molding",
+            "Automated tooling with technician oversight"
+          ],
+          [
+            "lid",
+            "Injection molding + snap assembly",
+            "Automated; no hand-fitting required"
+          ]
+        ]
+      },
+      "parts": [
+        {
+          "c": "crystals",
+          "n": "Coffee crystals",
+          "m": "Dehydrated soluble coffee solids",
+          "crit": "Critical",
+          "t": "e",
+          "fail": "Clumping or staling from moisture ingress if seal compromised",
+          "src": 12,
+          "why": ""
+        },
+        {
+          "c": "jar",
+          "n": "Jar body",
+          "m": "Polypropylene (PP)",
+          "crit": "Structural",
+          "t": "e",
+          "fail": "Cracking, UV/heat degradation over long storage",
+          "src": 7,
+          "why": ""
+        },
+        {
+          "c": "lid",
+          "n": "Flip-top cap",
+          "m": "Polypropylene, integral hinge",
+          "crit": "Functional",
+          "t": "l",
+          "fail": "Hinge fatigue crack after repeated open/close cycles",
+          "src": 6,
+          "why": "Same PP hinge-lid family used across similar flip-top food packaging is prone to hinge fatigue"
+        },
+        {
+          "c": "seal",
+          "n": "Freshness seal",
+          "m": "Foil/paper laminate membrane",
+          "crit": "Functional",
+          "t": "l",
+          "fail": "Seal breach causing moisture ingress, staling, or pressure loss",
+          "src": 12,
+          "why": "Folgers FAQ describes a protective seal that can expand/fail under pressure changes"
+        }
+      ],
+      "issues": [
+        "Rising US tariffs on imported green coffee beans (Brazil/Vietnam) pressuring input costs, per company statements."
+      ],
+      "gen": "2026-08-16",
+      "rev": false,
+      "sources": [
+        {
+          "t": "Folgers Classic Roast Instant Coffee Crystals, 8 Ounces - Walmart.com",
+          "u": "https://www.walmart.com/ip/Folgers-Classic-Roast-Instant-Coffee-Crystals-8-Ounces/946843710"
+        },
+        {
+          "t": "Folgers 20083 Classic Roast Instant Coffee Crystals, 3 Ounces - Amazon.com",
+          "u": "https://www.amazon.com/Folgers-Classic-Roast-Instant-Coffee/dp/B00KO8HB00"
+        },
+        {
+          "t": "Oeuvre: What Are Folgers Instant Coffee Granules?",
+          "u": "http://esjarvis.blogspot.com/2011/06/what-are-folgers-instant-coffee.html"
+        },
+        {
+          "t": "Process for producing a spray-dried agglomerated soluble coffee product (US Patent)",
+          "u": "https://image-ppubs.uspto.gov/dirsearch-public/print/downloadPdf/4368100"
+        },
+        {
+          "t": "You smell Folgers coffee while crossing the High Rise - nola.com",
+          "u": "https://www.nola.com/entertainment_life/eat-drink/folgers-new-orleans-expansion/article_be103397-64d3-43da-ac7d-18a740efc0c3.html"
+        },
+        {
+          "t": "Folgers Coffee CO - Form S-4/A - FY2008 (SEC)",
+          "u": "https://www.sec.gov/Archives/edgar/data/0001429208/000119312508207649/ds4a.htm"
+        },
+        {
+          "t": "Plastic Recycling Codes 1 to 7 Explained - Propacks",
+          "u": "https://propacks.net/us/blog/plastic-recycling-codes-what-they-mean-for-packaging"
+        },
+        {
+          "t": "25+ Genius Ways to Repurpose Folgers Coffee Cans",
+          "u": "https://eathealthy365.com/25-genius-ways-to-repurpose-folgers-coffee-cans/"
+        },
+        {
+          "t": "Folgers Classic Roast Instant Coffee Crystals, 16 oz - Sam's Club",
+          "u": "https://www.samsclub.com/ip/folgers-classic-roast-instant-coffee-crystals-16-oz/2550006895"
+        },
+        {
+          "t": "JM Smucker plans tariff-driven price hike for coffee - Supply Chain Dive",
+          "u": "https://www.supplychaindive.com/news/jm-smucker-tariffs-coffee-price-hike/751761/"
+        },
+        {
+          "t": "Painted label removal Folgers container - The Garage Journal",
+          "u": "https://www.garagejournal.com/forum/threads/painted-label-removal-folgers-container.517746/"
+        },
+        {
+          "t": "Folgers Classic Roast Instant Coffee 8 oz - WebstaurantStore",
+          "u": "https://www.webstaurantstore.com/folgers-classic-roast-instant-coffee-8-oz/999FGIN0629.html"
+        },
+        {
+          "t": "FAQ - Folgers Canada",
+          "u": "https://www.folgers.ca/en/faq"
+        },
+        {
+          "t": "Folgers Classic Roast Instant Coffee Crystals, 16-Ounce Jar - Walmart.com",
+          "u": "https://www.walmart.com/ip/Folgers-Classic-Roast-Instant-Coffee-Crystals-16-Ounce-Jar/28831189"
+        },
+        {
+          "t": "J.M. Smucker Consolidates, Closes Plants - Manufacturing.net",
+          "u": "https://www.manufacturing.net/operations/news/13071036/jm-smucker-consolidates-closes-plants",
+          "httpStatus": 403
+        }
+      ],
+      "vlog": [
+        "Source “J.M. Smucker Consolidates, Closes Plants - Manufacturing.net” answered 403 — left in place; a block or a timeout is not a dead page",
+        "Construction method had no certainty tag — treated as UNKNOWN"
+      ],
+      "srcAdj": {
+        "derived": true,
+        "model": 55,
+        "value": 50,
+        "diff": -5,
+        "rows": 4
+      }
     }
   ]
 }
