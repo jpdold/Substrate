@@ -406,8 +406,14 @@ if (!take.length) console.log("note   nothing to build");
 let built = 0, skipped = 0, failed = 0, adjusted = 0, reaxed = 0;
 
 for (const r of take) {
+  /* A pinned entry knows exactly which product it is. The slug-prefix guess is
+     only for unpinned ones, and it cannot find a pinned product at all — a
+     short id like "wusthof" does not start with "wusthof-classic-8-co", so a
+     freshly built report would be rebuilt and any review on it discarded. */
   const guess = slug(r.q);
-  const hit = corpus.products.find(p => p.id.startsWith(guess.slice(0, 20)));
+  const hit = r.id
+    ? corpus.products.find(p => p.id === r.id)
+    : corpus.products.find(p => p.id.startsWith(guess.slice(0, 20)));
   if (hit && !REFRESH && ageOf(hit.gen) < TTL_DAYS) {
     console.log(`skip   ${r.q}  (built ${hit.gen}, ${ageOf(hit.gen)}d old)`);
     skipped++; continue;
@@ -443,6 +449,13 @@ for (const r of take) {
         `${Math.abs(a.diff)} ${a.diff < 0 ? "above" : "below"} what its ${a.rows} row(s) support)`);
     }
     built++;
+
+    /* Write after every report, not once at the end. A nine-product run takes
+       longer than a shell or CI step may allow, and a single write at the end
+       means one interruption discards every call already paid for. */
+    corpus.schema = SCHEMA;
+    corpus.built = today;
+    writeFileSync(outPath, JSON.stringify(corpus, null, 2));
   } catch (e) {
     console.log(`FAILED — ${e.message}`);
     failed++;
@@ -454,13 +467,7 @@ for (const r of take) {
    replaces the embedded corpus wholesale, committing that would take the live
    site down to zero products. It also keeps the scheduled run from opening a
    PR whose only change is the build date. */
-if (built) {
-  corpus.schema = SCHEMA;
-  corpus.built = today;
-  writeFileSync(outPath, JSON.stringify(corpus, null, 2));
-} else {
-  console.log(`note   nothing built — ${outPath} left untouched`);
-}
+if (!built) console.log(`note   nothing built — ${outPath} left untouched`);
 
 const unreviewed = corpus.products.filter(p => !p.rev && !p.stub).length;
 const overdue = corpus.products.filter(p => ageOf(p.gen) > TTL_DAYS).length;

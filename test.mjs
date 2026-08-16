@@ -802,6 +802,25 @@ console.log("\nscheduled rebuild");
   if (!/concurrency/.test(wf)) fail("two runs could race on the same branch");
   ok("workflow: manual trigger, keyed from secrets, gated on review, tested before and after");
 
+  /* The freshness skip has to find a pinned product by its id. Matching on a
+     slug prefix cannot: "wusthof" does not start with "wusthof-classic-8-co",
+     so an already-built report would be rebuilt and any review on it lost.
+     Mirrors the lookup in main(). */
+  {
+    const built = { id: "wusthof", brand: "Wüsthof", model: 'Classic 8" Cook\'s Knife', gen: "2026-08-16" };
+    const corpusNow = { products: [built] };
+    const lookup = (entry) => {
+      const guess = (entry.q || "").normalize("NFD").replace(/[̀-ͯ]/g, "")
+        .toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 40);
+      return entry.id
+        ? corpusNow.products.find(p => p.id === entry.id)
+        : corpusNow.products.find(p => p.id.startsWith(guess.slice(0, 20)));
+    };
+    const pinned = { q: 'Wüsthof Classic 8" Cook\'s Knife', id: "wusthof", klass: "knife8" };
+    if (!lookup(pinned)) fail("a pinned entry did not find its already-built product, so it would rebuild and discard any review");
+    if (lookup({ q: "Something Never Built" })) fail("an unrelated query matched an existing product");
+  }
+
   /* An EXACT claim citing a 404 passed verify() on the first real build, because
      verify() only regexes the URL — it runs in the browser too, and a page
      cannot fetch cross-origin. Liveness is checked at build time instead. */
