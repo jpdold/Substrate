@@ -35,14 +35,16 @@ const mod = await import(
   "data:text/javascript," + encodeURIComponent(
     stub + src + "\nexport { P, S, CLASSES, certCount, score, deltas, peers, verify, ingest, " +
     "quickView, fullView, peerView, customView, vpanel, matches, results, stale, ageDays, " +
-    "norm, addReq, REQS, renderGen, renderMethod, AXES, DEFAULT_W, SEV };"
+    "norm, addReq, REQS, renderGen, renderMethod, AXES, DEFAULT_W, SEV, " +
+    "gapView, gapFields, classSilence, TABL };"
   )
 );
 
 const {
   P, S, CLASSES, certCount, score, deltas, peers, verify, ingest,
   quickView, fullView, peerView, customView, vpanel, results, stale, norm,
-  renderMethod, AXES, DEFAULT_W, SEV
+  renderMethod, AXES, DEFAULT_W, SEV,
+  gapView, gapFields, classSilence, TABL
 } = mod;
 
 /* ---------------------------------------------------------- 1. integrity */
@@ -75,7 +77,7 @@ for (const p of P) {
     try {
       const c = certCount(p), d = deltas(p);
       const out = quickView(p, c, d.filter(x => x.d > 0), d.filter(x => x.d < 0))
-        + fullView(p) + peerView(p, d) + customView(p) + vpanel(p);
+        + fullView(p) + peerView(p, d) + customView(p) + vpanel(p) + gapView(p);
       if (/undefined|NaN|\[object Object\]/.test(out)) fail(`${p.id}/${pivot}: stray value in output`);
       rendered++;
     } catch (e) { fail(`${p.id}/${pivot}: ${e.message}`); }
@@ -193,6 +195,51 @@ if (/Generate a report for|Generate the full report/.test(html2))
   fail("a button still offers to generate a report on demand");
 if (/search the web/i.test(html2)) fail("copy still claims Substrate searches the web on demand");
 ok("no button or copy promises on-demand research");
+
+/* --------------------------------------------------------- 7. gap report */
+console.log("\ngap report");
+
+/* The gap report and the certainty bar read the same fields. If they ever
+   disagree, one of them is lying about how much of the report is missing. */
+for (const p of P) {
+  if (p.stub) continue;
+  const u = gapFields(p).filter(x => x.t === "u").length;
+  if (u !== certCount(p).u)
+    fail(`${p.id}: gap report counts ${u} unknown, certainty bar counts ${certCount(p).u}`);
+}
+ok("unknown counts agree with the certainty bar on every product");
+
+/* A tab that is not in TABL is unreachable; one in TABL with no branch renders
+   the peer view by mistake. Both have shipped before in other tabs. */
+if (!TABL.gaps) fail("Gaps is missing from the tab list");
+for (const p of P.slice(0, 3)) {
+  if (!/does not know|has not been researched/.test(gapView(p)))
+    fail(`${p.id}: gaps tab did not render the gap view`);
+}
+ok(`${Object.keys(TABL).length} tabs, Gaps routes to the gap view`);
+
+/* Systemic silence is the finding the view exists to surface — assert it
+   against the corpus rather than trusting the reduction. */
+const knife = P.find(p => p.klass === "knife8" && !p.stub);
+const inst = P.find(p => p.klass === "instant" && !p.stub);
+const skil = P.find(p => p.klass === "skillet" && !p.stub);
+if (!classSilence(knife).silent.sourcing) fail("knife class: sourcing silence not detected");
+if (!classSilence(inst).silent.skill) fail("instant class: skill silence not detected");
+if (classSilence(skil).silent.material) fail("skillet class: material wrongly called silent");
+if (!classSilence(knife).comparable) fail("knife class should be comparable");
+ok("class-wide silence detected in sourcing (knives) and skill (instant coffee)");
+
+/* A stub peer is not evidence that an industry is silent. Generated classes are
+   one real product plus two stubs, so they must report as not comparable. */
+const genP = P.find(p => p.klass.startsWith("gen-") && !p.stub);
+if (genP) {
+  const cs = classSilence(genP);
+  if (cs.comparable) fail("a class of one researched product was treated as comparable");
+  if (cs.n !== 1) fail(`stubs leaked into the silence set (n=${cs.n})`);
+  if (!/no peer disclosure|unclassified/.test(gapView(genP)))
+    fail("gap view did not say the gaps are unclassified");
+  ok("stubs excluded from silence; single-product class reported as unclassified");
+} else fail("no generated product to check stub exclusion against");
 
 /* ----------------------------------------------------------------- done */
 console.log("");

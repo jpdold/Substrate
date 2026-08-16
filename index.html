@@ -305,6 +305,25 @@ header{
 .genbtn:hover{filter:brightness(1.08)}
 .genbtn[disabled]{opacity:.4;cursor:default;filter:none}
 
+/* ---------- gap report ---------- */
+/* No new accent colour: the only saturated thing here is the UNKNOWN slate,
+   which is exactly what this view is about. Class-wide versus product-specific
+   is carried by the border style and the words, not by hue. */
+.gblock{
+  border:1px solid var(--line);border-left:2px solid var(--unknown);
+  border-radius:var(--r);background:var(--bg-2);padding:16px 18px;margin-bottom:12px;
+}
+.ghead{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;margin-bottom:8px}
+.gcount{font-family:var(--mono);font-size:11px;color:var(--fg-3)}
+.gsys{
+  font-family:var(--mono);font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;
+  color:var(--fg-3);border:1px dashed var(--line);border-radius:2px;padding:2px 6px;margin-left:auto;
+}
+.gsys.on{border-style:solid;color:var(--fg-2)}
+.gwhy{font-size:12.5px;color:var(--fg-3);max-width:70ch;line-height:1.5}
+.gitems{margin-top:12px;display:flex;flex-direction:column;gap:8px}
+.gitem{display:flex;align-items:center;gap:9px;flex-wrap:wrap;font-size:13px;color:var(--fg-2)}
+
 /* ---------- method page prose ---------- */
 .mprose{color:var(--fg-2);font-size:13.5px;max-width:74ch;margin-top:11px}
 .mprose b{color:var(--fg);font-weight:600}
@@ -1002,6 +1021,11 @@ function renderList(){
 }
 
 /* ============================ REPORT ============================ */
+/* Tab order is reading order: what it is, the detail, how it compares,
+   what is missing, then the reader's own weighting. */
+const TABL = {quick:"Quick report", full:"Full report", peers:"Peer deltas",
+              gaps:"Gaps", custom:"Build custom"};
+
 function open_(id){ S.cur=id; S.view="report"; S.tab="quick"; render(); window.scrollTo({top:260}); }
 function goHome(){ S.view="list"; render(); }
 function setTab(t){ S.tab=t; render(); }
@@ -1011,6 +1035,7 @@ function renderReport(){
   const pos=ds.filter(d=>d.d>0), neg=ds.filter(d=>d.d<0);
   const body = S.tab==="quick"?quickView(p,c,pos,neg)
              : S.tab==="full"?fullView(p,ds)
+             : S.tab==="gaps"?gapView(p)
              : S.tab==="custom"?customView(p)
              : peerView(p,ds);
 
@@ -1029,9 +1054,8 @@ function renderReport(){
       ${vpanel(p)}
     </div>
     <div class="tabs">
-      ${["quick","full","peers","custom"].map(t=>
-        `<button class="tab ${S.tab===t?"on":""}" onclick="setTab('${t}')">${
-          t==="quick"?"Quick report":t==="full"?"Full report":t==="peers"?"Peer deltas":"Build custom"}</button>`).join("")}
+      ${Object.entries(TABL).map(([t,label])=>
+        `<button class="tab ${S.tab===t?"on":""}" onclick="setTab('${t}')">${label}</button>`).join("")}
     </div>
     ${body}
   </div>`;
@@ -1244,6 +1268,132 @@ function customView(p){
     </div>
   </div></div>`;
 }
+/* ==================================================================
+   GAP REPORT
+   ------------------------------------------------------------------
+   The inverse view. Every other tab shows what is known; this one
+   shows what is not, and separates a gap this manufacturer left from
+   a gap the whole class leaves. Those read differently — the first is
+   a disclosure choice, the second an industry norm — and the reader
+   should not have to derive which is which by opening three peers.
+
+   Nothing here estimates. A gap renders as a gap.
+   ================================================================== */
+
+/* What the reader cannot conclude while the field is missing. Keyed by field
+   kind and never by product: a per-product consequence would be a claim, and
+   this view exists to show the absence of claims. */
+const GAP_WHY = {
+  material:"Grade is what fixes hardness, corrosion behaviour, and how a part holds up under heat. Unstated, none of that follows from the report.",
+  sourcing:"With no origin on record the chain cannot be traced, and any claim about where the material came from rests on the brand's word.",
+  construction:"Forming is what separates a forged part from a stamped one at the same price. Unstated, that difference is invisible to the buyer.",
+  assembly:"A country-of-origin label describes final assembly, not where the work happened. Without the sites, the label cannot be checked against anything.",
+  skill:"How much of the price is labour rather than material or brand cannot be estimated without knowing the tier of work involved.",
+  part:"These are the parts that carry load and fail first. Their material is what predicts how the object eventually fails."
+};
+
+const KINDL = {material:"Materials", sourcing:"Sourcing", construction:"Construction",
+               assembly:"Assembly", skill:"Skill", part:"Components"};
+
+/* Every certainty-tagged field, flattened, carrying the component it belongs to.
+   Same field set certCount() counts, so the two can never disagree. */
+function gapFields(p){
+  const out=[];
+  (p.materials||[]).forEach(m=>out.push({kind:"material", c:m.c, label:m.n, t:m.t}));
+  (p.sourcing||[]).forEach(s=>out.push({kind:"sourcing", c:s.c, label:s.m, t:s.t}));
+  if(p.construction) out.push({kind:"construction", c:null, label:"Forming process", t:p.construction.t});
+  if(p.assembly)     out.push({kind:"assembly",     c:null, label:"Assembly location", t:p.assembly.t});
+  if(p.skill)        out.push({kind:"skill",        c:null, label:"Skill tier", t:p.skill.t});
+  (p.parts||[]).forEach(x=>out.push({kind:"part", c:x.c, label:x.n, t:x.t}));
+  return out;
+}
+
+/* Which kinds of field nobody in the class confirms. Stubs are excluded on
+   purpose: a peer with no component tree is not evidence that an industry is
+   silent, it is only a peer nobody researched. With fewer than two researched
+   products there is nothing to compare against and the question is not asked. */
+function classSilence(p){
+  const real=[p,...peers(p)].filter(x=>!x.stub);
+  const silent={};
+  Object.keys(KINDL).forEach(k=>{
+    silent[k] = !real.some(x=>gapFields(x).some(f=>f.kind===k && f.t==="e"));
+  });
+  return {silent, comparable: real.length>=2, n: real.length};
+}
+
+function gapView(p){
+  if(p.stub) return `<div class="sec"><div class="empty">
+    <b>This peer has not been researched.</b>
+    There is no component tree to find gaps in. It carries axis scores so the delta matrix has something to compare against, and nothing else.</div></div>`;
+
+  const f=gapFields(p);
+  const unknown=f.filter(x=>x.t==="u"), likely=f.filter(x=>x.t==="l");
+  const {silent, comparable}=classSilence(p);
+  const kinds=Object.keys(KINDL);
+
+  /* the class-level finding, stated before any product-level one. The class
+     label carries its own description after an em dash, which swallows the
+     sentence — the short name is what belongs in prose. */
+  const klass=(CLASSES[p.klass]||"").split(" — ")[0];
+  const silentKinds=kinds.filter(k=>silent[k]);
+  const lead = !comparable
+    ? `Only this product in ${klass} has been researched, so there is no peer disclosure to measure it against. Every gap below is unclassified.`
+    : silentKinds.length
+      ? `No product in ${klass} confirms ${listing(silentKinds.map(k=>KINDL[k].toLowerCase()))}.${
+          unknown.length?" Where that overlaps a gap below, the silence is an industry norm rather than this manufacturer's choice.":""}`
+      : `Every kind of field here is confirmed by at least one product in ${klass}${
+          unknown.length?", so each gap below is this manufacturer's own":""}.`;
+
+  const groups = kinds.map(k=>({k, items:unknown.filter(x=>x.kind===k)})).filter(g=>g.items.length);
+
+  const blocks = groups.map(({k,items})=>{
+    const badge = !comparable ? `<span class="gsys">no peer to compare</span>`
+      : silent[k]             ? `<span class="gsys on">class-wide silence</span>`
+                              : `<span class="gsys">this product only</span>`;
+    return `<div class="gblock">
+      <div class="ghead"><span class="eyebrow">${KINDL[k]}</span>
+        <span class="gcount">${items.length} missing</span>${badge}</div>
+      <p class="gwhy">${GAP_WHY[k]}</p>
+      <div class="gitems">${items.map(x=>`<div class="gitem">${
+        x.c&&cName(p,x.c)!==x.label?cchip(p,x.c):""}<span>${x.label}</span>${gap("not disclosed")}</div>`).join("")}</div>
+    </div>`;
+  }).join("");
+
+  const body = unknown.length
+    ? blocks
+    : `<div class="empty"><b>Nothing in this report is missing.</b>
+        Every field carries either a source or a written inference chain. That is rare, and it is a fact about the manufacturer's disclosure, not about the product's quality.</div>`;
+
+  const likelyBlock = likely.length ? `<div class="sec">
+    <div class="sechead"><h3>Inferred, not confirmed</h3>
+      <span class="note">Stated with a reason on record, but not from a source. A weaker claim than EXACT, not an absent one.</span></div>
+    <table class="dt">
+      ${likely.map(x=>`<tr>
+        <td class="k">${KINDL[x.kind]}${x.c&&cName(p,x.c)!==x.label?` <span class="sub">${cName(p,x.c)}</span>`:""}</td>
+        <td class="v">${x.label}</td>
+        <td class="v" style="text-align:right">${tag("l")}</td></tr>`).join("")}
+    </table></div>` : "";
+
+  const note = unknown.length
+    ? `${unknown.length} field${unknown.length===1?"":"s"} with no basis to state a value${
+        likely.length?`, and ${likely.length} inferred rather than confirmed`:""}.`
+    : likely.length
+      ? `No field is missing. ${likely.length} ${likely.length===1?"is":"are"} inferred rather than confirmed.`
+      : `Nothing is missing and nothing is inferred. Every field is source-confirmed.`;
+
+  return `<div class="sec">
+    <div class="sechead"><h3>What this report does not know</h3>
+      <span class="note">${note}</span></div>
+    <p class="mprose">${lead}</p>
+    <div style="margin-top:18px">${body}</div>
+  </div>${likelyBlock}`;
+}
+
+/* "a, b and c" — used only for the class-silence sentence */
+function listing(xs){
+  return xs.length<2 ? (xs[0]||"") : xs.slice(0,-1).join(", ")+" and "+xs[xs.length-1];
+}
+
 function setPivot(v){ S.pivot=v; render(); }
 function toggleSec(k){ S.secs.has(k)?S.secs.delete(k):S.secs.add(k); render(); }
 

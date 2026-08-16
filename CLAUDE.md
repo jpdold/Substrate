@@ -99,7 +99,15 @@ how much damage they cause:
    invariant 1, but pointed at the reader. `test.mjs` asserts the rendered page
    matches the constants.
 
-7. **Stubs render.** Generated peers have no component tree. `quickView` and
+7. **Stubs are not evidence of class silence.** `classSilence()` decides whether
+   a gap is an industry norm or this manufacturer's choice by asking whether any
+   product in the class confirms that kind of field. Generated peers are `stub`
+   with no component tree, so counting them makes every class look silent and
+   turns every disclosure failure into "an industry norm" — the exact opposite
+   of the finding. Filter `!x.stub` first, and if fewer than two researched
+   products remain, say the gaps are unclassified rather than guessing.
+
+8. **Stubs render.** Generated peers have no component tree. `quickView` and
    `fullView` both short-circuit on `p.stub`. Anything new that walks
    `p.materials[0]` or `p.parts[1]` needs a length guard — that exact bug has
    been fixed twice.
@@ -143,10 +151,6 @@ and whole-object scoring blurs it.
 **Compare tray and export are stubs.** Both `alert()`. The tray collects
 selections correctly; the side-by-side workspace with user weighting isn't
 built. Export should produce PDF, structured JSON, and a comparison sheet.
-
-**Gap Report.** Hierarchy §5.6 — the inverse view: what is UNKNOWN across a
-product or class, and why it matters. Nothing built. This is arguably the most
-on-thesis unbuilt feature.
 
 **Scheduled rebuild.** A GitHub Action running `build-corpus.mjs` monthly and
 opening a PR rather than committing to main. The PR *is* the `rev: false` review
