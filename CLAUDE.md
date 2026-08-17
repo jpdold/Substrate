@@ -10,14 +10,103 @@ Live at `https://jpdold.github.io/Substrate/`.
 
 ## The thesis, because it constrains everything else
 
-Most product comparison sites hide missing data. This one shows it. Every field
-carries a certainty tag, and **UNKNOWN renders as a visible hatched gap, never
-as an estimate**. A report with holes in it is the correct output when the holes
-are real.
+Substrate reports what consumer products are made of, part by part, and shows
+where each fact came from.
+
+**A claim in a table carries a citation, or it is not in the table.** No
+confidence tier, no score, no estimate. A reader can follow any row to a source
+and check it, and that is the whole promise.
+
+**What isn't sourced is written as prose underneath — not hidden, not hatched.**
+"Wüsthof does not publish its POM resin supplier" is a sentence, and often the
+most interesting one on the page. Non-disclosure in consumer manufacturing is a
+finding, not an error state, and it deserves better than a texture. Prose is
+also where inference lives: reasoning that names what it reasons *from*, so a
+reader can weigh it the way they weigh any writing.
+
+Two kinds of content, then. A table trustworthy row by row, and prose that says
+plainly what the table can't carry. Nothing in between, and nothing graded.
 
 If a change would make a report look more complete without new evidence behind
-it, that change is wrong even if it looks better. This is the one principle to
-check a proposed change against.
+it, that change is wrong even if it looks better. That principle predates this
+rewrite and survives it unchanged — it is still the one thing to check a
+proposed change against.
+
+---
+
+## Why the tiers and the scores went
+
+Both were measured before being cut, against `wusthof` — the only report that
+has been through the pipeline end to end.
+
+**The axes were not measuring anything.** Five of the six are the generating
+pass's judgment, and they came back `material 80, construction 90, assembly 90,
+skill 80, superstructure 85` — a ten-point spread, all of it at the top. The
+sixth, `sourcing`, is the one that was changed to compute from evidence. It came
+back **38**. One axis got grounded and immediately halved. Scores clustering at
+80–90 are a model being agreeable in the shape of an assessment, and five of
+them were shipping as if they meant something.
+
+**The middle tier carried the most and justified the least.** Of fifteen tagged
+claims: seven EXACT, six LIKELY, two UNKNOWN. LIKELY was 40% of the report, and
+there is no good answer to what a reader does with "likely" — either a fact can
+be traced or it can't. The tier was hedging with a colour attached.
+
+**UNKNOWN was rare, and its content was the best on the page.** Two fields in
+fifteen, so the hatched gap — the site's entire visual signature — fired 13% of
+the time. One of the two read `Manufacturer does not disclose POM resin
+supplier`. That is a real finding about how the knife trade works, and rendering
+it as a hatch pattern buried it.
+
+The tiers were doing one job worth keeping: forcing the generating pass to
+distinguish what it found from what it assumed. That job now belongs to the
+citation itself. A row without a resolving source does not reach the table, so
+the pass cannot smuggle an assumption in by picking a softer tag.
+
+---
+
+## What the code still does
+
+**Nothing below this line has been changed yet.** `index.html`,
+`build-corpus.mjs` and `test.mjs` all still implement the three-tier model, and
+the nine reports on disk are tagged `e`/`l`/`u` throughout. Read every section
+that follows as a description of what currently runs, not of what is intended:
+
+- **Data model** — `t` is still on every row
+- **Invariants 1, 6, 7, 8, 11** — all downstream of the tiers, via
+  `deriveAxes()`, the `SEV` bands, class silence, and the certainty fields in
+  exports
+- **The verifier** — the `e → l → u` cascade *is* the tier machinery
+- **Derived axes** — the whole section goes when the axes go
+- **Conventions** — "the only saturated colours are the three certainty tags"
+
+Migrating the data is mechanical: `e` and `l` rows with a resolving `src` become
+cited rows, everything else becomes prose. Migrating the renderers is the real
+work, and four questions should be settled before any of it starts.
+
+**Does `t` disappear entirely?** The argument for yes: if a resolving `src` is
+what admits a row to the table, then the citation *is* the tag, and a separate
+field can only drift away from it — the same failure as invariant 1, which cost
+two rounds of hollow tests to catch. The argument for no: `t` is what the
+generating pass fills in, and removing it removes the pass's own signal about
+its confidence before the verifier ever sees it.
+
+**"Does not disclose" or "no source found"?** These are different claims and
+only one is cheap. Asserting that a manufacturer does not disclose something
+requires checking that manufacturer's own published material and finding it
+absent — otherwise the sentence is itself an unsourced claim, on a site whose
+thesis forbids exactly that. The safe default is the weaker phrasing; the
+stronger one needs the pass to record what it checked.
+
+**What replaces the Gap Report and class silence?** They were the sharpest
+things here and both compute off `u`. "No product in this class discloses X" is
+a genuine finding and should survive in some form, but it needs a new
+input — probably which fields have no cited row across the class's researched
+products.
+
+**What happens to delta severity?** `SEV.dq` weighted data-quality differences
+between products at 22. With no tiers there is no data-quality axis, so either
+that band goes or it is redefined against citation coverage.
 
 ---
 
