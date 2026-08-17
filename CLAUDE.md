@@ -27,6 +27,18 @@ reader can weigh it the way they weigh any writing.
 Two kinds of content, then. A table trustworthy row by row, and prose that says
 plainly what the table can't carry. Nothing in between, and nothing graded.
 
+**Every row says what it is a fact about.** A patent says what a company
+patented. A label says what is declared. A spec sheet says what is specified. A
+teardown says what was found in one unit. None of them says what the product
+*is*, in the abstract. So attribution is not hedging — it is the fact.
+`Wüsthof patented a cold-forging method for blade blanks` and `this blade is
+cold-forged` are different claims, and the patent supports only the first. Write
+the first and the reader draws the inference themselves, which is the whole
+arrangement: show the evidence, name its scope, let them decide.
+
+This is also why the axes had to go. `58 HRC per the manufacturer's spec sheet`
+is a fact with a subject. `Good steel` is a verdict with none.
+
 If a change would make a report look more complete without new evidence behind
 it, that change is wrong even if it looks better. That principle predates this
 rewrite and survives it unchanged — it is still the one thing to check a
@@ -82,21 +94,20 @@ that follows as a description of what currently runs, not of what is intended:
 
 Migrating the data is mechanical: `e` and `l` rows with a resolving `src` become
 cited rows, everything else becomes prose. Migrating the renderers is the real
-work, and four questions should be settled before any of it starts.
+work. Two of the four questions below are settled; two remain.
 
-**Does `t` disappear entirely?** The argument for yes: if a resolving `src` is
-what admits a row to the table, then the citation *is* the tag, and a separate
-field can only drift away from it — the same failure as invariant 1, which cost
-two rounds of hollow tests to catch. The argument for no: `t` is what the
-generating pass fills in, and removing it removes the pass's own signal about
-its confidence before the verifier ever sees it.
+**Settled — `t` is dropped entirely.** A resolving `src` is what admits a row to
+the table, so the citation *is* the tag, and a parallel field could only drift
+away from it — the same failure as invariant 1, which took two rounds of hollow
+tests to catch. The cost, accepted: the generating pass loses a place to record
+its own confidence before the verifier sees it. If that turns out to matter, the
+answer is a better source, not a softer tag.
 
-**"Does not disclose" or "no source found"?** These are different claims and
-only one is cheap. Asserting that a manufacturer does not disclose something
-requires checking that manufacturer's own published material and finding it
-absent — otherwise the sentence is itself an unsourced claim, on a site whose
-thesis forbids exactly that. The safe default is the weaker phrasing; the
-stronger one needs the pass to record what it checked.
+**Settled — absence is attributed too.** Neither "does not disclose" nor "no
+source found" is right, because both describe the searcher rather than the
+source. Write what was checked: *not stated on the packaging*, *not in the
+manufacturer's published spec sheet*. That claims nothing about the
+manufacturer's intent, and it tells the reader where looking further would start.
 
 **What replaces the Gap Report and class silence?** They were the sharpest
 things here and both compute off `u`. "No product in this class discloses X" is
