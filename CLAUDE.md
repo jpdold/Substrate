@@ -77,47 +77,27 @@ the pass cannot smuggle an assumption in by picking a softer tag.
 
 ---
 
-## What the code still does
+## What the code does now
 
-**Nothing below this line has been changed yet.** `index.html`,
-`build-corpus.mjs` and `test.mjs` all still implement the three-tier model, and
-the nine reports on disk are tagged `e`/`l`/`u` throughout. Read every section
-that follows as a description of what currently runs, not of what is intended:
+The migration is done. `index.html`, `build-corpus.mjs`, `test.mjs`,
+`corpus.json` and the nine embedded reports all run the citation rule; nothing
+in the repo still implements the tiers or the axes. What follows describes what
+runs.
 
-- **Data model** — `t` is still on every row
-- **Invariants 1, 6, 7, 8, 11** — all downstream of the tiers, via
-  `deriveAxes()`, the `SEV` bands, class silence, and the certainty fields in
-  exports
-- **The verifier** — the `e → l → u` cascade *is* the tier machinery
-- **Derived axes** — the whole section goes when the axes go
-- **Conventions** — "the only saturated colours are the three certainty tags"
+**Both open questions from the rewrite are settled, by building them.**
 
-Migrating the data is mechanical: `e` and `l` rows with a resolving `src` become
-cited rows, everything else becomes prose. Migrating the renderers is the real
-work. Two of the four questions below are settled; two remain.
+*Class silence keys off cited rows.* `classSilence()` asks whether any
+researched product in the class has a cited row in a section, rather than
+whether any product has an `"e"` in it. The finding survives intact — "no
+product in this class has a cited sourcing claim" is the same sentence it always
+was — and it now rests on something a reader can check.
 
-**Settled — `t` is dropped entirely.** A resolving `src` is what admits a row to
-the table, so the citation *is* the tag, and a parallel field could only drift
-away from it — the same failure as invariant 1, which took two rounds of hollow
-tests to catch. The cost, accepted: the generating pass loses a place to record
-its own confidence before the verifier sees it. If that turns out to matter, the
-answer is a better source, not a softer tag.
-
-**Settled — absence is attributed too.** Neither "does not disclose" nor "no
-source found" is right, because both describe the searcher rather than the
-source. Write what was checked: *not stated on the packaging*, *not in the
-manufacturer's published spec sheet*. That claims nothing about the
-manufacturer's intent, and it tells the reader where looking further would start.
-
-**What replaces the Gap Report and class silence?** They were the sharpest
-things here and both compute off `u`. "No product in this class discloses X" is
-a genuine finding and should survive in some form, but it needs a new
-input — probably which fields have no cited row across the class's researched
-products.
-
-**What happens to delta severity?** `SEV.dq` weighted data-quality differences
-between products at 22. With no tiers there is no data-quality axis, so either
-that band goes or it is redefined against citation coverage.
+*Delta severity is gone rather than redefined.* `SEV.dq` weighted data-quality
+differences between products at 22 points. With no axes there are no points, and
+banding a coverage difference as "disqualifying at this tier" would be the old
+mistake in new units — a verdict about a product derived from a fact about its
+paperwork. Products are compared component by component now, which is what the
+delta bands were a poor proxy for.
 
 ---
 
@@ -144,22 +124,40 @@ A product is a component roster plus rows bound to those components.
 ```js
 {
   id, brand, model, klass, year,
-  axes: {material, sourcing, construction, assembly, skill, superstructure},  // 0-100
   comps:        [{id, n, role}],                    // the spine
-  materials:    [{c, n, share, spec, t}],           // c -> comps[].id
-  sourcing:     [{c, m, o, s, t, note}],
-  construction: {mode, t, auto, tol, steps:[{c, p}]},
-  skill:        {tier, t, basis, ops:[[c, operation, skill]]},
-  parts:        [{c, n, m, crit, t, fail}],
+  materials:    [{c, n, share, spec, src}],         // c -> comps[].id
+  sourcing:     [{c, m, o, s, src, note}],
+  construction: {mode, src, auto, tol, steps:[{c, p}]} | null,
+  assembly:     {sites:[{l, o}], label, count, src} | null,
+  skill:        {tier, src, basis, ops:[[c, operation, skill]]} | null,
+  parts:        [{c, n, m, crit, src, fail}],
+  uncited:      [{sec, label, row, why}],           // written by verify()
+  coverage:     {cited, total},                     // written by verify()
   gen, rev, sources, vlog
 }
 ```
 
-`t` is the certainty tag: `"e"` EXACT, `"l"` LIKELY, `"u"` UNKNOWN.
+`src` is an index into `sources[]`. **It is the only thing that puts a row in a
+table.** There is no certainty field and no score: a row either carries a
+citation that resolves or it is not a row, and a parallel confidence field
+could only drift away from the citation — the same failure as invariant 1.
+
+`uncited` and `coverage` are not authored, they are computed. `verify()` writes
+both, and it is the only thing that should. Anything that hand-sets `coverage`
+is asserting a number nobody derived.
+
+**The three singleton sections can be `null`.** `construction`, `assembly` and
+`skill` are single objects rather than arrays, so a demotion has nowhere to
+remove a row *to* — the slot is nulled and the content moves to `uncited`.
+Every consumer needs `p.construction?.mode`, not `p.construction.mode`. This is
+the most common way to break a renderer now; `test.mjs` renders a fixture with
+all three null for exactly that reason.
 
 **Every `c` must resolve to a declared `comps[].id`.** An orphan row is
-unreadable — the reader cannot tell what part it describes. The verifier drops
-orphans and `test.mjs` fails on them.
+unreadable — the reader cannot tell what part it describes — so it is dropped
+outright rather than moved to prose, and dropped *before* the citation gate
+runs. Pruning second let an orphan ride into the prose inside a demoted parent,
+which is a bug that shipped for one commit.
 
 The report renders two ways from the same data: **by attribute** (materials,
 sourcing, construction… each row chipped with its component) and **by
@@ -173,28 +171,33 @@ pivots must work for every product. Adding a field means handling it in both.
 These have all been violated once already during development. In rough order of
 how much damage they cause:
 
-1. **`verify()` and `deriveAxes()` exist in two places** — `index.html` and
-   `build-corpus.mjs` — and must stay identical. They run at build time and
-   again in the browser on load. If they drift, the browser silently corrects a
-   corpus that passed its own build, and nobody finds out. Change one, change
-   both.
+1. **`verify()` exists in two places** — `index.html` and
+   `build-corpus.mjs` — and must stay identical. It runs at build time and
+   again in the browser on load. If the two drift, the browser silently
+   corrects a corpus that passed its own build, and nobody finds out.
 
-   `test.mjs` now imports both copies and diffs them, so this is enforced
-   rather than remembered — which is why `build-corpus.mjs` guards its main
-   flow behind `import.meta.url === pathToFileURL(process.argv[1]).href`. Keep
-   that guard: an import that hits the top-level API-key check would call
+   Do not retype it. The copy in `build-corpus.mjs` is lifted out of
+   `index.html` verbatim, and `test.mjs` diffs the two **source texts** as
+   well as their behaviour — identical output on the cases we thought of is
+   weaker than identical code, and these two had already drifted in their log
+   wording once. That is also why `build-corpus.mjs` guards its main flow
+   behind `import.meta.url === pathToFileURL(process.argv[1]).href`. Keep that
+   guard: an import that hits the top-level API-key check would call
    `process.exit` and take the whole suite down with it.
 
-   The comparison runs four payloads because branch coverage is the real
-   failure mode here — the wording of the mass-share and nothing-confirmed
+   The behavioural comparison runs five payloads because branch coverage is the
+   real failure mode here — the wording of the mass-share and nothing-cited
    lines had drifted, and a comparison that ran only the adversarial payload
    passed anyway, since that payload reaches neither branch. `test.mjs` asserts
    every branch is reached; do not delete that check to make a payload edit
    pass.
 
-2. **A class needs at least two peers.** `deltas()` reduces over the peer array
-   and throws on an empty one. Any new functional class ships with a minimum of
-   three products, or two if one is a stub.
+2. **A class needs at least two peers.** Component comparison and class
+   silence both need something to compare against, and `classSilence()`
+   declines to classify a gap at all when fewer than two *researched* products
+   remain — so a class of one silently loses the sharpest finding on the site.
+   Any new functional class ships with a minimum of three products, or two if
+   one is a stub.
 
 3. **No API key in `index.html`, ever.** The site has no network dependency
    beyond two local JSON files. `build-corpus.mjs` reads the key from
@@ -208,31 +211,35 @@ how much damage they cause:
 5. **Search is accent-insensitive** via `norm()` (NFD + diacritic strip).
    "nescafe" must find "Nescafé". Any new searchable field goes through `norm()`.
 
-6. **The Method page never transcribes a number.** `renderMethod()` reads the
-   weights from `DEFAULT_W`, the delta bands from `SEV`, and the review cycle
-   from `META`. Typing one of those values into the copy lets the page keep
-   documenting a rule the code stopped following — the same drift failure as
-   invariant 1, but pointed at the reader. `test.mjs` asserts the rendered page
-   matches the constants.
+6. **The Method page never transcribes a number.** There is very little left
+   for it to get wrong — one rule instead of six weights and three severity
+   bands — but `renderMethod()` still counts its coverage figures out of the
+   live corpus and reads the review cycle from `META`. Typing either into the
+   copy lets the page keep documenting a rule the code stopped following: the
+   same drift failure as invariant 1, pointed at the reader. `test.mjs` asserts
+   the rendered figure matches the corpus, and that the page does not present
+   the removed model as though it were live.
 
-7. **Stubs are not evidence of class silence.** `classSilence()` decides whether
-   a gap is an industry norm or this manufacturer's choice by asking whether any
-   product in the class confirms that kind of field. Generated peers are `stub`
-   with no component tree, so counting them makes every class look silent and
-   turns every disclosure failure into "an industry norm" — the exact opposite
-   of the finding. Filter `!x.stub` first, and if fewer than two researched
-   products remain, say the gaps are unclassified rather than guessing.
+7. **Stubs are not evidence of class silence.** `classSilence()` decides
+   whether a gap is an industry norm or this report's own by asking whether any
+   researched product in the class has a **cited row** in that section
+   (`citedBy()`). Generated peers are `stub` with no component tree, so
+   counting them makes every class look silent and turns every disclosure
+   failure into "an industry norm" — the exact opposite of the finding. Filter
+   `!x.stub` first, and if fewer than two researched products remain, say so
+   rather than guessing.
 
-8. **`deriveAll()` runs on every path that admits a product** — at startup, in
-   `loadCorpus()` after the corpus is swapped, and in `ingest()` after a
-   generated product is pushed. `build-corpus.mjs` derives too, in
-   `toProducts()`, so `corpus.json` carries the same sourcing figure the site
-   displays and the review PR is reviewing the number that ships. Miss one and
-   that product's score runs on the pass's judged sourcing number while every
-   other product's runs on evidence, which makes the ranking incomparable
-   without anything looking wrong. `deriveAxes()` recomputes from the rows and
-   never from the axis it wrote, so calling it twice — once at build, once on
-   load — is safe and preserves the pass's original in `srcAdj.model`.
+8. **`verifyAll()` runs on every path that admits a product** — at startup, in
+   `loadCorpus()` after a corpus is merged, and in `ingest()` after a
+   generated product is pushed. Miss one and that product renders its uncited
+   claims as though they were cited, with no `coverage` and no `uncited` list,
+   which is the single failure the whole site exists to prevent.
+
+   `verify()` is idempotent — it recomputes from the rows, and a demoted
+   singleton is already `null` on a second pass — so running it at build and
+   again on load is safe. `test.mjs` asserts that directly rather than trusting
+   it, and also asserts a fully cited product survives the double pass without
+   losing rows.
 
 9. **Component ids are the join key across a class, and comparison happens on
    the attribute key, not the raw string.** `compDeltas()` matches parts between
@@ -259,14 +266,14 @@ how much damage they cause:
     otherwise returns a partial report that parses as "no JSON object in
     response".
 
-11. **An export carries the absence, not just the values.** `exportRows()` ships
-    `missing`, `inferred`, `certainty`, `sourcingAxis` (the pass's original
-    alongside the derived figure), `verifierAdjustments`, and `reviewed`. A
-    payload of values alone would read as a far more complete record than the
-    page it came from, which is the one thing the thesis forbids — and unlike
-    the page, a CSV in a spreadsheet has no hatched gap to make absence visible.
-    The comparison sheet labels every axis `derived from evidence` or
-    `pass judgment, unverified` for the same reason.
+11. **An export carries the absence, not just the values.** `exportRows()`
+    ships `coverage`, `cited` (every table claim with the URL it rests on, via
+    `citedClaims()`), `uncited` (every demoted claim with the reason),
+    `verifierAdjustments` and `reviewed`. A payload of values alone would read
+    as a far more complete record than the page it came from, which is the one
+    thing the thesis forbids — and a CSV in a spreadsheet has no prose tab to
+    carry the other half. The `cited` list is also what makes an export
+    checkable without the page: every claim, and the link behind it.
 
     PDF export is `window.print()` against a print stylesheet, not a library.
     Invariant 3 rules out a bundler, so the browser's own print-to-PDF is the
@@ -274,13 +281,18 @@ how much damage they cause:
     printing a dark UI.
 
 12. **`corpus.json` merges over the embedded corpus — it never replaces it.**
-    `loadCorpus()` verifies each fetched product, then upserts it into `P` by id.
-    This is not a style choice: the embedded nine carry no `sources`, no `src`
-    indices and no `why`, so putting them through `verify()` nulls every field
-    they have — measured at 104 adjustments, all nine to 0% confirmed. The old
-    `P.length=0` would therefore have blanked the live site the moment a
-    `corpus.json` landed. A rebuilt product overrides the embedded one of the
-    same id, which is how a machine-built report can correct a seeded one.
+    `loadCorpus()` verifies each fetched product, then upserts it into `P` by
+    id. The old `P.length=0` would drop eight products from the site the moment
+    a one-product `corpus.json` landed. A rebuilt product overrides the
+    embedded one of the same id, which is how a machine-built report corrects a
+    seeded one — `wusthof` is the live example, and the only reason any table
+    on the site has rows in it.
+
+    The reason this invariant was originally written no longer applies, and the
+    change is worth understanding rather than reverting: `verify()` used to
+    null the fields of anything it downgraded, so running it over the embedded
+    nine erased them. It relocates now, so they survive it — visible, honest,
+    and at 0% coverage.
 
     `build-corpus.mjs` will not write `corpus.json` unless something was
     actually built, for the same reason — a no-op `--stale` run would otherwise
@@ -297,7 +309,7 @@ how much damage they cause:
     A queue entry pins with `{"q": …, "id": …, "klass": …}`; `--stale` carries
     both from the product it is refreshing. A pinned class also suppresses the
     two generated stub peers, since that class already has researched ones and
-    stubs would drag its class-silence reduction toward "nobody discloses this".
+    stubs would drag its class-silence reduction toward "nobody cites this".
     Dedupe keys on the id *and* the slug — a product can arrive queued unpinned
     and again from `--stale` pinned, and keying on either alone pays for the
     same research twice.
@@ -311,120 +323,120 @@ how much damage they cause:
 
 ## The verifier
 
-Model output is untrusted. Before anything renders:
+Model output is untrusted. Before anything renders, one rule decides everything:
 
-- `t: "e"` whose `src` index doesn't resolve to a working `https://` URL → `"l"`
-- `t: "l"` with no `why` (inference chain) → `"u"`
-- anything landing on `"u"` has its value nulled, so it renders as a gap
-- rows referencing an undeclared component are dropped
+- a row whose `src` resolves to a working `https://` URL stays in its table
+- **every other row moves to `uncited`, keeping its content and gaining a reason**
+- singleton sections null their slot when they demote, so no renderer can read
+  an unsourced object as though it had passed
+- rows referencing an undeclared component are dropped outright, before the
+  citation gate — an orphan is unreadable in prose too
+- a source with no resolvable URL is named once, on its own, because otherwise
+  every row citing it fails for no visible reason
 - material shares summing over 105% get flagged
-- a report with no `"e"` field anywhere gets called out explicitly
+- a report where nothing resolves gets called out explicitly
 
-Every adjustment lands in `vlog` and shows on the report. The downgrade cascade
-(`e → l → u`) logs one line, not two.
+Nothing is deleted and nothing is nulled in place. The old cascade blanked the
+fields of anything it downgraded, which destroyed the most interesting content
+on the page — one of the two `UNKNOWN` fields on the only pipeline-built report
+read `Manufacturer does not disclose POM resin supplier`, and it rendered as a
+hatch pattern. Relocating instead of destroying is also what makes it safe to
+run the verifier over the hand-written embedded corpus, which is why there is
+now one code path and no privileged data.
+
+`verify()` is idempotent. `loadCorpus()` and `verifyAll()` can both reach the
+same product, and `test.mjs` asserts a second pass changes neither coverage nor
+the prose list.
+
+Every adjustment lands in `vlog` and shows on the report.
 
 **`verify()` cannot tell whether a citation resolves.** It regexes the URL, and
 that is all it can do — it runs in the browser too, and a page cannot fetch
-another site to check. The first real build produced an EXACT claim citing a
-404 and the verifier passed it, reporting zero adjustments. Liveness is now
-checked in `checkSources()` at build time, where fetching is possible: 404 and
-410 blank the source's `u` so the ordinary cascade downgrades everything citing
-it, while a 403 is a site blocking bots rather than a dead page and is recorded
-but left alone. A network failure is never treated as a dead link.
+another site to check. The first real build produced a claim citing a 404 and
+the verifier passed it, reporting zero adjustments. Liveness is checked in
+`checkSources()` at build time, where fetching is possible: 404 and 410 blank
+the source's `u` (keeping it as `deadUrl`) so the ordinary verifier demotes
+everything citing it, while a 403 is a site blocking bots rather than a dead
+page and is recorded but left alone. A network failure is never treated as a
+dead link.
 
-Keep the Method page honest about this. It previously said an EXACT claim holds
-"only while its source index points at a working URL" and would be "downgraded
-on the next load" — neither was true, and overstating the check is precisely
-the failure the site exists to expose.
+That mechanism is working and is worth recognising when it fires. On `wusthof`,
+source `[0]` — *WÜSTHOF Production (Official)* — carries `u: ""`,
+`deadUrl: "https://www.wusthof.com/en-al/production"` and `httpStatus: 404`. It
+is the citation behind both the steel sourcing row and `Made in Solingen,
+Germany`, so two of that report's three demotions trace to it. Wüsthof took the
+page down; the pipeline caught it. Do not "fix" this by restoring the URL.
 
-The verifier catches *unsourced* claims mechanically. It cannot catch a real
+The verifier catches *uncited* claims mechanically. It cannot catch a real
 source saying something wrong, and no automated check can — a live URL says
-nothing about whether the page supports the claim. The first build cited a
-retailer listing and a forum thread behind EXACT tags; both resolve. That is
-why every report ships `rev: false` and displays as "machine-built,
-source-checked only" until a person flips it.
+nothing about whether the page supports the claim. This is why the generation
+prompt now insists on attribution (a patent says what was patented, not what a
+product is), and why every report ships `rev: false` and displays as
+"machine-built, source-checked only" until a person flips it.
 
 ---
 
-## Derived axes
+## Citation coverage
 
-Five of the six axes are the generating pass's judgment. **Sourcing is not** —
-it is computed from the report's own sourcing rows:
+The only number the site computes:
 
 ```
-sourcing = ( EXACT + 0.5·LIKELY ) / sourcing rows × 100
+coverage = cited claims / all claims × 100
 ```
 
-Sourcing is the only axis where disclosure and the property being scored are
-the same thing: traceability nobody discloses is not traceability. The pass had
-been scoring it above what disclosure supports on seven of nine products, by as
-much as 41 points.
+It is a fact about the report, not a verdict on the product. A thoroughly
+documented cheap object reads 100%, which is correct. Ranking by coverage ranks
+how well a manufacturer discloses, and that is the only ranking here.
 
-**Do not extend this to the other five.** It was measured, and the note that
-used to live here — that certainty density "already measures nearly the same
-thing" — is wrong. Sourcing was in fact the *worst*-tracking axis of the six
-(mean absolute difference 25.2). Two separate reasons block the rest:
-
-- **material, superstructure** — multi-row, so they would grade smoothly, but
-  disclosure ≠ quality. A thoroughly documented cheap steel is still a cheap
-  steel; deriving these would score paperwork and call it quality.
-- **construction, assembly, skill** — one tagged field each, so a derived score
-  could only ever be 0, 50, or 100. Too coarse to rank with. (Skill's r=0.96
-  against density is an artifact of that coarseness, not a good fit.)
-
-The pass's original number is kept in `p.srcAdj` and shown on the report
-wherever it differs, so a published number is never revised in silence.
+**Do not build a quality score on top of it.** That is what the six axes were,
+and they were measured before being cut: five were the generating pass's own
+judgment and came back `material 80, construction 90, assembly 90, skill 80,
+superstructure 85` — a ten-point spread, all of it at the top. The sixth was
+changed to compute from evidence and immediately came back 38. Any number that
+grades the object rather than the evidence lands back in that failure.
 
 ## Open work
 
-**Five axis scores are still judgment.** Sourcing is derived (see below); the
-other five remain the generating pass's unverified opinion. There is no
-arithmetic fix for them — see the reasoning in *Derived axes* before trying
-one. Closing this properly means source-checking the axes themselves, not
-computing them from disclosure.
+**Eight of the nine embedded reports cite nothing, and read as pure prose.**
+This is the honest state, not a bug: they were written by hand and have never
+been through the pipeline, so under the citation rule none of their claims can
+sit in a table. They render at 0% coverage with everything under *Not cited*,
+and they stay visible rather than being retired — hiding them would misrepresent
+how much the site has actually checked. Only `wusthof`, overlaid from
+`corpus.json`, has citations, and it reads 12 of 15.
 
-**The embedded nine claim EXACT without citations.** Not one of the products in
-`index.html` carries a `sources` array, a `src` index, or a `why`. They were
-written by hand and have never been through the verifier, which only ever runs
-on `corpus.json`. So the site displays EXACT tags on claims with no link behind
-them, while the Method page tells the reader an EXACT claim "carries a link that
-resolves" — the site does not currently meet the rule it exists to enforce.
-
-This is measured, not suspected: running the nine through `verify()` produces
-104 adjustments and takes every one of them to 0% confirmed, because a source
-that does not exist cannot resolve. Do not attempt to fix it by adding a blanket
-`why` to make them pass as LIKELY — a generic string is not an inference chain,
-and buying a pass from the verifier with one is exactly the move the thesis
-forbids.
-
-**Where this stands.** Wüsthof is researched, reviewed and published — it is the
-only product on the live site with citations, and the only one whose provenance
-panel renders. The other eight were built on branch `corpus/eight-reports` but
-are **not** merged, for the reason below. The unbranded skillet (`import`) failed
-on a transient `fetch failed` and was never built at all; it needs one retry.
-
-*Do not merge that branch as it stands.* Those reports were built before the
-schema note required a certainty tag on `construction`, `assembly` and `skill` —
-the three fields that are single objects rather than array rows — and the pass
-omitted it on seven of eight, costing twelve claims. That is safe in itself, but
-it poisons the class-silence reduction: instant coffee now reports construction
-and assembly as class-wide silent when in truth the tags were simply missing.
-Publishing that states something false about an industry, which is worse than
-stating nothing. The prompt is fixed; re-run the seven and the finding becomes
-trustworthy. One report also came back with material shares totalling 397%,
-which the verifier can only flag — that rule is now in the schema note too.
+Closing this means researching them through the pipeline, which is deliberate
+rather than retro-fitting citations onto the existing text: asking a model to
+find a source for a claim already written invites motivated retrieval — it will
+find something plausible for whatever it is handed — while researching the
+product and reporting only what it can confirm does not. **Expect coverage to
+come in well under 100%.** A rebuild that cites nearly everything is the
+suspicious outcome, not the good one.
 
 **All nine are queued in `queue.json`, pinned to their existing ids and
 classes.** Run `node build-corpus.mjs --max=1` first and read one report before
-spending on the rest. Researching them through the pipeline is deliberate rather
-than retro-fitting citations onto the existing text: asking a model to find a
-source for a claim already written invites motivated retrieval — it will find
-something plausible for whatever it is handed — while researching the product
-and reporting only what it can confirm does not. Expect certainty to *fall*.
-Claims that survive as EXACT will be genuinely cited; the rest should land as
-LIKELY with a real inference chain, or as gaps. A rebuild that leaves the
-confirmed percentages roughly where they are is the suspicious outcome, not the
-good one.
+spending on the rest.
+
+**`corpus/eight-reports` is still unmerged, and its objection has now
+dissolved.** Those eight were held back because the pass omitted the certainty
+tag on `construction`, `assembly` and `skill` on seven of eight, which poisoned
+the class-silence reduction — instant coffee reported construction and assembly
+as class-wide silent when the tags were simply missing. There are no tags now,
+and class silence reads cited rows, so a missing tag cannot manufacture a false
+finding. **The branch still should not be merged as-is**: those reports carry
+the old schema (`t` fields, `axes`, no `uncited`), so they would need migrating
+through `verify()` on load — which would work, but would produce eight reports
+built against a prompt that no longer asks for attribution. Rebuilding is
+cheaper than auditing. One report also came back with material shares totalling
+397%, which the verifier can only flag.
+
+**The unbranded skillet (`import`) failed on a transient `fetch failed`** and
+was never built at all; it needs one retry.
+
+**`corpus.json`'s `vlog` still carries old-model wording** — lines like
+"was tagged EXACT without a working source — now UNKNOWN" describe machinery
+that no longer exists. It is stale build output, harmless, and replaced on the
+next rebuild. Do not hand-edit it.
 
 **Before the first rebuild PR is merged**, set `ANTHROPIC_API_KEY` in Settings →
 Secrets and variables → Actions, and run the workflow once by hand
@@ -440,21 +452,39 @@ node test.mjs
 ```
 
 Extracts the script block from `index.html`, stubs the DOM, and runs every
-renderer across every product in both pivots. Also runs the verifier against a
-deliberately confabulated payload — bad source index, missing inference basis,
-invalid tag, orphan rows — and asserts it catches all of them.
+renderer across every product in both pivots. Then runs the verifier against a
+deliberately confabulated payload — a row citing a source index that does not
+exist, one citing a source with no URL, one citing nothing, and rows bound to
+undeclared components — and asserts each is handled correctly.
+
+Load-bearing checks worth knowing about before editing:
+
+- **No uncited row may reach a table.** The thesis as an assertion. It also
+  reports when it swept zero rows, because on an all-prose corpus a silent pass
+  would mean nothing was tested.
+- **`verify()` is character-identical in both files.** The suite diffs the two
+  source texts, not only their behaviour on the cases we thought of.
+- **The prose tab and the coverage bar agree per product.** If they diverge, one
+  is lying about how much of the report can be checked.
+- **`cite()` never renders a marker that goes nowhere.** A dead marker looks
+  exactly like a citation and is worth less than none.
+- **A demoted claim stays searchable.** Indexing only cited tables would make a
+  product harder to find the less its maker disclosed, which is backwards.
 
 Run it after any change to the data model or the renderers. It has caught every
-regression so far.
+regression so far, including two in the migration that produced it.
 
 ---
 
 ## Conventions
 
-**Colour is semantic, not decorative.** The only saturated colours on the page
-are the three certainty tags — teal EXACT, amber LIKELY, dim slate UNKNOWN.
-Anything coloured tells the reader something about evidence. Don't add an accent
-colour for emphasis.
+**Colour is semantic, not decorative.** One saturated colour, teal, and it
+means one thing: **this is cited.** It is the citation marker, the filled part
+of the coverage bar, and nothing else. Anything coloured tells the reader
+something about evidence. Don't add an accent colour for emphasis.
+
+Amber is deliberately gone with LIKELY. There is no middle state to colour any
+more, and reintroducing a warm accent would imply one exists.
 
 **Copy is plain and active.** Buttons say what happens. Errors say what went
 wrong and what to do. No filler, sentence case, no exclamation marks. Empty
