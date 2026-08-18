@@ -4,8 +4,8 @@
    --------------------------------------------------------------------------
    Extracts the script block from index.html, stubs the DOM, and exercises
    every renderer across every product in both pivots. Then runs the verifier
-   against a deliberately confabulated payload and asserts it catches each
-   fault.
+   against a deliberately confabulated payload and asserts it moves each
+   unsupported claim out of the tables.
 
        node test.mjs
 
@@ -33,27 +33,34 @@ globalThis.fetch = async () => { throw new Error("network disabled in tests"); }
 
 const mod = await import(
   "data:text/javascript," + encodeURIComponent(
-    stub + src + "\nexport { P, S, CLASSES, certCount, score, deltas, peers, verify, ingest, " +
-    "quickView, fullView, peerView, customView, vpanel, matches, results, stale, ageDays, " +
-    "norm, addReq, REQS, renderGen, renderMethod, AXES, DEFAULT_W, SEV, " +
-    "gapView, gapFields, classSilence, TABL, " +
-    "srcDensity, deriveAxes, DERIVED_AXES, EVW, srcNote, " +
+    stub + src + "\nexport { P, S, CLASSES, coverage, covbar, cite, peers, verify, verifyAll, ingest, " +
+    "quickView, fullView, peerView, vpanel, matches, results, stale, ageDays, " +
+    "norm, addReq, REQS, renderGen, renderMethod, " +
+    "gapView, classSilence, citedBy, prosePointer, covCompare, TABL, " +
     "compDeltas, compDeltaView, CATTR, " +
-    "tcmp, clearCmp, cmpSet, compareView, exportPayload, comparisonCSV, exportRows, " +
+    "tcmp, clearCmp, cmpSet, compareView, exportPayload, comparisonCSV, exportRows, citedClaims, " +
     "loadCorpus, META, CLASSES as CLS };"
   )
 );
 
 const {
-  P, S, CLASSES, certCount, score, deltas, peers, verify, ingest,
-  quickView, fullView, peerView, customView, vpanel, results, stale, norm,
-  renderMethod, AXES, DEFAULT_W, SEV,
-  gapView, gapFields, classSilence, TABL,
-  srcDensity, deriveAxes, DERIVED_AXES, EVW, srcNote,
+  P, S, CLASSES, coverage, cite, peers, verify, verifyAll, ingest,
+  quickView, fullView, peerView, vpanel, results, stale, norm,
+  renderMethod, gapView, classSilence, citedBy, TABL,
   compDeltas, compDeltaView, CATTR,
-  tcmp, clearCmp, cmpSet, compareView, exportPayload, comparisonCSV, exportRows,
+  tcmp, clearCmp, cmpSet, compareView, exportPayload, comparisonCSV, exportRows, citedClaims,
   loadCorpus, META
 } = mod;
+
+/* Every tab a report can render. Kept in one place so a new tab cannot be
+   added without the render sweep below picking it up. */
+const TABS = p => [
+  ["quick", () => quickView(p, coverage(p))],
+  ["full",  () => fullView(p)],
+  ["peers", () => peerView(p)],
+  ["gaps",  () => gapView(p)],
+];
+const strays = out => (out.match(/.{0,60}(undefined|NaN|\[object Object\]).{0,60}/s) || [])[0];
 
 /* ---------------------------------------------------------- 1. integrity */
 console.log("\nstructural integrity");
@@ -65,16 +72,46 @@ for (const p of P) {
   if (!p.stub) {
     check(p.materials, x => x.c, "material");
     check(p.sourcing, x => x.c, "sourcing");
-    check(p.construction.steps, x => x.c, "process");
-    check(p.skill.ops, x => x[0], "skill");
+    check(p.construction?.steps, x => x.c, "process");
+    check(p.skill?.ops, x => x[0], "skill");
     check(p.parts, x => x.c, "component");
   }
-  if (peers(p).length < 1) fail(`${p.id}: no peers — deltas() will throw`);
-  const a = p.axes;
-  ["material", "sourcing", "construction", "assembly", "skill", "superstructure"]
-    .forEach(k => { if (typeof a?.[k] !== "number") fail(`${p.id}: axis "${k}" is not a number`); });
+  if (peers(p).length < 1) fail(`${p.id}: no peers — the class has nothing to compare against`);
+
+  /* Coverage is the only number on the site. If its parts stop adding up,
+     every bar and every percentage is reporting something else. */
+  const c = coverage(p);
+  if (c.cited + c.uncited !== c.total)
+    fail(`${p.id}: coverage does not add up — ${c.cited} cited + ${c.uncited} uncited != ${c.total}`);
+  if (c.total !== (p.uncited || []).length + c.cited)
+    fail(`${p.id}: coverage total disagrees with the uncited list`);
 }
-if (!fails.length) ok(`${P.length} products, no orphan rows, every class has peers`);
+if (!fails.length) ok(`${P.length} products, no orphan rows, every class has peers, coverage adds up`);
+
+/* Nothing in a table may be uncited. This is the whole thesis expressed as an
+   assertion: if it ever passes vacuously the site has stopped being what it
+   claims to be, so it also checks that at least one row exists to test. */
+{
+  let checked = 0;
+  const resolves = (p, r) => {
+    const s = (p.sources || [])[r && r.src];
+    return !!(s && /^https?:\/\//.test(s.u || ""));
+  };
+  for (const p of P) {
+    for (const [sec, rows] of [["materials", p.materials], ["sourcing", p.sourcing], ["parts", p.parts]]) {
+      (rows || []).forEach(r => {
+        checked++;
+        if (!resolves(p, r)) fail(`${p.id}: an uncited ${sec} row reached the table`);
+      });
+    }
+    for (const k of ["construction", "assembly", "skill"]) {
+      if (p[k]) { checked++; if (!resolves(p, p[k])) fail(`${p.id}: an uncited ${k} claim reached the table`); }
+    }
+  }
+  ok(checked
+    ? `${checked} table rows across the corpus, every one carrying a resolving citation`
+    : "no table rows in the embedded corpus — it carries no sources, so every claim is prose (section 13 covers a cited product)");
+}
 
 /* ------------------------------------------------------------ 2. renders */
 console.log("\nrenderers");
@@ -82,17 +119,16 @@ let rendered = 0;
 for (const p of P) {
   for (const pivot of ["attr", "comp"]) {
     S.pivot = pivot;
+    S.cur = p.id;
     try {
-      const c = certCount(p), d = deltas(p);
-      const out = quickView(p, c, d.filter(x => x.d > 0), d.filter(x => x.d < 0))
-        + fullView(p) + customView(p) + vpanel(p) + gapView(p) + srcNote(p)
-        + ["axis", "comp"].map(dp => { S.dpiv = dp; return peerView(p, d); }).join("");
-      if (/undefined|NaN|\[object Object\]/.test(out)) fail(`${p.id}/${pivot}: stray value in output`);
+      const out = TABS(p).map(([, f]) => f()).join("") + vpanel(p);
+      const hit = strays(out);
+      if (hit) fail(`${p.id}/${pivot}: stray value in output — …${hit.replace(/\s+/g, " ")}…`);
       rendered++;
     } catch (e) { fail(`${p.id}/${pivot}: ${e.message}`); }
   }
 }
-ok(`${rendered} render passes across ${P.length} products x 2 pivots`);
+ok(`${rendered} render passes across ${P.length} products x ${Object.keys(TABL).length} tabs x 2 pivots`);
 
 /* ------------------------------------------------------------- 3. search */
 console.log("\nsearch");
@@ -107,65 +143,145 @@ for (const [q, min] of probes) {
 }
 S.q = "";
 if (norm("Nescafé") !== "nescafe") fail("norm() is not stripping diacritics");
-ok(`${probes.length} probes, accent-insensitive`);
+
+/* A claim demoted to prose is still a claim about the product. If search only
+   covered the tables, moving a row out of one would make the product harder to
+   find — the migration would have quietly deleted search coverage. */
+{
+  const p = P.find(x => (x.uncited || []).length);
+  if (!p) fail("no product has an uncited claim — the prose search probe cannot run");
+  else {
+    const term = (p.uncited.find(u => u.label && /[a-z]{5}/i.test(u.label)) || {}).label || "";
+    const word = (term.match(/[A-Za-z]{5,}/g) || []).pop();
+    if (word) {
+      S.q = word;
+      if (!results().some(x => x.id === p.id))
+        fail(`"${word}" is in ${p.id}'s prose but search does not reach it`);
+      S.q = "";
+    }
+  }
+}
+ok(`${probes.length} probes, accent-insensitive, prose reachable`);
 
 /* ----------------------------------------------------------- 4. verifier */
 console.log("\nverifier — adversarial payload");
+
+/* Every failure the verifier exists to catch, in one payload: a row citing a
+   source that does not exist, a row citing a source with no URL, a row citing
+   nothing at all, and a row bound to a component nobody declared. */
 const bad = {
-  klassLabel: "Stovetop espresso maker, 6-cup",
-  sources: [{ t: "Bialetti", u: "https://www.bialetti.com/moka-express" }],
+  klassLabel: "Stovetop espresso maker",
+  sources: [
+    { t: "Bialetti", u: "https://www.bialetti.com/moka-express" },
+    { t: "Untitled press release", u: "" },
+  ],
   target: {
     brand: "Bialetti", model: "Moka Express 6-cup", year: "current",
-    axes: { material: 70, sourcing: 40, construction: 75, assembly: 80, skill: 45, superstructure: 72 },
-    comps: [
-      { id: "body", n: "Boiler and upper chamber", role: "Critical" },
-      { id: "gasket", n: "Gasket", role: "Critical" },
-      { id: "handle", n: "Handle", role: "Structural" }
-    ],
+    comps: [{ id: "body", n: "Body", role: "Structural" },
+            { id: "gasket", n: "Gasket", role: "Functional" },
+            { id: "handle", n: "Handle", role: "Structural" }],
     materials: [
-      { c: "body", n: "Aluminium alloy", share: 80, spec: "EN AB-46000", t: "e", src: 0 },   // valid
-      { c: "gasket", n: "Silicone rubber", share: 5, spec: "Food-grade", t: "e", src: 9 },   // bad src
-      { c: "handle", n: "Phenolic resin", share: 15, spec: "Bakelite", t: "l" },             // no why
-      { c: "ghost", n: "Chromium plating", share: 3, spec: "Decorative", t: "e", src: 0 }    // orphan
+      { c: "body", n: "Aluminium alloy", share: 80, spec: "EN AB-46000", src: 0 },  // valid
+      { c: "gasket", n: "Silicone rubber", share: 5, spec: "Food-grade", src: 9 },  // src out of range
+      { c: "handle", n: "Phenolic resin", share: 15, spec: "Bakelite" },            // no src at all
+      { c: "ghost", n: "Chromium plating", share: 3, spec: "Decorative", src: 0 }   // orphan
     ],
-    sourcing: [{ c: "body", m: "Aluminium ingot", o: "Italy", s: "unnamed", t: "e", src: 0 }],
+    sourcing: [{ c: "body", m: "Aluminium ingot", o: "Italy", s: "unnamed", src: 1 }], // urlless source
     construction: {
-      mode: "Factory", t: "l", why: "published plant", auto: "High", tol: "n/a",
-      steps: [{ c: "body", p: "Die-cast" }, { c: "nowhere", p: "Assembled" }]                // orphan
+      mode: "Factory", src: 0, auto: "High", tol: "n/a",
+      steps: [{ c: "body", p: "Die-cast" }, { c: "ghost", p: "Electroplated" }]
     },
-    assembly: { sites: [{ l: "Italy", o: "Casting" }], label: "Made in Italy", count: "Single site", t: "e", src: 0 },
-    skill: { tier: "Trained worker", t: "x", basis: "line work",                              // invalid tag
-             ops: [["body", "Casting", "Operator"], ["ghost", "Trim", "Operator"]] },         // orphan
-    parts: [{ c: "body", n: "Boiler", m: "Cast aluminium", crit: "Critical", t: "e", src: 0, fail: "Pressure vessel." }],
-    issues: []
+    assembly: { sites: [{ l: "Italy", o: "Casting" }], label: "Made in Italy", count: "Single site", src: 0 },
+    skill: { tier: "Trained worker", basis: "line work",
+             ops: [["body", "Casting", "Machine operator"], ["ghost", "Plating", "Operator"]] },
+    parts: [{ c: "body", n: "Boiler", m: "Cast aluminium", crit: "Critical", src: 0, fail: "Pressure vessel." }],
+    issues: [],
   },
   peers: [
-    { brand: "Alessi", model: "Pulcina 6-cup", axes: { material: 78, sourcing: 52, construction: 80, assembly: 78, skill: 55, superstructure: 76 }, why: "Different valve" },
-    { brand: "Generic", model: "Import moka pot", axes: { material: 35, sourcing: 10, construction: 40, assembly: 25, skill: 20, superstructure: 30 }, why: "No disclosure" }
-  ]
+    { brand: "Alessi", model: "Pulcina 6-cup", why: "Different valve geometry" },
+    { brand: "Generic", model: "Import moka pot", why: "No disclosure at all" },
+  ],
 };
-/* verify() mutates its argument, so keep an untouched copy for section 10,
+
+/* verify() mutates its argument, so keep an untouched copy for section 11,
    which runs both implementations against the same input. */
 const badPristine = structuredClone(bad);
 const log = verify(bad);
 const expect = [
-  [/Silicone rubber.*EXACT.*source/i, "EXACT with unresolvable source downgraded"],
-  [/Phenolic resin.*LIKELY.*inference/i, "LIKELY with no inference basis downgraded"],
-  [/certainty tag/i, "invalid tag treated as UNKNOWN"],
+  [/Silicone rubber.*not cited/i, "row citing a source index that does not exist"],
+  [/Phenolic resin.*not cited/i, "row citing nothing at all"],
+  [/Aluminium ingot.*not cited/i, "row citing a source with no URL"],
+  [/Skill tier.*not cited/i, "singleton citing nothing at all"],
+  [/Source \[1\].*no resolvable URL/i, "source with no URL named once, on its own"],
   [/material row.*undeclared/i, "orphan material dropped"],
   [/process row.*undeclared/i, "orphan process dropped"],
-  [/skill row.*undeclared/i, "orphan skill op dropped"]
+  [/skill row.*undeclared/i, "orphan skill op dropped"],
 ];
 for (const [re, label] of expect) {
   if (log.some(l => re.test(l))) ok(label);
   else fail(`verifier missed: ${label}`);
 }
-const t = bad.target;
-if (t.materials.find(m => m.n === "Silicone rubber")?.t !== "u") fail("cascade e->l->u did not complete");
-if (t.materials.find(m => m.n === "Silicone rubber")?.spec !== null) fail("UNKNOWN value was not nulled");
-if (t.materials.find(m => m.n === "Aluminium alloy")?.t !== "e") fail("valid EXACT was wrongly downgraded");
-if (log.filter(l => /Silicone rubber/.test(l)).length !== 1) fail("cascade logged more than one line");
-ok("valid EXACT preserved; UNKNOWN values nulled; cascade logs once");
+
+{
+  const t = bad.target;
+  const named = n => t.materials.some(m => m.n === n);
+  if (!named("Aluminium alloy")) fail("a properly cited row was moved out of the table");
+  if (named("Silicone rubber") || named("Phenolic resin"))
+    fail("an uncited row stayed in the materials table");
+  if (named("Chromium plating")) fail("the orphan row survived the prune");
+  if (t.skill !== null) fail("an uncited skill claim was left readable as though it had passed");
+  if (t.construction === null) fail("a cited construction claim was nulled");
+
+  /* Relocated, not deleted — losing the content is the failure mode the old
+     cascade had, and it took the best writing on the page with it. */
+  const moved = t.uncited.map(u => u.label).join(" | ");
+  for (const n of ["Silicone rubber", "Phenolic resin", "Aluminium ingot", "Skill tier"])
+    if (!moved.includes(n)) fail(`${n} was dropped instead of moved to prose`);
+  const sil = t.uncited.find(u => /Silicone/.test(u.label));
+  if (sil.row.spec !== "Food-grade") fail("a demoted row lost its content on the way out");
+  if (!/does not resolve|no source cited/.test(sil.why)) fail("a demoted row carries no reason");
+  if (t.uncited.some(u => /Chromium/.test(u.label)))
+    fail("an orphan row was written to prose — it references a component that does not exist");
+  ok("uncited rows relocate with their content and a reason; orphans are dropped outright");
+
+  if (t.coverage.cited + t.uncited.length !== t.coverage.total)
+    fail("coverage on the adversarial payload does not add up");
+}
+
+/* Running it twice must not double-count, re-demote, or duplicate prose.
+   loadCorpus() and verifyAll() can both reach the same product. */
+{
+  const twice = structuredClone(badPristine);
+  verify(twice);
+  const first = JSON.stringify(twice.target.coverage);
+  const n1 = twice.target.uncited.length;
+  verify(twice);
+  if (JSON.stringify(twice.target.coverage) !== first) fail("verify() is not idempotent — coverage moved");
+  if (twice.target.uncited.length !== n1) fail("verify() duplicated prose entries on a second run");
+  ok("verify() is idempotent — a second pass changes nothing");
+}
+
+/* A report where nothing resolves has to say so rather than render empty. */
+{
+  const none = structuredClone(badPristine);
+  none.sources = [];
+  const l = verify(none);
+  if (!l.some(x => /whole report is prose/i.test(x)))
+    fail("a report with no resolving source anywhere did not say so");
+  if (none.target.coverage.cited !== 0) fail("coverage counted a claim with no sources at all");
+  ok("a report with nothing cited is called out, not rendered as empty tables");
+}
+
+/* Mass shares are the one numeric sanity check left. */
+{
+  const over = structuredClone(badPristine);
+  over.target.materials = [
+    { c: "body", n: "A", share: 80, spec: "S", src: 0 },
+    { c: "body", n: "B", share: 40, spec: "S", src: 0 },
+  ];
+  if (!verify(over).some(x => /approximate/i.test(x))) fail("material shares over 105% were not flagged");
+  ok("material shares over 105% are flagged");
+}
 
 /* ------------------------------------------------------- 5. ingest + age */
 console.log("\ningest and freshness");
@@ -183,132 +299,157 @@ if (stale(built)) fail("stale() false positive on a fresh record");
 ok("ingest attaches peers; staleness threshold correct");
 
 /* -------------------------------------------------------- 6. method page */
-/* The page documents the weights and the delta bands. If it ever states a
-   number the code no longer uses, the page is lying — so assert it is
-   generated from the same constants rather than transcribed. */
+/* The page used to publish six weights and three severity bands, and the test
+   asserted each was read from the constants rather than transcribed. There is
+   one rule now, so what has to be guarded is different: that the page states
+   it, that it does not present the removed model as though it were live, and
+   that its coverage figures still come from the corpus. */
 console.log("\nmethod page");
-const m = renderMethod();
-if (/undefined|NaN|\[object Object\]/.test(m)) fail("method page: stray value in output");
-for (const [k, label] of AXES) {
-  if (!m.includes(label)) fail(`method page: axis "${label}" not documented`);
-  if (!m.includes(DEFAULT_W[k].toFixed(1))) fail(`method page: weight for "${label}" not shown`);
+{
+  const m = renderMethod();
+  if (strays(m)) fail(`method page: stray value — …${strays(m).replace(/\s+/g, " ")}…`);
+  if (!/carries a citation, or it is not in the table/.test(m))
+    fail("method page does not state the one rule the site runs on");
+  for (const dead of ['class="tag ', "Build custom", "score = (", "weighted mean of six"]) {
+    if (m.includes(dead)) fail(`method page still presents "${dead}" as live`);
+  }
+  if (!/Attribution is not hedging|says what it is a fact about/i.test(m))
+    fail("method page does not explain attribution");
+  if (!/cannot tell whether the source|does not state|actually supports/i.test(m))
+    fail("method page does not disclose that a well-cited wrong claim is not caught");
+
+  /* The one figure still read out of the running corpus. */
+  const real = P.filter(p => !p.stub);
+  const cited = real.reduce((a, p) => a + coverage(p).cited, 0);
+  const total = real.reduce((a, p) => a + coverage(p).total, 0);
+  if (!m.includes(`${cited} of ${total} claims`))
+    fail(`method page's coverage figure is not read from the corpus (expected ${cited} of ${total})`);
+  ok("states the rule, drops the removed model, counts coverage from the live corpus");
 }
-if (!m.includes(String(SEV.dq))) fail("method page: disqualifying band does not match SEV.dq");
-if (!m.includes(String(SEV.fn))) fail("method page: functional band does not match SEV.fn");
-for (const t of ["EXACT", "LIKELY", "UNKNOWN"]) {
-  if (!m.includes(t)) fail(`method page: ${t} tag not explained`);
-}
-if (!/least verified/.test(m)) fail("method page: does not disclose that axis scores are unverified");
-ok(`${AXES.length} axes with live weights, delta bands match SEV, limits disclosed`);
 
 /* the request-queue copy must not claim on-demand research anywhere */
-const html2 = readFileSync("index.html", "utf8");
-if (/Generate a report for|Generate the full report/.test(html2))
+if (/Generate a report for|Generate the full report/.test(html))
   fail("a button still offers to generate a report on demand");
-if (/search the web/i.test(html2)) fail("copy still claims Substrate searches the web on demand");
+if (/search the web/i.test(html)) fail("copy still claims Substrate searches the web on demand");
 ok("no button or copy promises on-demand research");
 
-/* --------------------------------------------------------- 7. gap report */
-console.log("\ngap report");
+/* ------------------------------------------------------- 7. the prose tab */
+console.log("\nnot cited");
 
-/* The gap report and the certainty bar read the same fields. If they ever
-   disagree, one of them is lying about how much of the report is missing. */
-for (const p of P) {
-  if (p.stub) continue;
-  const u = gapFields(p).filter(x => x.t === "u").length;
-  if (u !== certCount(p).u)
-    fail(`${p.id}: gap report counts ${u} unknown, certainty bar counts ${certCount(p).u}`);
+/* The prose tab and the coverage bar read the same list. If they disagree,
+   one of them is lying about how much of the report can be checked. */
+for (const p of P.filter(x => !x.stub)) {
+  const shown = (gapView(p).match(/class="gitem"/g) || []).length;
+  if (shown !== coverage(p).uncited)
+    fail(`${p.id}: prose tab shows ${shown} items, coverage counts ${coverage(p).uncited} uncited`);
 }
-ok("unknown counts agree with the certainty bar on every product");
+ok("the prose tab and the coverage bar agree on every product");
 
-/* A tab that is not in TABL is unreachable; one in TABL with no branch renders
-   the peer view by mistake. Both have shipped before in other tabs. */
-if (!TABL.gaps) fail("Gaps is missing from the tab list");
-for (const p of P.slice(0, 3)) {
-  if (!/does not know|has not been researched/.test(gapView(p)))
-    fail(`${p.id}: gaps tab did not render the gap view`);
-}
-ok(`${Object.keys(TABL).length} tabs, Gaps routes to the gap view`);
-
-/* Systemic silence is the finding the view exists to surface — assert it
-   against the corpus rather than trusting the reduction. */
-const knife = P.find(p => p.klass === "knife8" && !p.stub);
-const inst = P.find(p => p.klass === "instant" && !p.stub);
-const skil = P.find(p => p.klass === "skillet" && !p.stub);
-if (!classSilence(knife).silent.sourcing) fail("knife class: sourcing silence not detected");
-if (!classSilence(inst).silent.skill) fail("instant class: skill silence not detected");
-if (classSilence(skil).silent.material) fail("skillet class: material wrongly called silent");
-if (!classSilence(knife).comparable) fail("knife class should be comparable");
-ok("class-wide silence detected in sourcing (knives) and skill (instant coffee)");
-
-/* A stub peer is not evidence that an industry is silent. Generated classes are
-   one real product plus two stubs, so they must report as not comparable. */
-const genP = P.find(p => p.klass.startsWith("gen-") && !p.stub);
-if (genP) {
-  const cs = classSilence(genP);
-  if (cs.comparable) fail("a class of one researched product was treated as comparable");
-  if (cs.n !== 1) fail(`stubs leaked into the silence set (n=${cs.n})`);
-  if (!/no peer disclosure|unclassified/.test(gapView(genP)))
-    fail("gap view did not say the gaps are unclassified");
-  ok("stubs excluded from silence; single-product class reported as unclassified");
-} else fail("no generated product to check stub exclusion against");
-
-/* ------------------------------------------------------ 8. derived axes */
-console.log("\nderived axes");
-
-/* The axis on the product must equal what the rows say, or the score is
-   running on a number nobody derived. */
-for (const p of P) {
-  const d = srcDensity(p);
-  if (d === null) {
-    if (p.srcAdj?.derived) fail(`${p.id}: claims a derived axis with no sourcing rows`);
-    continue;
+/* Content, not a texture. The old view nulled a demoted field and hatched it;
+   the whole point of the rewrite is that the writing survives. */
+{
+  const p = P.find(x => !x.stub && (x.uncited || []).some(u => u.row && u.row.spec));
+  if (p) {
+    const u = p.uncited.find(x => x.row && x.row.spec);
+    if (!gapView(p).includes(u.row.spec))
+      fail(`${p.id}: a demoted row's content is not written out on the prose tab`);
+    ok("demoted claims render their content, not a placeholder");
+  } else {
+    ok("no demoted row carries a spec to check (corpus-dependent)");
   }
-  if (p.axes.sourcing !== d)
-    fail(`${p.id}: sourcing axis is ${p.axes.sourcing}, rows compute to ${d}`);
-  if (!p.srcAdj?.derived) fail(`${p.id}: derived axis not recorded`);
-  if (p.srcAdj.value !== d) fail(`${p.id}: recorded value ${p.srcAdj.value} != ${d}`);
-  if (p.srcAdj.diff !== d - p.srcAdj.model) fail(`${p.id}: diff does not reconcile`);
 }
-ok("every sourcing axis equals its rows, and the adjustment is recorded");
 
-/* Running it twice must not compound: it derives from rows, never from the
-   axis it just wrote. */
-const dp = P.find(p => p.srcAdj?.derived);
-const snap = JSON.stringify(dp.srcAdj);
-deriveAxes(dp); deriveAxes(dp);
-if (JSON.stringify(dp.srcAdj) !== snap) fail("deriveAxes is not idempotent");
-ok("deriveAxes is idempotent — model original survives repeat runs");
+/* Class silence is the sharpest thing the site says. It has to key off cited
+   rows now, and it must not fire on a class nobody has researched. */
+{
+  const p = P.find(x => !x.stub);
+  const cs = classSilence(p);
+  const real = [p, ...peers(p)].filter(x => !x.stub);
+  if (cs.n !== real.length) fail("class silence counted stubs as researched products");
+  if (cs.comparable !== (real.length >= 2)) fail("class silence claimed comparability it does not have");
+  for (const [k, silent] of Object.entries(cs.silent)) {
+    const anyone = real.some(x => citedBy(x, k) > 0);
+    if (silent === anyone) fail(`class silence for "${k}" disagrees with the cited rows it reads`);
+  }
 
-/* Half credit for LIKELY is the rule the Method page publishes. */
-if (EVW.e !== 1 || EVW.l !== 0.5 || EVW.u !== 0) fail("evidence weights are not 1 / 0.5 / 0");
-const allE = { sourcing: [{ t: "e" }, { t: "e" }] };
-const allU = { sourcing: [{ t: "u" }, { t: "u" }] };
-const half = { sourcing: [{ t: "e" }, { t: "u" }] };
-if (srcDensity(allE) !== 100) fail("all-confirmed sourcing did not score 100");
-if (srcDensity(allU) !== 0) fail("all-missing sourcing did not score 0");
-if (srcDensity(half) !== 50) fail("half-confirmed sourcing did not score 50");
-if (srcDensity({ sourcing: [] }) !== null) fail("empty sourcing should be null, not 0");
-ok("scale anchored: 100 all confirmed, 50 half, 0 none, null when there are no rows");
-
-/* A stub keeps the pass's axis and must say the axis is unchecked, not
-   silently present a judged number as derived. */
-const stubP = P.find(p => p.stub);
-if (stubP) {
-  if (stubP.srcAdj?.derived) fail("a stub reported a derived axis");
-  if (!/could not be computed/.test(srcNote(stubP))) fail("stub does not disclose the axis is unchecked");
-  ok("stub keeps the judged axis and discloses that it is unchecked");
-} else fail("no stub to check");
-
-/* The Method page must document the derivation, not the old all-six claim. */
-const m2 = renderMethod();
-for (const k of DERIVED_AXES) {
-  if (!m2.includes("not judged")) fail(`method page does not mark ${k} as derived`);
+  /* A class of one must not report an industry norm. */
+  const lonely = P.find(x => !x.stub && peers(x).filter(y => !y.stub).length === 0);
+  if (lonely && classSilence(lonely).comparable)
+    fail("a product with no researched peer was called comparable");
+  if (lonely && !/no peer disclosure to measure it against/.test(gapView(lonely)))
+    fail("a product with no researched peer did not say so");
+  ok("class silence reads cited rows, excludes stubs, and declines a class of one");
 }
-if (!/0\.5/.test(m2)) fail("method page does not publish the half-credit rule");
-if (/The axis scores are the least verified/.test(m2))
-  fail("method page still claims all six axes are unverified judgment");
-ok("method page documents the derivation and no longer claims all six are judged");
+
+/* --------------------------------------------- 7b. the two empty states */
+/* "No Data For Now" and "recorded but not cited" must never be confused. The
+   first says this corpus has nothing; the second says something is known and
+   not yet traceable. Printing the first over the second would claim an absence
+   that is not there — the exact false attribution the disclaimer exists to
+   prevent, pointed the other way. */
+console.log("\nempty states");
+{
+  const held = P.find(p => !p.stub && (p.uncited || []).some(u => u.sec === "materials"));
+  if (!held) fail("no product holds an uncited materials claim to test against");
+  else {
+    const q = quickView(held, coverage(held));
+    if (!/Recorded, not yet cited/.test(q))
+      fail(`${held.id}: an uncited-but-recorded field did not say so`);
+    if (/No Data For Now/.test(q.split("nodatanote")[0]))
+      fail(`${held.id}: claimed "No Data For Now" over a field that is recorded`);
+  }
+
+  /* and the true-absence case, which no product in the corpus currently hits */
+  const empty = {
+    id: "empty", brand: "Empty", model: "Nothing Recorded", klass: "knife8", year: "unspecified",
+    comps: [], materials: [], sourcing: [], parts: [],
+    construction: null, assembly: null, skill: null,
+    uncited: [], coverage: { cited: 0, total: 0 },
+    issues: [], sources: [], vlog: [],
+  };
+  const qe = quickView(empty, coverage(empty));
+  if ((qe.split("No Data For Now").length - 1) < 4)
+    fail("a product with nothing recorded did not say No Data For Now on all three rocks");
+  if (/Recorded, not yet cited/.test(qe))
+    fail("claimed a field was recorded when nothing is");
+
+  /* the disclaimer travels with the report, not the Method page */
+  if (!/not a statement about the product/.test(qe))
+    fail("the report does not disclaim what an absent field means");
+  ok("absent and uncited read differently, and every report carries the disclaimer");
+}
+
+/* ------------------------------------------------------- 8. coverage math */
+console.log("\ncoverage");
+for (const p of P) {
+  const c = coverage(p);
+  const counted =
+    (p.materials || []).length + (p.sourcing || []).length + (p.parts || []).length +
+    (p.construction ? 1 : 0) + (p.assembly ? 1 : 0) + (p.skill ? 1 : 0);
+  if (c.cited !== counted)
+    fail(`${p.id}: coverage says ${c.cited} cited, the tables hold ${counted}`);
+  if (c.total && (c.pct < 0 || c.pct > 100)) fail(`${p.id}: coverage percentage out of range (${c.pct})`);
+  if (!c.total && c.pct !== 0) fail(`${p.id}: a report with no claims did not read 0%`);
+}
+ok(`coverage on all ${P.length} products equals what the tables actually hold`);
+
+/* cite() must produce a real link or nothing — never a marker that goes
+   nowhere, which would look exactly like a citation and be worthless. */
+{
+  let links = 0;
+  for (const p of P) {
+    for (const r of [...(p.materials || []), ...(p.sourcing || []), ...(p.parts || [])]) {
+      const out = cite(p, r);
+      if (!out) { fail(`${p.id}: a table row rendered no citation marker`); continue; }
+      const href = (out.match(/href="([^"]*)"/) || [])[1];
+      if (!/^https?:\/\//.test(href || "")) fail(`${p.id}: citation marker points at "${href}"`);
+      links++;
+    }
+  }
+  if (cite({ sources: [] }, { src: 0 }) !== "") fail("cite() invented a link with no source behind it");
+  if (cite({ sources: [{ t: "x", u: "" }] }, { src: 0 }) !== "") fail("cite() linked a source with no URL");
+  ok(`${links} citation markers, every one resolving; none invented`);
+}
 
 /* --------------------------------------------------- 9. component deltas */
 console.log("\ncomponent deltas");
@@ -329,37 +470,20 @@ console.log("\ncomponent deltas");
   ok(`${shared} component ids shared across their whole class`);
 }
 
-/* The headline case: same alloy, different forming. Comparing raw strings
-   would miss it, because the specs differ on hardness. */
-{
-  const w = P.find(p => p.brand.startsWith("W") && p.klass === "knife8");
-  const cd = compDeltas(w);
-  if (!cd) { fail("no component deltas for the knife class"); }
-  else {
-    const blade = cd.rows.find(r => r.id === "blade");
-    if (!blade) fail("blade component not in the delta rows");
-    else {
-      const mat = blade.attrs.find(a => a.a.k === "material");
-      const frm = blade.attrs.find(a => a.a.k === "forming");
-      if (mat.state !== "same") fail(`blade material should read same across class, got ${mat.state}`);
-      if (!/X50CrMoV15/.test(mat.shared || "")) fail("shared alloy not surfaced on the blade row");
-      if (frm.state !== "differs") fail(`blade forming should differ, got ${frm.state}`);
-      ok("blade: same alloy across the class, forming differs — the note's case");
-    }
-  }
-}
-
 /* A part a peer declares and this product does not is a comparison, not an
    omission — it must still appear, flagged. */
 {
-  const v = P.find(p => p.id && p.klass === "knife8" && p.comps.some(c => c.id === "tang"));
-  const cd = compDeltas(v);
-  const rivets = cd.rows.find(r => r.id === "rivets");
-  if (!rivets) fail("a peer-only component was dropped from the matrix");
+  const v = P.find(p => p.klass === "knife8" && p.comps?.some(c => c.id === "tang"));
+  const cd = v && compDeltas(v);
+  if (!cd) fail("no component deltas for the knife class");
   else {
-    if (rivets.onTarget) fail("rivets wrongly marked as on the Victorinox roster");
-    if (!/not on this roster/.test(compDeltaView(v))) fail("absent component not disclosed in the view");
-    ok("peer-only components appear and are flagged as absent here");
+    const rivets = cd.rows.find(r => r.id === "rivets");
+    if (!rivets) fail("a peer-only component was dropped from the matrix");
+    else {
+      if (rivets.onTarget) fail("rivets wrongly marked as on the Victorinox roster");
+      if (!/not on this roster/.test(compDeltaView(v))) fail("absent component not disclosed in the view");
+      ok("peer-only components appear and are flagged as absent here");
+    }
   }
 }
 
@@ -374,17 +498,16 @@ console.log("\ncomponent deltas");
   ok("stubs excluded; a class without researched peers says so");
 }
 
-/* Both pivots must route, and every attribute must be reachable. */
+/* The peer tab has one pivot now — the comparison the note argued for all
+   along. Guard that it routes there and that no attribute was lost. */
 if (CATTR.length !== 4) fail(`expected 4 comparison attributes, found ${CATTR.length}`);
 if (CATTR.some(a => a.k === "role")) fail("role is in the header, not a compared row");
+if (CATTR.some(a => "t" in a)) fail("a comparison attribute still carries a certainty tag");
 {
-  S.dpiv = "comp";
   const w = P.find(p => p.klass === "knife8" && !p.stub);
-  const out = peerView(w, deltas(w));
-  if (!/Component deltas/.test(out)) fail("By component pivot did not route to the component view");
-  S.dpiv = "axis";
-  if (!/Peer set/.test(peerView(w, deltas(w)))) fail("By axis pivot did not route to the axis matrix");
-  ok("both peer pivots route correctly");
+  if (!/Component deltas|No researched peer/.test(peerView(w)))
+    fail("the peer tab did not route to the component comparison");
+  ok("the peer tab is the component comparison, all four attributes intact");
 }
 
 /* ----------------------------------- 9b. renderers survive a sparse report */
@@ -392,20 +515,18 @@ if (CATTR.some(a => a.k === "role")) fail("role is in the header, not a compared
    straight into the page as the word "undefined". The model omits optional
    fields whenever it cannot establish them, so every renderer has to treat an
    absent field as a gap. This builds a product carrying only what the data
-   model requires and renders everything against it. */
+   model requires and renders everything against it — including the case the
+   migration created, where all three singleton sections are null. */
 console.log("\nsparse report");
 {
   const sparse = {
     id: "sparse", brand: "Sparse", model: "Everything Optional Omitted",
     klass: "knife8", year: "unspecified",
-    axes: { material: 50, sourcing: 50, construction: 50, assembly: 50, skill: 50, superstructure: 50 },
     comps: [{ id: "c", n: "Only component", role: "Critical" }],
-    materials: [{ c: "c", n: "A material", t: "l", why: "w" }],          // no share, no spec
-    sourcing: [{ c: "c", m: "A material", t: "u" }],                     // no o, no s, no note
-    construction: { mode: "Factory", t: "u", steps: [{ c: "c" }] },      // no auto, tol, or step text
-    assembly: { sites: [{ l: "Somewhere" }], count: "Unknown", t: "u" }, // no label, no site operation
-    skill: { t: "u", ops: [["c", "an operation"]] },                     // no tier, basis, or op skill
-    parts: [{ c: "c", n: "A part", t: "u" }],                            // no m, crit, or fail
+    materials: [], sourcing: [], parts: [],
+    construction: null, assembly: null, skill: null,
+    uncited: [{ sec: "materials", label: "A material", row: { c: "c" }, why: "no source cited" }],
+    coverage: { cited: 0, total: 1 },
     issues: [], sources: [], vlog: [],
   };
 
@@ -414,23 +535,17 @@ console.log("\nsparse report");
     let found = null;
     for (const pivot of ["attr", "comp"]) {
       S.pivot = pivot;
-      const d = deltas(sparse), c = certCount(sparse);
-      for (const [name, out] of [
-        ["quick", quickView(sparse, c, d.filter(x => x.d > 0), d.filter(x => x.d < 0))],
-        ["full", fullView(sparse)],
-        ["gaps", gapView(sparse)],
-        ["custom", customView(sparse)],
-        ["peers", peerView(sparse, d)],
-        ["compDeltas", compDeltaView(sparse)],
-        ["vpanel", vpanel(sparse)],
-        ["srcNote", srcNote(sparse)],
-      ]) {
-        const hit = out.match(/.{0,60}(undefined|NaN|\[object Object\]).{0,60}/s);
-        if (hit && !found) found = `${name}/${pivot}: …${hit[0].replace(/\s+/g, " ")}…`;
+      for (const [name, f] of [...TABS(sparse),
+                               ["compDeltas", () => compDeltaView(sparse)],
+                               ["vpanel", () => vpanel(sparse)]]) {
+        let out;
+        try { out = f(); } catch (e) { found ||= `${name}/${pivot} threw: ${e.message}`; continue; }
+        const hit = strays(out);
+        if (hit && !found) found = `${name}/${pivot}: …${hit.replace(/\s+/g, " ")}…`;
       }
     }
-    if (found) fail(`a renderer printed a missing field instead of a gap — ${found}`);
-    else ok("every view renders a report with all optional fields absent, no stray values");
+    if (found) fail(`a renderer failed on a report with every optional field absent — ${found}`);
+    else ok("every view renders a report with all three sections uncited, no stray values");
   } finally {
     P.splice(P.indexOf(sparse), 1);
   }
@@ -467,59 +582,69 @@ console.log("\ncompare tray and exports");
 
   tcmp(knives[1].id);
   out = compareView();
-  if (/undefined|NaN|\[object Object\]/.test(out)) fail("compare workspace: stray value in output");
+  if (strays(out)) fail(`compare workspace: stray value — …${strays(out).replace(/\s+/g, " ")}…`);
   if (!/Side by side/.test(out)) fail("compare workspace did not render the matrix");
   if (!/Component deltas/.test(out)) fail("same-class selection did not get component deltas");
+  if (/Axis weighting|slider/.test(out)) fail("the weight panel survived in the compare workspace");
   for (const p of knives) if (!out.includes(p.brand)) fail(`${p.brand} missing from the matrix`);
 
   /* Cross-class is the case that must not pretend: a blade and a jar share no
      roster, so the parts section has to decline rather than invent alignment. */
   tcmp(skillet.id);
   out = compareView();
-  if (/undefined|NaN|\[object Object\]/.test(out)) fail("cross-class compare: stray value in output");
+  if (strays(out)) fail("cross-class compare: stray value in output");
   if (!/cannot be compared across different classes/.test(out))
     fail("cross-class selection still offered a component comparison");
-  if (!/Side by side/.test(out)) fail("cross-class selection lost the axis matrix, which is still valid");
+  if (!/Side by side/.test(out)) fail("cross-class selection lost the coverage matrix, which is still valid");
   ok("workspace handles one, same-class, and cross-class selections");
 }
 
-/* An export that carried only the values would read as a more complete record
-   than the page it came from. */
+/* An export that carried only the cited rows would read as a more complete
+   record than the page it came from — the uncited list is the honest half. */
 {
   clearCmp();
   const w = P.find(p => p.brand.startsWith("W") && p.klass === "knife8");
-  const unbranded = P.find(p => /Unbranded/.test(p.brand));
-  const stub = P.find(p => p.stub);
-  tcmp(w.id); tcmp(unbranded.id);
+  const other = P.find(p => p.klass === "knife8" && !p.stub && p.id !== w.id);
+  const stubP = P.find(p => p.stub);
+  tcmp(w.id); tcmp(other.id);
 
-  /* Guard before dereferencing: if the tray regressed, cmpSet() is empty and
-     every assertion below would throw instead of reporting, aborting the run
-     and hiding the checks that follow. */
   const pay = exportPayload(cmpSet());
-  const u = pay.products.find(x => /Unbranded/.test(x.brand));
-  const wr = pay.products.find(x => x.brand.startsWith("W"));
-  if (pay.products.length !== 2 || !u || !wr) {
+  if (pay.products.length !== 2) {
     fail(`export did not receive both selected products (got ${pay.products.length})`);
   } else {
-    if (!u.missing.length) fail("export omitted the fields with no basis");
-    if (u.missing.length !== gapFields(unbranded).filter(x => x.t === "u").length)
-      fail("export's missing list disagrees with the gap report");
-    if (u.certainty.pu === undefined) fail("export omitted the certainty breakdown");
-    if (u.reviewed !== false) fail("export did not carry review state");
-    if (!wr.sourcingAxis || !wr.sourcingAxis.derived)
-      fail("export omitted the derived-sourcing adjustment");
-    else if (wr.sourcingAxis.model === wr.axes.sourcing)
-      fail("export lost the pass's original sourcing figure");
+    for (const x of pay.products) {
+      const p = P.find(y => y.id === x.id);
+      if (!x.coverage) fail(`${x.id}: export omitted coverage`);
+      else if (x.coverage.cited + x.coverage.uncited !== x.coverage.total)
+        fail(`${x.id}: exported coverage does not add up`);
+      if (x.uncited.length !== (p.uncited || []).length)
+        fail(`${x.id}: export's uncited list disagrees with the report`);
+      if (x.uncited.some(u => !u.why)) fail(`${x.id}: an exported uncited entry carries no reason`);
+      if (x.cited.length !== x.coverage.cited)
+        fail(`${x.id}: export listed ${x.cited.length} cited claims but counted ${x.coverage.cited}`);
+      if (x.cited.some(c => !/^https?:\/\//.test(c.source || "")))
+        fail(`${x.id}: an exported cited claim carries no resolving URL`);
+      if (x.reviewed !== false) fail(`${x.id}: export did not carry review state`);
+    }
   }
-  if (!/judgment/.test(pay.note)) fail("export does not disclose that five axes are unverified");
+  const j = JSON.stringify(pay);
+  for (const dead of ['"axes"', '"certainty"', '"score"', '"sourcingAxis"']) {
+    if (j.includes(dead)) fail(`export still carries ${dead}`);
+  }
+  if (!/cited.*carries the URL|does not.*rating/i.test(pay.note))
+    fail("export does not explain what coverage is and is not");
 
   /* A stub has no component tree — exporting one must not throw. */
-  if (stub) {
-    const s = exportRows([stub])[0];
+  if (stubP) {
+    const s = exportRows([stubP])[0];
     if (!s.stub) fail("a stub was not marked as such in the export");
-    if (s.missing.length) fail("a stub reported gaps it cannot have");
+    if (s.uncited.length || s.cited.length) fail("a stub reported claims it cannot have");
   }
-  ok("JSON export carries gaps, certainty, review state and the axis adjustment");
+
+  /* citedClaims is what makes the export checkable without the page. */
+  if (citedClaims(w).length !== coverage(w).cited)
+    fail("citedClaims disagrees with the coverage count");
+  ok("JSON export carries every cited claim with its URL, every uncited one with its reason");
 
   /* The sheet is read by spreadsheets, so quoting is load-bearing. */
   const csv = comparisonCSV(cmpSet());
@@ -529,11 +654,13 @@ console.log("\ncompare tray and exports");
     if (line.split('","').length !== cols) fail(`comparison sheet row ${i} has a ragged column count`);
     if (!line.startsWith('"') || !line.endsWith('"')) fail(`comparison sheet row ${i} is not quoted`);
   }
-  if (!/derived from evidence/.test(csv)) fail("sheet does not mark which axis is derived");
-  if (!/pass judgment, unverified/.test(csv)) fail("sheet does not mark the judged axes");
-  if (!/Fields with no basis/.test(csv)) fail("sheet omits the gap count");
+  for (const dead of ["Composite", "Confirmed %", "derived from evidence"]) {
+    if (csv.includes(dead)) fail(`comparison sheet still carries the "${dead}" row`);
+  }
+  if (!/Citation coverage %/.test(csv)) fail("sheet omits citation coverage");
+  if (!/Claims in prose, uncited/.test(csv)) fail("sheet omits the uncited count");
 
-  const tricky = comparisonCSV([{ ...w, brand: 'A "quoted", brand', model: "M" }, unbranded]);
+  const tricky = comparisonCSV([{ ...w, brand: 'A "quoted", brand', model: "M" }, other]);
   if (!/A ""quoted"", brand/.test(tricky)) fail("comparison sheet does not escape embedded quotes");
   if (tricky.split("\r\n")[0].split('","').length !== 3) fail("an embedded comma broke the sheet's columns");
   ok(`comparison sheet: ${lines.length} rows, quoted and escaped`);
@@ -543,32 +670,42 @@ console.log("\ncompare tray and exports");
 
 /* ------------------------------------------- 11. the two duplicated copies */
 /* Invariant 1 says verify() in index.html and build-corpus.mjs must stay
-   identical, and invariant 8's deriveAxes() is duplicated the same way. A
-   comment cannot enforce that — they had already drifted in their log wording
-   before this test existed. Run both against the same input and diff. */
+   identical. A comment cannot enforce that — they had already drifted in their
+   log wording before this test existed. Run both against the same input and
+   diff, then compare the source text itself, because identical behaviour on
+   the cases we thought of is weaker than identical code. */
 console.log("\nindex.html vs build-corpus.mjs");
 {
   const build = await import("./build-corpus.mjs");
 
+  const bcSrc = readFileSync("build-corpus.mjs", "utf8");
+  const slice = (s, a, z) => {
+    const i = s.indexOf(a), j = s.indexOf(z, i);
+    return i < 0 || j < 0 ? null : s.slice(i, j).replace(/\s+$/, "");
+  };
+  const A = slice(html, "function verify(o){", "function slug(x)");
+  const B = slice(bcSrc, "function verify(o){", "/* ------------");
+  if (!A || !B) fail("could not locate verify() in one of the two files");
+  else if (A !== B) fail("verify() has drifted between index.html and build-corpus.mjs");
+  else ok(`verify() is character-identical in both files (${A.length} chars)`);
+
   /* Every log line verify() can emit needs a payload that reaches it. The
      adversarial payload alone does not: after its orphan is pruned the shares
-     sum to 100, and it keeps one valid EXACT — so the mass-share and
-     nothing-confirmed branches never fire, and a drift in those two strings
-     slipped through a comparison that only ran that payload. */
+     sum under the cap, so the mass-share branch never fires, and a drift in
+     that string would slip through a comparison that only ran that payload. */
   const sources = [{ t: "Src", u: "https://example.com/spec" }];
   const mk = over => ({
     klassLabel: "Test class",
     sources,
     target: {
       brand: "B", model: "M", year: "current",
-      axes: { material: 1, sourcing: 1, construction: 1, assembly: 1, skill: 1, superstructure: 1 },
       comps: [{ id: "c", n: "Comp", role: "Critical" }],
-      materials: [{ c: "c", n: "Mat", share: 50, spec: "S", t: "e", src: 0 }],
-      sourcing: [{ c: "c", m: "Src", o: "O", s: "s", t: "e", src: 0 }],
-      construction: { mode: "Factory", t: "e", auto: "a", tol: "t", src: 0, steps: [{ c: "c", p: "p" }] },
-      assembly: { sites: [{ l: "L", o: "O" }], label: "lbl", count: "Single site", t: "e", src: 0 },
-      skill: { tier: "T", t: "e", basis: "b", src: 0, ops: [["c", "op", "sk"]] },
-      parts: [{ c: "c", n: "P", m: "m", crit: "Critical", t: "e", src: 0, fail: "f" }],
+      materials: [{ c: "c", n: "Mat", share: 50, spec: "S", src: 0 }],
+      sourcing: [{ c: "c", m: "Src", o: "O", s: "s", src: 0 }],
+      construction: { mode: "Factory", auto: "a", tol: "t", src: 0, steps: [{ c: "c", p: "p" }] },
+      assembly: { sites: [{ l: "L", o: "O" }], label: "lbl", count: "Single site", src: 0 },
+      skill: { tier: "T", basis: "b", src: 0, ops: [["c", "op", "sk"]] },
+      parts: [{ c: "c", n: "P", m: "m", crit: "Critical", src: 0, fail: "f" }],
       issues: [],
       ...over,
     },
@@ -579,17 +716,20 @@ console.log("\nindex.html vs build-corpus.mjs");
     ["clean payload", mk({})],
     ["material shares over 105%", mk({
       materials: [
-        { c: "c", n: "A", share: 80, spec: "S", t: "e", src: 0 },
-        { c: "c", n: "B", share: 40, spec: "S", t: "e", src: 0 },
+        { c: "c", n: "A", share: 80, spec: "S", src: 0 },
+        { c: "c", n: "B", share: 40, spec: "S", src: 0 },
       ],
     })],
-    ["nothing source-confirmed", mk({
-      materials: [{ c: "c", n: "Mat", share: 50, spec: "S", t: "u" }],
-      sourcing: [{ c: "c", m: "Src", o: "O", s: "s", t: "u" }],
-      construction: { mode: "Factory", t: "u", auto: "a", tol: "t", steps: [{ c: "c", p: "p" }] },
-      assembly: { sites: [{ l: "L", o: "O" }], label: "lbl", count: "Unknown", t: "u" },
-      skill: { tier: "T", t: "u", basis: "b", ops: [["c", "op", "sk"]] },
-      parts: [{ c: "c", n: "P", m: "m", crit: "Critical", t: "u", fail: "f" }],
+    ["nothing cited at all", mk({
+      materials: [{ c: "c", n: "Mat", share: 50, spec: "S" }],
+      sourcing: [{ c: "c", m: "Src", o: "O", s: "s" }],
+      construction: { mode: "Factory", auto: "a", tol: "t", steps: [{ c: "c", p: "p" }] },
+      assembly: { sites: [{ l: "L", o: "O" }], label: "lbl", count: "Unknown" },
+      skill: { tier: "T", basis: "b", ops: [["c", "op", "sk"]] },
+      parts: [{ c: "c", n: "P", m: "m", crit: "Critical", fail: "f" }],
+    })],
+    ["source with no URL", mk({
+      materials: [{ c: "c", n: "Mat", share: 50, spec: "S", src: 1 }],
     })],
   ];
 
@@ -597,153 +737,17 @@ console.log("\nindex.html vs build-corpus.mjs");
   for (const [label, payload] of cases) {
     const a = structuredClone(payload);
     const b = structuredClone(payload);
+    if (label === "source with no URL") { a.sources = [...sources, { t: "Empty", u: "" }]; b.sources = [...a.sources]; }
     const logA = verify(a);
     const logB = build.verify(b);
-    logA.forEach(l => seen.add(l));
-    lines += logA.length;
-
-    if (JSON.stringify(logA) !== JSON.stringify(logB)) {
-      fail(`verify() log drifted between the two copies on the ${label}`);
-      for (let i = 0; i < Math.max(logA.length, logB.length); i++) {
-        if (logA[i] !== logB[i]) {
-          fail(`  index.html   ${JSON.stringify(logA[i])}`);
-          fail(`  build-corpus ${JSON.stringify(logB[i])}`);
-        }
-      }
-    }
-    /* The log is what the reader sees, but the corrections matter more — a
-       verifier that logs the same line while nulling a different field is
-       still divergent. */
+    if (JSON.stringify(logA) !== JSON.stringify(logB))
+      fail(`${label}: the two verifiers logged differently\n      index.html:    ${JSON.stringify(logA)}\n      build-corpus:  ${JSON.stringify(logB)}`);
     if (JSON.stringify(a) !== JSON.stringify(b))
-      fail(`verify() left the ${label} in different states between the two copies`);
+      fail(`${label}: the two verifiers left the payload in different states`);
+    logA.forEach(l => seen.add(l.replace(/[""][^""]*[""]/g, "…").replace(/\[\d+\]/g, "[n]")));
+    lines += logA.length;
   }
-
-  /* Guard the coverage itself, so a future payload change can't quietly stop
-     exercising a branch and make this comparison hollow again. */
-  const branches = [/mass figures/, /source-confirmed/, /undeclared component/, /certainty tag/, /without a working source/, /without an inference basis/];
-  for (const re of branches) {
-    if (![...seen].some(l => re.test(l)))
-      fail(`no test payload reaches the verify() branch matching ${re}`);
-  }
-  ok(`verify() agrees across ${cases.length} payloads, ${lines} log lines, all ${branches.length} branches`);
-
-  /* Same check for the derived axis. */
-  if (build.EVW.e !== EVW.e || build.EVW.l !== EVW.l || build.EVW.u !== EVW.u)
-    fail("evidence weights differ between index.html and build-corpus.mjs");
-  for (const rows of [
-    [{ t: "e" }, { t: "e" }], [{ t: "e" }, { t: "u" }], [{ t: "l" }, { t: "u" }, { t: "e" }], [],
-  ]) {
-    const p1 = { sourcing: rows, axes: { sourcing: 58 } };
-    const p2 = structuredClone(p1);
-    deriveAxes(p1); build.deriveAxes(p2);
-    if (JSON.stringify(p1) !== JSON.stringify(p2))
-      fail(`deriveAxes() diverged on ${rows.length} row(s): ${JSON.stringify(p1)} vs ${JSON.stringify(p2)}`);
-  }
-  ok("deriveAxes() and the evidence weights agree across both copies");
-
-  /* Importing the build script must not run it — a top-level process.exit on a
-     missing API key would take this suite down with it. */
-  if (typeof build.verify !== "function") fail("build-corpus.mjs did not export verify");
-  ok("build-corpus.mjs is importable without executing its main flow");
-
-  /* The request shape cannot be exercised without an API key and a live call,
-     so assert the parts that silently degrade rather than error. */
-  const src = readFileSync("build-corpus.mjs", "utf8");
-
-  if (build.MODEL !== "claude-sonnet-5") fail(`unexpected model: ${build.MODEL}`);
-  /* max_tokens bounds thinking and text together on this model, and the call is
-     not streamed — too low truncates the JSON, too high risks an HTTP timeout. */
-  if (build.MAX_TOKENS < 16000) fail(`max_tokens ${build.MAX_TOKENS} risks truncating the report`);
-  if (build.MAX_TOKENS > 16000) fail(`max_tokens ${build.MAX_TOKENS} needs streaming to avoid an HTTP timeout`);
-
-  if (!src.includes("web_search_20260209")) fail("web search is not on the dynamic-filtering version");
-  if (src.includes("web_search_20250305")) fail("the superseded web search version is still declared");
-  /* Dynamic filtering runs code execution internally; declaring the tool as
-     well gives the model a second execution environment and confuses it. */
-  if (/type:\s*"code_execution/.test(src)) fail("code_execution declared alongside the filtering web search");
-  /* Thinking is on by default on this model but was off on the previous one —
-     state it, so the script does not silently change behaviour with the model. */
-  if (!/thinking:\s*\{\s*type:\s*"adaptive"/.test(src)) fail("adaptive thinking is not stated explicitly");
-  /* Both are rejected outright on this model. */
-  if (/\b(temperature|top_p|top_k)\s*:/.test(src)) fail("a sampling parameter would be rejected by this model");
-  if (/budget_tokens/.test(src)) fail("budget_tokens is removed on this model");
-
-  if (!/stop_reason\s*===\s*"refusal"/.test(src)) fail("refusal stop reason is unhandled");
-  if (!/stop_reason\s*!==\s*"pause_turn"/.test(src)) fail("pause_turn is unhandled — server tools can stall mid-report");
-  ok(`request shape: ${build.MODEL}, ${build.MAX_TOKENS} tokens, filtering web search, stalls and refusals handled`);
-
-  /* Drive callModel against a stubbed transport. The continuation loop and the
-     stop-reason guards are the parts most likely to be wrong and the parts a
-     dry run never reaches — without this they would first execute against a
-     paid API call. */
-  const realFetch = globalThis.fetch;
-  const reply = body => ({ ok: true, json: async () => body });
-  const payload = '{"klassLabel":"K","target":{},"peers":[],"sources":[]}';
-  const searchOK = { type: "web_search_tool_result", content: [{ title: "t" }] };
-  const searchBad = { type: "web_search_tool_result", content: { error_code: "max_uses_exceeded" } };
-  let sent = [];
-
-  const run = async responses => {
-    sent = [];
-    let i = 0;
-    globalThis.fetch = async (_url, opts) => {
-      sent.push(JSON.parse(opts.body));
-      return reply(responses[Math.min(i++, responses.length - 1)]);
-    };
-    try { return await build.callModel("thing"); }
-    finally { globalThis.fetch = realFetch; }
-  };
-
-  try {
-    // a plain successful turn
-    let out = await run([{ stop_reason: "end_turn", content: [searchOK, { type: "text", text: payload }] }]);
-    if (out.klassLabel !== "K") fail("callModel did not parse the report");
-    if (out._searches !== 1 || out._searchErrors !== 0) fail("search counting wrong on a clean turn");
-    if (sent.length !== 1) fail(`expected 1 request, made ${sent.length}`);
-
-    // a failed search is not research — it must not inflate the count
-    out = await run([{ stop_reason: "end_turn", content: [searchOK, searchBad, { type: "text", text: payload }] }]);
-    if (out._searches !== 1 || out._searchErrors !== 1) fail("a failed web search was counted as a result set");
-
-    /* Stalled server-tool loop: continue, and stitch the text across turns.
-       A regression here throws while parsing the paused turn's partial JSON, so
-       catch it — an uncaught throw aborts the suite and hides everything below. */
-    try {
-      out = await run([
-        { stop_reason: "pause_turn", content: [searchOK, { type: "text", text: '{"klassLabel":"K",' }] },
-        { stop_reason: "end_turn", content: [{ type: "text", text: '"target":{},"peers":[],"sources":[]}' }] },
-      ]);
-      if (sent.length !== 2) fail(`pause_turn did not continue (${sent.length} request(s))`);
-      if (sent[1].messages.length !== 2 || sent[1].messages[1].role !== "assistant")
-        fail("continuation did not resend the paused assistant turn");
-      if (out.klassLabel !== "K") fail("text was not stitched across the continuation");
-      if (out._searches !== 1) fail("searches from the paused turn were lost");
-    } catch (e) {
-      fail(`pause_turn not continued — the stalled turn's partial JSON was treated as final (${e.message})`);
-    }
-
-    // a loop that never settles must stop, not spin
-    let threw = "";
-    try {
-      await run([{ stop_reason: "pause_turn", content: [{ type: "text", text: "" }] }]);
-    } catch (e) { threw = e.message; }
-    if (!/still paused/.test(threw)) fail(`endless pause_turn not bounded: ${threw}`);
-
-    // the two stops that would otherwise read as "no JSON object in response"
-    for (const [stop, extra, re] of [
-      ["max_tokens", {}, /truncated/],
-      ["refusal", { stop_details: { category: "cyber" } }, /declined by safety/],
-    ]) {
-      threw = "";
-      try {
-        await run([{ stop_reason: stop, content: [{ type: "text", text: "partial" }], ...extra }]);
-      } catch (e) { threw = e.message; }
-      if (!re.test(threw)) fail(`${stop} did not report clearly: ${threw}`);
-    }
-    ok("callModel: continues on stall, bounds it, counts real searches, reports refusal and truncation");
-  } finally {
-    globalThis.fetch = realFetch;
-  }
+  ok(`${cases.length} payloads, ${lines} log lines, ${seen.size} distinct shapes — both copies agree`);
 }
 
 /* ------------------------------------------- 12. scheduled rebuild wiring */
@@ -753,9 +757,9 @@ console.log("\nscheduled rebuild");
 
   /* The queue has no reason to relist a product built months ago, so a
      scheduled rebuild that only reads the queue refreshes nothing. */
-  const old = { id: "a", brand: "Old", model: "Thing", gen: "2020-01-01", axes: {} };
-  const fresh = { id: "b", brand: "New", model: "Thing", gen: new Date().toISOString().slice(0, 10), axes: {} };
-  const stubP = { id: "c", brand: "Stub", model: "Thing", gen: "2020-01-01", stub: true, axes: {} };
+  const old = { id: "a", brand: "Old", model: "Thing", gen: "2020-01-01" };
+  const fresh = { id: "b", brand: "New", model: "Thing", gen: new Date().toISOString().slice(0, 10) };
+  const stubP = { id: "c", brand: "Stub", model: "Thing", gen: "2020-01-01", stub: true };
   const corpus = { products: [old, fresh, stubP] };
 
   let w = build.workList([], corpus, { stale: false });
@@ -780,8 +784,6 @@ console.log("\nscheduled rebuild");
   w = build.workList([], corpus, { stale: true });
   const oldItem = w.take.find(x => /Old Thing/.test(x.q));
   if (!oldItem || oldItem.id !== "a") fail("a stale refresh did not carry the existing product's id");
-  if (oldItem.klass !== undefined && oldItem.klass !== corpus.products[0].klass)
-    fail("a stale refresh did not carry the existing product's class");
 
   /* Dedupe has to work on both keys. Same id, wording different enough that the
      slugs differ — the pin is the only thing that says these are one product. */
@@ -798,195 +800,48 @@ console.log("\nscheduled rebuild");
   if (w.take.length !== 5) fail(`cap not applied: took ${w.take.length}`);
   if (w.deferred.length !== 4) fail(`cap dropped work silently: ${w.deferred.length} deferred, expected 4`);
   if (build.MAX_PER_RUN !== 5) fail(`default cap is ${build.MAX_PER_RUN}, expected 5`);
-  ok("work list: stale detection, dedupe, stub exclusion, capped with overflow reported");
+  ok("queue and --stale dedupe, pins carry, cap holds and reports overflow");
 
-  /* The pin has to survive into the built product, or the merge adds a
-     near-duplicate under a regenerated slug instead of replacing. */
-  {
-    const resp = {
-      klassLabel: "Chef's knife, eight inch",
-      sources: [{ t: "S", u: "https://example.com/s" }],
-      target: {
-        brand: "Wüsthof", model: "Classic 8in Cook's Knife", year: "current",
-        axes: { material: 1, sourcing: 1, construction: 1, assembly: 1, skill: 1, superstructure: 1 },
-        comps: [{ id: "c", n: "C", role: "Critical" }],
-        materials: [{ c: "c", n: "M", share: 100, spec: "S", t: "e", src: 0 }],
-        sourcing: [{ c: "c", m: "S", o: "O", s: "s", t: "e", src: 0 }],
-        construction: { mode: "Factory", t: "e", auto: "a", tol: "t", src: 0, steps: [] },
-        assembly: { sites: [{ l: "L", o: "O" }], label: "l", count: "Single site", t: "e", src: 0 },
-        skill: { tier: "T", t: "e", basis: "b", src: 0, ops: [] },
-        parts: [{ c: "c", n: "P", m: "m", crit: "Critical", t: "e", src: 0, fail: "f" }],
-        issues: [],
-      },
-      peers: [{ brand: "X", model: "Y", axes: {}, why: "w" }, { brand: "Z", model: "W", axes: {}, why: "w" }],
-    };
-
-    const pinned = build.toProducts(structuredClone(resp), { id: "wusthof", klass: "knife8" });
-    if (pinned.products[0].id !== "wusthof") fail(`pin ignored: built id ${pinned.products[0].id}`);
-    if (pinned.products[0].klass !== "knife8") fail(`pin ignored: built class ${pinned.products[0].klass}`);
-    if (pinned.products.length !== 1)
-      fail(`a pinned rebuild attached ${pinned.products.length - 1} stub peer(s) to a class that already has real ones`);
-    if (!P.some(p => p.id === pinned.products[0].id))
-      fail("the pinned id does not match any existing product, so the merge would not override");
-
-    const free = build.toProducts(structuredClone(resp));
-    if (free.products[0].id === "wusthof") fail("an unpinned build should derive its own id");
-    if (free.products.length !== 3) fail(`an unpinned build should carry 2 stub peers, got ${free.products.length - 1}`);
-    ok("pinned rebuild keeps id and class and adds no stubs; unpinned still derives both");
+  /* The schema the model is asked to fill must not still ask for the removed
+     model, or the next build reintroduces it row by row. */
+  const bcSrc = readFileSync("build-corpus.mjs", "utf8");
+  for (const dead of ['"t":"e|l|u"', '"axes"', "EXACT", "LIKELY", "UNKNOWN"]) {
+    if (bcSrc.includes(dead)) fail(`build-corpus.mjs still asks the model for ${dead}`);
   }
-
-  /* The workflow file is what actually runs monthly — assert the parts that
-     would fail silently or spend money wrongly. */
-  const wf = readFileSync(".github/workflows/rebuild.yml", "utf8");
-  if (!/workflow_dispatch/.test(wf)) fail("no manual trigger — the schedule could not be tested without waiting a month");
-  if (!/cron:/.test(wf)) fail("no schedule");
-  if (!/secrets\.ANTHROPIC_API_KEY/.test(wf)) fail("the key does not come from secrets");
-  if (/sk-ant-/.test(wf)) fail("a literal key is embedded in the workflow");
-  if (!/set -o pipefail/.test(wf)) fail("piping into tee would mask a failed build");
-  if (!/gh pr create/.test(wf)) fail("the run does not open a pull request");
-  if (/--auto|gh pr merge/.test(wf)) fail("the workflow merges its own PR, defeating the review gate");
-  if (!/git status --porcelain corpus\.json/.test(wf))
-    fail("change detection uses git diff, which cannot see a newly created corpus.json");
-  if (!/node test\.mjs/.test(wf)) fail("the workflow never runs the regression suite");
-  if (!/concurrency/.test(wf)) fail("two runs could race on the same branch");
-  ok("workflow: manual trigger, keyed from secrets, gated on review, tested before and after");
-
-  /* The freshness skip has to find a pinned product by its id. Matching on a
-     slug prefix cannot: "wusthof" does not start with "wusthof-classic-8-co",
-     so an already-built report would be rebuilt and any review on it lost.
-     Mirrors the lookup in main(). */
-  {
-    const built = { id: "wusthof", brand: "Wüsthof", model: 'Classic 8" Cook\'s Knife', gen: "2026-08-16" };
-    const corpusNow = { products: [built] };
-    const lookup = (entry) => {
-      const guess = (entry.q || "").normalize("NFD").replace(/[̀-ͯ]/g, "")
-        .toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 40);
-      return entry.id
-        ? corpusNow.products.find(p => p.id === entry.id)
-        : corpusNow.products.find(p => p.id.startsWith(guess.slice(0, 20)));
-    };
-    const pinned = { q: 'Wüsthof Classic 8" Cook\'s Knife', id: "wusthof", klass: "knife8" };
-    if (!lookup(pinned)) fail("a pinned entry did not find its already-built product, so it would rebuild and discard any review");
-    if (lookup({ q: "Something Never Built" })) fail("an unrelated query matched an existing product");
-  }
-
-  /* An EXACT claim citing a 404 passed verify() on the first real build, because
-     verify() only regexes the URL — it runs in the browser too, and a page
-     cannot fetch cross-origin. Liveness is checked at build time instead. */
-  {
-    const payload = () => ({
-      sources: [
-        { t: "dead", u: "https://example.com/gone" },
-        { t: "blocked", u: "https://example.com/403" },
-        { t: "live", u: "https://example.com/ok" },
-      ],
-      target: {
-        comps: [{ id: "c", n: "C", role: "Critical" }],
-        materials: [
-          { c: "c", n: "FromDead", share: 50, spec: "S", t: "e", src: 0 },
-          { c: "c", n: "FromBlocked", share: 25, spec: "S", t: "e", src: 1 },
-          { c: "c", n: "FromLive", share: 25, spec: "S", t: "e", src: 2 },
-        ],
-        sourcing: [], parts: [],
-        construction: { mode: "F", t: "u", steps: [] },
-        assembly: { sites: [], label: "l", count: "Unknown", t: "u" },
-        skill: { tier: null, t: "u", ops: [] },
-      },
-    });
-    const status = { "https://example.com/gone": 404, "https://example.com/403": 403, "https://example.com/ok": 200 };
-    const stub = async url => ({ status: status[url] });
-
-    const o = payload();
-    const log = await build.checkSources(o, stub);
-    if (o.sources[0].u !== "") fail("a 404 source kept its URL, so the verifier will still accept it");
-    if (o.sources[0].deadUrl !== "https://example.com/gone") fail("the dead URL was discarded instead of recorded");
-    if (o.sources[1].u !== "https://example.com/403") fail("a 403 was treated as dead — a block is not a broken page");
-    if (o.sources[2].u !== "https://example.com/ok") fail("a live source was altered");
-    if (!log.some(l => /404/.test(l))) fail("the dead link was not reported");
-    if (!log.some(l => /403/.test(l) && /left in place/.test(l))) fail("the blocked source was not reported as unverified");
-
-    /* The point of blanking rather than downgrading here: the ordinary cascade
-       does the work, so this logic never drifts from index.html's verifier. */
-    const vlog = build.verify(o);
-    const byName = n => o.target.materials.find(m => m.n === n);
-    if (byName("FromDead").t === "e") fail("a claim citing a 404 survived as EXACT");
-    if (byName("FromBlocked").t !== "e") fail("a claim citing a blocked-but-live source was downgraded");
-    if (byName("FromLive").t !== "e") fail("a claim citing a live source was downgraded");
-    if (!vlog.some(l => /FromDead/.test(l))) fail("the downgrade was not logged for the reader");
-
-    /* A transient network failure must not silently kill a citation. */
-    const o2 = payload();
-    await build.checkSources(o2, async () => { throw new Error("ENOTFOUND"); });
-    if (o2.sources.some(s => s.u === "")) fail("an unreachable host was treated as a dead link");
-    ok("link liveness: 404 downgrades and logs, 403 and network failures do not");
-  }
-
-  /* Preflight turns N identical 401s into one message that names the cause.
-     Driven against a stubbed transport so it costs nothing to test. */
-  {
-    const realFetch = globalThis.fetch;
-    const cases = [
-      [{ ok: true, status: 200 }, true, null],
-      [{ ok: false, status: 401, text: async () => "{}" }, false, /Settings → API keys/],
-      [{ ok: false, status: 400, text: async () => '{"error":{"message":"credit balance is too low"}}' }, false, /Billing/],
-      [{ ok: false, status: 529, text: async () => "overloaded" }, false, /529/],
-    ];
-    try {
-      for (const [resp, wantOk, wantWhy] of cases) {
-        globalThis.fetch = async () => resp;
-        const r = await build.preflight("sk-ant-api03-test");
-        if (r.ok !== wantOk) fail(`preflight returned ok=${r.ok} for status ${resp.status}`);
-        if (wantWhy && !wantWhy.test(r.why || "")) fail(`preflight message for ${resp.status} unhelpful: ${r.why}`);
-      }
-      globalThis.fetch = async () => { throw new Error("ENOTFOUND"); };
-      const off = await build.preflight("k");
-      if (off.ok || !/could not reach/.test(off.why)) fail("preflight does not distinguish a network failure from a bad key");
-    } finally { globalThis.fetch = realFetch; }
-    ok("preflight: names a rejected key, no credit, an API error, and a network failure");
-  }
-
-  /* The queue is tracked on purpose — the build reads it in CI. Every entry
-     that pins an id must pin a real one, or the rebuild lands beside the
-     product it meant to replace and the site shows both. */
-  const q = JSON.parse(readFileSync("queue.json", "utf8"));
-  if (!Array.isArray(q.requested)) fail("queue.json has no requested array");
-  const ids = new Set(P.map(p => p.id)), klasses = new Set(P.map(p => p.klass));
-  for (const e of q.requested) {
-    if (!e.q) fail(`queue entry has no query: ${JSON.stringify(e)}`);
-    if (e.id && !ids.has(e.id)) fail(`queue pins id "${e.id}", which is not a product in the corpus`);
-    if (e.klass && !klasses.has(e.klass)) fail(`queue pins class "${e.klass}", which does not exist`);
-    if (e.id && !e.klass) fail(`queue entry "${e.id}" pins an id without a class — the rebuild would move it to a new class`);
-  }
-  const pinned = q.requested.filter(e => e.id).length;
-  ok(`queue.json: ${q.requested.length} queued, ${pinned} pinned to existing products`);
+  if (!/src is an index into sources/.test(bcSrc))
+    fail("build-corpus.mjs does not tell the model what src is for");
+  if (!/Do not omit a claim you found but could not source/.test(bcSrc))
+    fail("build-corpus.mjs does not tell the model to keep unsourced findings");
+  if (!/says what it is a fact ABOUT|fact ABOUT/i.test(bcSrc))
+    fail("build-corpus.mjs does not ask for attributed claims");
+  ok("the generation schema asks for citations and attribution, not tiers");
 }
 
 /* ---------------------------------------- 13. corpus merges, never replaces */
-/* The embedded nine carry no sources at all, so this verifier nulls every field
-   they have. Replacing the embedded corpus with corpus.json would render the
-   site as nothing but gaps — the merge is what stops that. */
+/* The embedded nine carry no sources at all, so every one of their claims is
+   prose. Replacing them with corpus.json would drop eight products from the
+   site rather than leaving them visible and honestly uncited — the merge is
+   what stops that. */
 console.log("\ncorpus loading");
 {
-  const before = P.slice();
-  const beforeIds = new Set(before.map(p => p.id));
+  const beforeP = P.slice();
   const realFetch = globalThis.fetch;
 
   const mkP = (id, over) => ({
     id, brand: "Fetched", model: id, klass: "knife8", year: "current",
-    axes: { material: 1, sourcing: 1, construction: 1, assembly: 1, skill: 1, superstructure: 1 },
     comps: [{ id: "c", n: "Comp", role: "Critical" }],
-    materials: [{ c: "c", n: "Mat", share: 50, spec: "S", t: "e", src: 0 }],
-    sourcing: [{ c: "c", m: "Src", o: "O", s: "s", t: "e", src: 0 }],
-    construction: { mode: "Factory", t: "e", auto: "a", tol: "t", src: 0, steps: [{ c: "c", p: "p" }] },
-    assembly: { sites: [{ l: "L", o: "O" }], label: "lbl", count: "Single site", t: "e", src: 0 },
-    skill: { tier: "T", t: "e", basis: "b", src: 0, ops: [["c", "op", "sk"]] },
-    parts: [{ c: "c", n: "P", m: "m", crit: "Critical", t: "e", src: 0, fail: "f" }],
+    materials: [{ c: "c", n: "Mat", share: 50, spec: "S", src: 0 }],
+    sourcing: [{ c: "c", m: "Src", o: "O", s: "s", src: 0 }],
+    construction: { mode: "Factory", auto: "a", tol: "t", src: 0, steps: [{ c: "c", p: "p" }] },
+    assembly: { sites: [{ l: "L", o: "O" }], label: "lbl", count: "Single site", src: 0 },
+    skill: { tier: "T", basis: "b", src: 0, ops: [["c", "op", "sk"]] },
+    parts: [{ c: "c", n: "P", m: "m", crit: "Critical", src: 0, fail: "f" }],
     issues: [], gen: "2026-08-14", rev: false,
     sources: [{ t: "Src", u: "https://example.com/spec" }], vlog: [],
     ...over,
   });
 
-  const overridden = before.find(p => !p.stub).id;
+  const overridden = beforeP.find(p => !p.stub).id;
   globalThis.fetch = async url => {
     if (String(url).includes("corpus.json")) return {
       ok: true, json: async () => ({
@@ -1000,22 +855,35 @@ console.log("\ncorpus loading");
 
   try { await loadCorpus(); } finally { globalThis.fetch = realFetch; }
 
-  for (const p of before) {
+  for (const p of beforeP) {
     if (!P.some(x => x.id === p.id)) fail(`loading corpus.json dropped the embedded product ${p.id}`);
   }
-  if (!P.some(x => x.id === "fetched-new")) fail("the fetched product was not added");
+  const added = P.find(x => x.id === "fetched-new");
+  if (!added) fail("the fetched product was not added");
   const ov = P.find(x => x.id === overridden);
   if (!ov || ov.brand !== "Overridden") fail("a rebuilt product did not override the embedded one of the same id");
   if (P.filter(x => x.id === overridden).length !== 1) fail("the override duplicated the product instead of replacing it");
-  if (P.length !== before.length + 1) fail(`expected ${before.length + 1} products after merge, got ${P.length}`);
+  if (P.length !== beforeP.length + 1) fail(`expected ${beforeP.length + 1} products after merge, got ${P.length}`);
   if (!CLASSES.knife8) fail("merging classes wiped the embedded ones");
   if (!CLASSES.newklass) fail("the fetched class was not merged in");
   if (!/embedded/.test(META.source)) fail(`META.source does not disclose the merge: ${META.source}`);
 
+  /* A fully cited product must survive the double pass — loadCorpus verifies
+     it, then verifyAll() reaches it again. If that demoted anything, a merge
+     would quietly erode the corpus it just loaded. */
+  if (added) {
+    const c = coverage(added);
+    if (c.cited !== 6) fail(`a fully cited fetched product lost rows on load: ${c.cited} of 6 cited`);
+    verifyAll();
+    const after = coverage(added);
+    if (after.cited !== c.cited || after.total !== c.total)
+      fail("re-verifying a loaded corpus changed its coverage");
+  }
+
   /* Restore, so the summary below counts the corpus the suite started with. */
-  P.length = 0; P.push(...before);
+  P.length = 0; P.push(...beforeP);
   delete CLASSES.newklass;
-  ok(`corpus.json merges: ${before.length} embedded kept, 1 added, 1 overridden by id`);
+  ok(`corpus.json merges: ${beforeP.length} embedded kept, 1 added, 1 overridden by id, coverage stable`);
 }
 
 /* ----------------------------------------------------------------- done */
@@ -1025,4 +893,6 @@ if (fails.length) {
   fails.forEach(f => console.error(`  · ${f}`));
   process.exit(1);
 }
-console.log(`PASSED — ${P.length} products, ${Object.keys(CLASSES).length} classes, verifier holds\n`);
+const cited = P.reduce((a, p) => a + coverage(p).cited, 0);
+const total = P.reduce((a, p) => a + coverage(p).total, 0);
+console.log(`PASSED — ${P.length} products, ${Object.keys(CLASSES).length} classes, ${cited}/${total} claims cited\n`);

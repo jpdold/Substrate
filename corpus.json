@@ -9,14 +9,6 @@
       "model": "Classic 8\" Cook's Knife",
       "klass": "knife8",
       "year": "Unknown (Classic line ongoing since 1930s; current PEtec spec since ~2010s)",
-      "axes": {
-        "material": 80,
-        "sourcing": 38,
-        "construction": 90,
-        "assembly": 90,
-        "skill": 80,
-        "superstructure": 85
-      },
       "comps": [
         {
           "id": "blade",
@@ -45,7 +37,6 @@
           "n": "X50CrMoV15 (DIN 1.4116) chromium-molybdenum-vanadium martensitic stainless steel",
           "share": 75,
           "spec": "~0.5% C, ~15% Cr, plus Mo and V; hardened to 58 HRC",
-          "t": "e",
           "src": 4,
           "why": ""
         },
@@ -54,7 +45,6 @@
           "n": "Polyoxymethylene (POM) engineering polymer",
           "share": 18,
           "spec": "Injection-molded black synthetic scales, tight molecular structure",
-          "t": "e",
           "src": 4,
           "why": ""
         },
@@ -63,7 +53,6 @@
           "n": "Stainless steel rivets (some SKUs listed as brass)",
           "share": 3,
           "spec": "Three exposed rivets fixing scales to tang",
-          "t": "l",
           "src": 1,
           "why": "Official Wüsthof page states rivets are stainless steel; one third-party spec sheet for a different SKU lists brass, so material may vary by batch/model"
         },
@@ -72,7 +61,6 @@
           "n": "Aluminum sacrificial anode ring",
           "share": 1,
           "spec": "Small aluminum ring fixed to tang under handle, corrodes preferentially to protect tang from moisture ingress",
-          "t": "e",
           "src": 3,
           "why": ""
         }
@@ -83,7 +71,6 @@
           "m": "X50CrMoV15 stainless steel",
           "o": "Germany",
           "s": "Undisclosed German steel mill (Wüsthof-proprietary formulation)",
-          "t": "l",
           "src": 0,
           "why": "Wüsthof states steel is 'specially formulated German steel' worked entirely at its Solingen plant, implying domestic melt/supply",
           "note": "Exact steel mill/supplier name not publicly disclosed"
@@ -93,7 +80,6 @@
           "m": null,
           "o": null,
           "s": null,
-          "t": "u",
           "src": null,
           "why": "",
           "note": "Manufacturer does not disclose POM resin supplier or country of polymer manufacture"
@@ -103,7 +89,6 @@
           "m": "Stainless steel rivet stock",
           "o": "Germany",
           "s": "Sourced/fitted within Wüsthof Solingen operations",
-          "t": "l",
           "src": 1,
           "why": "Official page describes rivet fixing as part of the same Solingen manufacturing process described for the whole knife",
           "note": "No named rivet supplier; brass listed on one competing spec sheet suggests possible variant"
@@ -113,7 +98,6 @@
           "m": "Aluminum alloy ring",
           "o": "Germany",
           "s": "Wüsthof (in-house patented component)",
-          "t": "l",
           "src": 3,
           "why": "Wüsthof describes the anode as its own patented invention, implying in-house production at its Solingen facility",
           "note": "No external supplier identified"
@@ -121,7 +105,6 @@
       ],
       "construction": {
         "mode": "Factory",
-        "t": "e",
         "auto": "Both: robotic/laser precision steps for forging, grinding, and edge-sharpening combined with manual hand-buffing/polishing and assembly",
         "tol": "Laser-guided edge sharpened to ~14 degrees per side (28 degrees inclusive); tang/bolster ground to precision profile",
         "src": 2,
@@ -158,13 +141,11 @@
         ],
         "label": "Made in Solingen, Germany",
         "count": "Single site",
-        "t": "u",
         "src": 0,
         "why": ""
       },
       "skill": {
         "tier": "Skilled artisan + automated precision hybrid",
-        "t": "l",
         "basis": "Combination of laser/robotic precision steps and manual hand-finishing (buffing, polishing, assembly) documented by manufacturer and retailer spec sheets",
         "src": 5,
         "why": "Manufacturer and retailer pages describe manual hand-buffing, polishing and assembly stages, but neither states a skill tier or training requirement — the tier is inferred from the operations they describe.",
@@ -197,7 +178,6 @@
           "n": "Forged steel blade/tang/bolster",
           "m": "X50CrMoV15 stainless steel",
           "crit": "Critical",
-          "t": "e",
           "fail": "Edge chipping on bone/frozen food; rust if chronically neglected despite stainless formulation",
           "src": 4,
           "why": ""
@@ -207,7 +187,6 @@
           "n": "POM handle scales",
           "m": "Polyoxymethylene polymer",
           "crit": "Structural",
-          "t": "e",
           "fail": "Surface wear/scratching over decades; not typically prone to cracking",
           "src": 4,
           "why": ""
@@ -217,7 +196,6 @@
           "n": "Handle rivets",
           "m": "Stainless steel (or brass on some SKUs)",
           "crit": "Structural",
-          "t": "l",
           "fail": "Loosening or scale separation from tang over very long-term heavy use",
           "src": 1,
           "why": "Rivets are the sole mechanical fastener between tang and scales per official description"
@@ -227,7 +205,6 @@
           "n": "Sacrificial anode ring",
           "m": "Aluminum alloy",
           "crit": "Functional",
-          "t": "e",
           "fail": "Anode designed to slowly dissolve over decades by design, protecting tang from corrosion",
           "src": 3,
           "why": ""
@@ -274,14 +251,7 @@
         "Assembly location was tagged EXACT without a working source — now UNKNOWN",
         "Skill tier was tagged EXACT against a retailer listing, which can evidence a specification but not a labour practice — now LIKELY, with the inference stated",
         "3 source(s) were listed but cited by no claim — removed, so the evidence list is what the report actually rests on"
-      ],
-      "srcAdj": {
-        "derived": true,
-        "model": 40,
-        "value": 38,
-        "diff": -2,
-        "rows": 4
-      }
+      ]
     }
   ]
 }
