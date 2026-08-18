@@ -33,18 +33,20 @@ globalThis.fetch = async () => { throw new Error("network disabled in tests"); }
 
 const mod = await import(
   "data:text/javascript," + encodeURIComponent(
-    stub + src + "\nexport { P, S, CLASSES, coverage, covbar, cite, peers, verify, verifyAll, ingest, " +
+    stub + src + "\nexport { P, S, CATS, catPath, catCrumb, catLabel, catMatch, catSubtree, catLeaves, " +
+    "resultGroups, emptyMatches, coverage, covbar, cite, peers, verify, verifyAll, ingest, " +
     "quickView, fullView, peerView, vpanel, matches, results, stale, ageDays, " +
     "norm, addReq, REQS, renderGen, renderMethod, " +
     "gapView, classSilence, citedBy, prosePointer, covCompare, TABL, " +
     "compDeltas, compDeltaView, CATTR, " +
     "tcmp, clearCmp, cmpSet, compareView, exportPayload, comparisonCSV, exportRows, citedClaims, " +
-    "loadCorpus, META, CLASSES as CLS };"
+    "loadCorpus, META };"
   )
 );
 
 const {
-  P, S, CLASSES, coverage, cite, peers, verify, verifyAll, ingest,
+  P, S, CATS, catPath, catCrumb, catLabel, catMatch, catSubtree, catLeaves,
+  resultGroups, emptyMatches, coverage, cite, peers, verify, verifyAll, ingest,
   quickView, fullView, peerView, vpanel, results, stale, norm,
   renderMethod, gapView, classSilence, citedBy, TABL,
   compDeltas, compDeltaView, CATTR,
@@ -162,6 +164,81 @@ if (norm("Nescafé") !== "nescafe") fail("norm() is not stripping diacritics");
   }
 }
 ok(`${probes.length} probes, accent-insensitive, prose reachable`);
+
+/* ------------------------------------------------------- 3b. categories */
+/* The reason the tree exists: "kitchen knife" must return kitchen knives and
+   not camping knives. Substring search cannot do it — every one of them
+   contains the word "knife" — so these are the assertions that keep the
+   resolution working when someone edits CATS. */
+console.log("\ncategories");
+{
+  /* Structure first: a broken parent pointer silently truncates every path,
+     and every search term derived from one. */
+  for (const [id, c] of Object.entries(CATS)) {
+    if (c.p && !CATS[c.p]) fail(`category "${id}" points at a parent that does not exist: "${c.p}"`);
+    if (!c.n) fail(`category "${id}" has no name`);
+    const path = catPath(id);
+    if (path[path.length - 1] !== id) fail(`catPath("${id}") does not end at itself — cycle or broken chain`);
+    if (path.length > 6) fail(`category "${id}" is ${path.length} deep — probably a cycle`);
+  }
+  for (const p of P) {
+    if (!CATS[p.klass]) fail(`${p.id}: klass "${p.klass}" is not a category`);
+  }
+  ok(`${Object.keys(CATS).length} categories, ${catLeaves().length} leaves, every parent resolves`);
+
+  /* The headline case, both directions. */
+  const hit = q => catMatch(q).flatMap(catSubtree);
+  const kk = hit("kitchen knife");
+  if (!kk.includes("knife8")) fail('"kitchen knife" does not reach the chef\'s knife category');
+  if (kk.includes("fixed") || kk.includes("pocket"))
+    fail('"kitchen knife" reached an outdoor knife category');
+
+  const ck = hit("camping knife");
+  if (!ck.includes("fixed")) fail('"camping knife" does not reach the fixed-blade category');
+  if (ck.includes("knife8")) fail('"camping knife" reached the kitchen knife category');
+  ok('"kitchen knife" and "camping knife" resolve to opposite branches');
+
+  /* Ambiguity is answered, not guessed at. */
+  const bare = hit("knife");
+  if (!bare.includes("knife8") || !bare.includes("fixed"))
+    fail('"knife" alone should reach both branches rather than picking one');
+  ok('"knife" alone returns both branches for the reader to choose');
+
+  /* A word only an ancestor carries still has to work — that is what makes
+     "kitchen" specific, since it appears on no knife node. */
+  if (!hit("cookware").includes("skillet")) fail("a parent-only term did not reach its leaf");
+  if (hit("kitchen").includes("instant")) fail('"kitchen" reached a food category');
+  ok("ancestor terms reach their leaves and nothing else");
+
+  /* Non-category queries must fall through to product text, or brand search
+     stops working the moment the tree is introduced. */
+  if (catMatch("wusthof").length) fail('"wusthof" was treated as a category');
+  S.q = "wusthof";
+  if (!results().some(p => /W/.test(p.brand))) fail("brand search stopped working under the tree");
+  S.q = "solingen";
+  if (!results().length) fail("a term that lives only in prose stopped resolving");
+  S.q = "";
+  ok("non-category queries fall through to product text");
+
+  /* An empty category is an answer, not a blank. */
+  S.q = "camping knife";
+  const empt = emptyMatches();
+  if (!empt.includes("fixed")) fail('"camping knife" did not report its empty category');
+  if (resultGroups().length) fail('"camping knife" returned products');
+  S.q = "kitchen knife";
+  if (emptyMatches().includes("knife8")) fail("a populated category was reported as empty");
+  S.q = "";
+  ok("a named-but-empty category is reported rather than returning nothing");
+
+  /* Grouping is what makes an ambiguous query readable. */
+  S.q = "knife";
+  const g = resultGroups();
+  if (!g.length) fail('"knife" returned no groups');
+  if (g.some(x => !x.crumb || !x.items.length)) fail("a result group is missing its breadcrumb or its items");
+  if (new Set(g.map(x => x.k)).size !== g.length) fail("a category appeared in two groups");
+  S.q = "";
+  ok("results group under their category with a breadcrumb");
+}
 
 /* ----------------------------------------------------------- 4. verifier */
 console.log("\nverifier — adversarial payload");
@@ -864,8 +941,8 @@ console.log("\ncorpus loading");
   if (!ov || ov.brand !== "Overridden") fail("a rebuilt product did not override the embedded one of the same id");
   if (P.filter(x => x.id === overridden).length !== 1) fail("the override duplicated the product instead of replacing it");
   if (P.length !== beforeP.length + 1) fail(`expected ${beforeP.length + 1} products after merge, got ${P.length}`);
-  if (!CLASSES.knife8) fail("merging classes wiped the embedded ones");
-  if (!CLASSES.newklass) fail("the fetched class was not merged in");
+  if (!CATS.knife8) fail("merging classes wiped the embedded ones");
+  if (!CATS.newklass) fail("the fetched class was not merged in");
   if (!/embedded/.test(META.source)) fail(`META.source does not disclose the merge: ${META.source}`);
 
   /* A fully cited product must survive the double pass — loadCorpus verifies
@@ -882,7 +959,7 @@ console.log("\ncorpus loading");
 
   /* Restore, so the summary below counts the corpus the suite started with. */
   P.length = 0; P.push(...beforeP);
-  delete CLASSES.newklass;
+  delete CATS.newklass;
   ok(`corpus.json merges: ${beforeP.length} embedded kept, 1 added, 1 overridden by id, coverage stable`);
 }
 
@@ -895,4 +972,4 @@ if (fails.length) {
 }
 const cited = P.reduce((a, p) => a + coverage(p).cited, 0);
 const total = P.reduce((a, p) => a + coverage(p).total, 0);
-console.log(`PASSED — ${P.length} products, ${Object.keys(CLASSES).length} classes, ${cited}/${total} claims cited\n`);
+console.log(`PASSED — ${P.length} products, ${catLeaves().length} categories, ${cited}/${total} claims cited\n`);

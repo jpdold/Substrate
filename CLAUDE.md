@@ -117,13 +117,58 @@ it that way. It must run opened directly off disk.
 
 ---
 
+## Categories
+
+`CATS` is a flat adjacency list — `id: {n, p, syn, d}` — and **a leaf id is a
+product's `klass`**, so a product's class *is* its category. One concept, not
+two kept in step by hand.
+
+The problem it solves: *"kitchen knife" must return kitchen knives and not
+camping knives.* Substring search over product text cannot do that, because
+every one of them contains the word "knife" — and "kitchen knife" appears in
+none of them. So a query resolves against the tree first, and the products come
+from the matching node's subtree.
+
+**One matching rule:** a node matches when *every word of the query* appears in
+its own name, its synonyms, or the names of its ancestors. That is the whole
+algorithm, and it is enough:
+
+| query | reaches | because |
+|---|---|---|
+| `kitchen knife` | `knife8`, `paring`, `bread` | chain is Kitchen › Cutlery › … |
+| `camping knife` | `fixed` | `syn` carries "camping"; chain is Outdoor › Knives |
+| `knife` | both branches | genuinely ambiguous — grouped, not guessed |
+| `wusthof` | nothing | falls through to product-text search |
+
+The ancestors are what make a query specific. The word "kitchen" appears on no
+knife node; it is inherited. **So a broken `p` pointer silently truncates every
+path below it and every search term derived from one** — which is why
+`test.mjs` walks every parent before anything else.
+
+A node whose own descendant also matched is dropped, or one query reports the
+same answer at two depths.
+
+**Categories exist independently of the corpus, and an empty one is a feature.**
+`emptyMatches()` reports a category the query named that holds nothing, and the
+list renders it as *Nothing filed here yet* with a Request button. That is the
+right answer to "camping knife" — the category is real, we have nothing in it —
+and it is better than silence, and far better than returning chef's knives.
+Don't "clean up" the unpopulated categories.
+
+`CAT_TEXT` is a built index, rebuilt by `reindexCats()`. Anything that adds a
+category — `ingest()`, `loadCorpus()` — must call it, or the new category is
+unreachable by search while looking perfectly fine on the page.
+
+---
+
 ## Data model
 
 A product is a component roster plus rows bound to those components.
 
 ```js
 {
-  id, brand, model, klass, year,
+  id, brand, model, klass, year,          // klass IS a CATS leaf id
+
   comps:        [{id, n, role}],                    // the spine
   materials:    [{c, n, share, spec, src}],         // c -> comps[].id
   sourcing:     [{c, m, o, s, src, note}],
@@ -210,6 +255,16 @@ how much damage they cause:
 
 5. **Search is accent-insensitive** via `norm()` (NFD + diacritic strip).
    "nescafe" must find "Nescafé". Any new searchable field goes through `norm()`.
+
+   **Category resolution comes first, product text second, and the fallback is
+   load-bearing.** If `catMatch()` returns nothing, `matches()` drops through to
+   the text index — that is what keeps brand search ("wusthof") and prose search
+   ("solingen") working. Remove the fallback and every query that is not a
+   category name returns zero results.
+
+   A demoted claim stays in the text index. Indexing only the cited tables
+   would make a product harder to find the less its maker disclosed, which is
+   backwards; `proseText()` walks the uncited rows for this reason.
 
 6. **The Method page never transcribes a number.** There is very little left
    for it to get wrong — one rule instead of six weights and three severity

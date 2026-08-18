@@ -388,6 +388,33 @@ header{
 .cdrow.differs .cdflag{color:var(--fg-2)}
 .cdrow.thin{opacity:.72}
 
+/* ---------- category headings and the empty-category answer ---------- */
+.cathead{
+  display:flex;align-items:baseline;gap:10px;margin:26px 0 8px;
+  padding-bottom:7px;border-bottom:1px solid var(--line-soft);
+}
+.cathead:first-child{margin-top:4px}
+.crumb{
+  font-family:var(--mono);font-size:11px;letter-spacing:.08em;color:var(--fg-2);
+}
+.cathead .catcount{
+  font-family:var(--mono);font-size:10.5px;color:var(--fg-3);margin-left:auto;
+}
+.catempty{
+  margin-top:28px;padding:18px 20px;border:1px dashed var(--line);border-radius:var(--r);
+}
+.emptyrow{
+  display:flex;align-items:center;gap:12px;flex-wrap:wrap;
+  padding:9px 0;border-top:1px solid var(--line-soft);
+}
+.emptyrow:first-of-type{border-top:none}
+.emptyrow .crumb{flex:1;min-width:200px}
+.catemptynote{
+  font-size:12px;color:var(--fg-3);line-height:1.6;max-width:74ch;margin-top:14px;
+}
+.genbtn.sm{padding:5px 12px;font-size:11.5px}
+.cls .crumb{font-size:11.5px}
+
 /* the three that decide most of what an object is */
 .qgrid.rocks{border-bottom:1px solid var(--line-soft);padding-bottom:18px}
 .qgrid.rocks .q .qv{font-size:19px}
@@ -590,11 +617,120 @@ footer .frow{display:flex;gap:26px;flex-wrap:wrap}
 
 <script>
 /* ============================ DATA ============================ */
-const CLASSES = {
-  knife8: "Chef's knife, 8 in — general kitchen cutting",
-  skillet: "Cast iron skillet, 10–12 in — stovetop and oven frying",
-  instant: "Instant coffee, soluble — hot-water reconstitution"
+/* accent-insensitive so "nescafe" finds "Nescafé". Defined here because the
+   category index below is built at load and needs it. */
+const norm = t => (t||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase();
+
+/* ==================================================================
+   CATEGORIES
+   ------------------------------------------------------------------
+   A flat adjacency list, because what search needs is the path from a
+   node back to its root, and a parent pointer gives that cheaply.
+
+   The problem this solves: "kitchen knife" must return kitchen knives
+   and not camping knives. Substring search over product text cannot
+   do it — every one of them contains "knife" — so a query is resolved
+   against the tree first and the products come from the matching
+   node's subtree.
+
+   A node matches when EVERY word of the query appears in its own
+   name, its synonyms, or the names of its ancestors. That single rule
+   does the work: "kitchen knife" reaches `knife8` through its parent
+   chain (Kitchen › Cutlery › Chef's knife) and cannot reach `fixed`,
+   whose chain is Outdoor › Knives. "camping knife" goes the other
+   way. "knife" alone is genuinely ambiguous, and returns both
+   grouped rather than guessing which was meant.
+
+   Categories exist independently of the corpus. An empty one is not a
+   mistake — it says the category is real and nothing is filed under
+   it yet, which is a better answer to "camping knife" than silence or
+   a list of chef's knives.
+
+   `n` name · `p` parent · `syn` what a reader might actually type ·
+   `d` the functional description shown after an em dash on a report.
+   Leaf ids are the `klass` values, so a product's class IS its
+   category — one concept, not two kept in step by hand.
+   ================================================================== */
+const CATS = {
+  kitchen:  {n:"Kitchen"},
+  cutlery:  {n:"Cutlery", p:"kitchen", syn:"knives knife blades cutting"},
+  knife8:   {n:"Chef's knife, 8 in", p:"cutlery", syn:"cooks knife chef knife",
+             d:"general kitchen cutting"},
+  paring:   {n:"Paring knife", p:"cutlery", syn:"peeling small knife",
+             d:"peeling and close work"},
+  bread:    {n:"Bread knife", p:"cutlery", syn:"serrated slicing",
+             d:"serrated slicing"},
+  cookware: {n:"Cookware", p:"kitchen", syn:"pans pots"},
+  skillet:  {n:"Cast iron skillet, 10–12 in", p:"cookware", syn:"frying pan frypan cast iron",
+             d:"stovetop and oven frying"},
+  ssskillet:{n:"Stainless skillet, 10–12 in", p:"cookware", syn:"frying pan frypan stainless",
+             d:"stovetop frying and deglazing"},
+
+  outdoor:  {n:"Outdoor"},
+  oknives:  {n:"Knives", p:"outdoor", syn:"knife blades"},
+  pocket:   {n:"Pocket knife", p:"oknives", syn:"folding edc everyday carry",
+             d:"folding, carried on the person"},
+  fixed:    {n:"Fixed-blade knife", p:"oknives", syn:"camping bushcraft survival hunting",
+             d:"camp and field work"},
+
+  food:     {n:"Food and drink"},
+  coffee:   {n:"Coffee", p:"food"},
+  instant:  {n:"Instant coffee", p:"coffee", syn:"soluble crystals",
+             d:"hot-water reconstitution"},
+  ground:   {n:"Ground coffee", p:"coffee", syn:"roast filter beans",
+             d:"brewed from ground beans"}
 };
+
+/* Root to leaf, for breadcrumbs and for the search index. */
+function catPath(id){
+  const out=[];
+  for(let c=id, guard=0; c && CATS[c] && guard<12; c=CATS[c].p, guard++) out.unshift(c);
+  return out;
+}
+function catLabel(id){
+  const c=CATS[id];
+  if(!c) return id;
+  return c.d ? c.n+" — "+c.d : c.n;
+}
+function catCrumb(id){ return catPath(id).map(x=>CATS[x].n).join(" › "); }
+function catKids(id){ return Object.keys(CATS).filter(k=>CATS[k].p===id); }
+function catLeaves(){ return Object.keys(CATS).filter(k=>!catKids(k).length); }
+
+/* Self and every descendant. */
+function catSubtree(id){
+  const out=[id];
+  catKids(id).forEach(k=>out.push(...catSubtree(k)));
+  return out;
+}
+
+/* Everything a reader could plausibly type to reach this node: its own name,
+   its synonyms, and the names and synonyms of everything above it. The
+   ancestors are what make "kitchen knife" specific — the word "kitchen" never
+   appears on the knife node itself. Rebuilt whenever a class is added. */
+let CAT_TEXT = {};
+function reindexCats(){
+  CAT_TEXT = {};
+  Object.keys(CATS).forEach(id=>{
+    CAT_TEXT[id] = norm(catPath(id).map(x=>{
+      const c=CATS[x];
+      return [c.n, c.syn||"", x===id?(c.d||""):""].join(" ");
+    }).join(" ")).replace(/[^a-z0-9]+/g," ");
+  });
+}
+reindexCats();
+
+/* Every word of the query has to land somewhere on the node. */
+function catMatch(q){
+  const words=norm(q).replace(/[^a-z0-9]+/g," ").trim().split(/\s+/).filter(Boolean);
+  if(!words.length) return [];
+  const hits=Object.keys(CATS).filter(id=>words.every(w=>CAT_TEXT[id].includes(w)));
+
+  /* Drop a node whose own descendant also matched — reporting Cutlery *and*
+     Chef's knife for one query is the same answer twice, at two depths. */
+  return hits
+    .filter(id=>!hits.some(o=>o!==id && catPath(o).includes(id)))
+    .sort((a,b)=>catPath(b).length-catPath(a).length || CATS[a].n.localeCompare(CATS[b].n));
+}
 
 const P = [
 {
@@ -938,8 +1074,6 @@ const P = [
 ];
 
 /* ============================ HELPERS ============================ */
-/* accent-insensitive so "nescafe" finds "Nescafé" */
-const norm = t => (t||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase();
 const gap = (t="No Data For Now") => `<span class="gap">${t}</span>`;
 
 /* The disclaimer that makes the phrase above safe to use. Rendered on every
@@ -1061,7 +1195,15 @@ function matches(p){
   }
   if(S.sites.size && !S.sites.has((p.assembly?.count||"").split(" ")[0])) return false;
   if(S.q){
-    const hay=norm([p.brand,p.model,CLASSES[p.klass],
+    /* A query that names a category is answered by the category, not by
+       string-matching product text. "kitchen knife" appears nowhere in a
+       Wüsthof report, and "knife" appears in a camping knife's. */
+    const cats=catMatch(S.q);
+    if(cats.length){
+      const inTree=new Set(cats.flatMap(catSubtree));
+      return inTree.has(p.klass);
+    }
+    const hay=norm([p.brand,p.model,catCrumb(p.klass),catLabel(p.klass),
       (p.construction?.steps||[]).map(x=>x.p).join(" "),
       (p.assembly?.sites||[]).map(x=>x.l).join(" "),
       p.materials.map(m=>m.n+" "+(m.spec||"")).join(" "),
@@ -1077,8 +1219,31 @@ function matches(p){
 function results(){
   const r=P.filter(matches);
   if(S.sort==="cov") r.sort((a,b)=>coverage(b).pct-coverage(a).pct);
-  if(S.sort==="brand") r.sort((a,b)=>a.brand.localeCompare(b.brand));
+  else r.sort((a,b)=>(a.brand+" "+a.model).localeCompare(b.brand+" "+b.model));
   return r;
+}
+
+/* Results grouped under the category each product is filed in, so a query
+   that lands on two branches — "knife" reaches both Cutlery and Outdoor —
+   shows which is which instead of interleaving them silently. */
+function resultGroups(){
+  const r=results(), by=new Map();
+  r.forEach(p=>{ if(!by.has(p.klass)) by.set(p.klass,[]); by.get(p.klass).push(p); });
+  return [...by.entries()]
+    .map(([k,items])=>({k, crumb:catCrumb(k), items}))
+    .sort((a,b)=>a.crumb.localeCompare(b.crumb));
+}
+
+/* Categories the query named that hold nothing yet. Reporting these is the
+   whole point of keeping the tree independent of the corpus: "camping knife"
+   should say the category exists and is empty, not return chef's knives and
+   not return nothing at all. */
+function emptyMatches(){
+  if(!S.q) return [];
+  return catMatch(S.q)
+    .flatMap(catSubtree)
+    .filter(k=>!catKids(k).length && !P.some(p=>p.klass===k))
+    .sort((a,b)=>CATS[a].n.localeCompare(CATS[b].n));
 }
 
 /* ============================ RAIL ============================ */
@@ -1090,7 +1255,9 @@ function renderRail(){
 
   document.getElementById("rail").innerHTML =
    box("klass","Functional class",
-      Object.entries(CLASSES).map(([k,v])=>cb("klass",k,v.split(" — ")[0],countIf(p=>p.klass===k))).join(""))
+      catLeaves().filter(k=>P.some(p=>p.klass===k))
+        .sort((a,b)=>CATS[a].n.localeCompare(CATS[b].n))
+        .map(k=>cb("klass",k,CATS[k].n,countIf(p=>p.klass===k))).join(""))
   +box("mode","Construction method",
       ["Factory","Both"].map(m=>cb("mode",m,m==="Both"?"Factory + hand":m,countIf(p=>p.construction.mode.startsWith(m)))).join(""))
   +box("skillT","Skill required",
@@ -1112,15 +1279,19 @@ function setQ(v){ S.q=v; document.getElementById("bq").value=v; document.getElem
 
 /* ============================ LIST ============================ */
 function renderList(){
-  const r=results();
-  const rows = r.length ? r.map(p=>{
+  const groups=resultGroups(), empties=emptyMatches();
+  const total=groups.reduce((a,g)=>a+g.items.length,0);
+
+  const card=p=>{
     const c=coverage(p), on=S.cmp.has(p.id);
     return `<div class="rowwrap">
       <button class="row ${p.stub?"stub":""}" onclick="open_('${p.id}')">
       <div>
         <div class="brand">${p.brand}${p.live?`<span class="livemark">LIVE</span>`:""}</div>
         <div class="name">${p.model}</div>
-        <div class="facts">${p.materials.length?p.materials[0].n+" · ":""}${p.construction?.mode||"process not cited"} · <em>${p.assembly?.sites?.[0]?.l||"origin not cited"}</em></div>
+        <div class="facts">${p.materials.length?p.materials[0].n+" · ":""}${
+          p.construction?.mode||"how it's made not cited"} · <em>${
+          p.assembly?.sites?.[0]?.l||"where it's made not cited"}</em></div>
       </div>
       <div class="cbarcell">${covbar(p)}
         <div class="cmeta"><span><b>${c.cited}</b> cited</span><span>${c.uncited} in prose</span></div></div>
@@ -1131,24 +1302,50 @@ function renderList(){
         aria-pressed="${on}" title="${on?"Remove from comparison":"Add to comparison"}"
         aria-label="${on?"Remove":"Add"} ${p.brand} ${p.model} ${on?"from":"to"} comparison">${on?"✓":"+"}</button>
     </div>`;
-  }).join("") : (S.q
+  };
+
+  /* One heading per category, because a query can legitimately land on two
+     branches — "knife" reaches both Cutlery and Outdoor — and interleaving
+     them silently is the failure this whole tree exists to prevent. A single
+     group is not worth a heading when nothing was searched for. */
+  const showHeads = groups.length>1 || !!S.q;
+  const body = groups.map(g=>`
+    ${showHeads?`<div class="cathead"><span class="crumb">${g.crumb}</span>
+      <span class="catcount">${g.items.length}</span></div>`:""}
+    ${g.items.map(card).join("")}`).join("");
+
+  /* A category the query named that holds nothing yet. This is the answer to
+     "camping knife" — the category is real, we have nothing in it — and it is
+     a better answer than silence or a list of chef's knives. */
+  const emptyBlock = empties.length ? `
+    <div class="catempty">
+      <div class="eyebrow">Nothing filed here yet</div>
+      ${empties.map(k=>`<div class="emptyrow">
+        <span class="crumb">${catCrumb(k)}</span>
+        <span class="gap">No Data For Now</span>
+        <button class="genbtn sm" onclick="openGen('${CATS[k].n.replace(/'/g,"\\'")}')">Request one</button>
+      </div>`).join("")}
+      <p class="catemptynote">These categories exist because the object does. Nothing has been
+        researched and filed under them, which is a fact about this corpus and not about the products.</p>
+    </div>` : "";
+
+  const nothing = !total && !empties.length ? (S.q
     ? `<div class="empty"><b>No report yet for “${S.q}”.</b>
         Reports are built in batches, checked against their sources, and published together. Name this product and it goes into the next build.
         <div><button class="genbtn" onclick="openGen('${S.q.replace(/'/g,"\\'")}')">Request “${S.q}”</button></div></div>`
     : `<div class="empty"><b>No products match these filters.</b>
-        Lower the coverage floor or clear a facet to widen the set.</div>`);
+        Lower the coverage floor or clear a facet to widen the set.</div>`) : "";
 
   document.getElementById("main").innerHTML=`
     <div class="rhead">
       <h2>${S.q?`Results for “${S.q}”`:"All products"}</h2>
-      <span class="count">${r.length} of ${P.length}</span>
+      <span class="count">${total} of ${P.length}</span>
       <div class="sortbox"><span class="eyebrow">Sort</span>
         <select onchange="S.sort=this.value;render()">
-          <option value="score" ${S.sort==="score"?"selected":""}>Quality score</option>
-          <option value="cert" ${S.sort==="cert"?"selected":""}>Certainty density</option>
-          <option value="brand" ${S.sort==="brand"?"selected":""}>Brand</option>
+          <option value="name" ${S.sort!=="cov"?"selected":""}>Name</option>
+          <option value="cov" ${S.sort==="cov"?"selected":""}>Citation coverage</option>
         </select></div>
-    </div>${rows}`;
+    </div>${body}${emptyBlock}${nothing}`;
 }
 
 /* ============================ REPORT ============================ */
@@ -1174,7 +1371,7 @@ function renderReport(){
     <div class="rtop">
       <div class="eyebrow">${p.brand} · ${p.year}${p.live?`<span class="livemark">LIVE — GENERATED</span>`:""}</div>
       <h2>${p.model}</h2>
-      <div class="cls">${CLASSES[p.klass]}</div>
+      <div class="cls"><span class="crumb">${catCrumb(p.klass)}</span></div>
       <div class="rsum">
         <div class="bigscore"><b>${c.pct}<span class="pcnt">%</span></b><span>of this report's claims resolve to a source</span></div>
         <div>${covbar(p,true)}
@@ -1541,7 +1738,7 @@ function gapView(p){
 
   /* The class label carries its own description after an em dash, which
      swallows the sentence — the short name is what belongs in prose. */
-  const klass=(CLASSES[p.klass]||"").split(" — ")[0];
+  const klass=(CATS[p.klass]||{}).n||p.klass;
   const silentKinds=kinds.filter(k=>silent[k]);
   const lead = !comparable
     ? `Only this product in ${klass} has been researched, so there is no peer disclosure to measure it against. Nothing below is classified as an industry norm.`
@@ -1645,7 +1842,8 @@ function exportRows(list){
   return list.map(p=>{
     const c=coverage(p);
     return {
-      id:p.id, brand:p.brand, model:p.model, klass:CLASSES[p.klass]||p.klass, year:p.year,
+      id:p.id, brand:p.brand, model:p.model, klass:catLabel(p.klass),
+      category:catPath(p.klass).map(x=>CATS[x].n), year:p.year,
       stub: !!p.stub,
       reviewed: !!p.rev,
       coverage: {cited:c.cited, uncited:c.uncited, total:c.total, pct:c.pct},
@@ -1691,7 +1889,7 @@ function comparisonCSV(list){
   const q=v=>`"${String(v==null?"":v).replace(/"/g,'""')}"`;
   const rows=[
     ["Field", ...list.map(p=>`${p.brand} ${p.model}`)],
-    ["Class", ...list.map(p=>CLASSES[p.klass]||p.klass)],
+    ["Category", ...list.map(p=>catCrumb(p.klass))],
     ["Claims cited", ...list.map(p=>coverage(p).cited)],
     ["Claims in prose, uncited", ...list.map(p=>coverage(p).uncited)],
     ["Citation coverage %", ...list.map(p=>coverage(p).pct)],
@@ -1734,7 +1932,7 @@ function compareView(){
   };
 
   const body=[
-    `<tr><td class="k">Class</td>${sel.map(p=>`<td>${CLASSES[p.klass]||p.klass}</td>`).join("")}</tr>`,
+    `<tr><td class="k">Category</td>${sel.map(p=>`<td>${catCrumb(p.klass)}</td>`).join("")}</tr>`,
     `<tr><td class="k">Citation coverage</td>${sel.map(p=>{const c=coverage(p);
       return `<td>${covbar(p)}<span class="csub">${c.cited} of ${c.total} claims cited</span></td>`}).join("")}</tr>`,
     row("Claims in prose, uncited", sel.map(p=>p.stub?"—":coverage(p).uncited)),
@@ -1866,7 +2064,11 @@ function slug(x){ return norm(x).replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"")
 
 function ingest(o){
   const kid = "gen-"+slug(o.klassLabel);
-  CLASSES[kid] = o.klassLabel;
+  if(!CATS[kid]){
+    const [nm,d] = String(o.klassLabel).split(" — ");
+    CATS[kid] = {n:nm, d};   // parentless until someone files it under a branch
+    reindexCats();
+  }
   const t=o.target, id="gen-"+slug(t.brand+"-"+t.model);
   const built = {
     id, brand:t.brand, model:t.model, klass:kid, year:t.year||"unspecified",
@@ -1928,7 +2130,10 @@ async function loadCorpus(){
       if(i>=0) P[i]=p; else P.push(p);
     });
     verifyAll();
-    Object.assign(CLASSES,c.classes||{});
+    Object.entries(c.classes||{}).forEach(([k,v])=>{
+      if(!CATS[k]){ const [nm,d]=String(v).split(" — "); CATS[k]={n:nm, d}; }
+    });
+    reindexCats();
     META.built=c.built; META.merged=c.products.length; META.adjusted=bad;
     META.source=`embedded + ${c.products.length} from corpus.json`;
   }catch(e){ META.source="embedded"; META.loadNote=e&&e.message?e.message:null; }
