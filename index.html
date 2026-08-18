@@ -610,31 +610,31 @@ const P = [
     {id:"rivets",n:"Rivets",            role:"Structural"}
   ],
   materials:[
-    {c:"blade", n:"X50CrMoV15 stainless steel",share:62,spec:"0.5% C, 15% Cr, Mo/V micro-alloy · hardened to 58 HRC",t:"e"},
-    {c:"handle",n:"Polyoxymethylene (POM)",share:30,spec:"Injection-moulded scales, UV-stable",t:"e"},
-    {c:"rivets",n:"Brass",share:6,spec:"Three compression rivets, flush-ground",t:"l"},
-    {c:"handle",n:"Adhesive — none used",share:2,spec:"Handle is mechanically riveted, not bonded",t:"e"}
+    {c:"blade", n:"X50CrMoV15 stainless steel",share:62,spec:"0.5% C, 15% Cr, Mo/V micro-alloy · hardened to 58 HRC"},
+    {c:"handle",n:"Polyoxymethylene (POM)",share:30,spec:"Injection-moulded scales, UV-stable"},
+    {c:"rivets",n:"Brass",share:6,spec:"Three compression rivets, flush-ground"},
+    {c:"handle",n:"Adhesive — none used",share:2,spec:"Handle is mechanically riveted, not bonded"}
   ],
   sourcing:[
-    {c:"blade", m:"Steel billet",o:"EU mill, not publicly named",s:"—",t:"l",note:"Solingen ordinance requires EU forming, not EU melt"},
-    {c:"handle",m:"POM resin",o:null,s:null,t:"u"},
-    {c:"rivets",m:"Brass rivet stock",o:null,s:null,t:"u"}
+    {c:"blade", m:"Steel billet",o:"EU mill, not publicly named",s:"—",note:"Solingen ordinance requires EU forming, not EU melt"},
+    {c:"handle",m:"POM resin",o:null,s:null},
+    {c:"rivets",m:"Brass rivet stock",o:null,s:null}
   ],
-  construction:{mode:"Factory",t:"e",auto:"High automation with manual finishing stages",tol:"Edge held to 14° per side (PEtec process)",
+  construction:{mode:"Factory",auto:"High automation with manual finishing stages",tol:"Edge held to 14° per side (PEtec process)",
     steps:[
       {c:"blade", p:"Drop-forged from a single billet — blade, bolster and tang are one piece"},
       {c:"blade", p:"Hardened and tempered to 58 HRC, cryogenically treated"},
       {c:"edge",  p:"CNC ground, laser-measured, then hand-honed to 14° per side"},
       {c:"handle",p:"Scales injection-moulded, compression-riveted, flush-ground to the tang"}
     ]},
-  assembly:{sites:[{l:"Solingen, Germany",o:"Forging, grinding, hardening, assembly, honing"}],label:"Made in Germany — matches actual distribution",t:"e",count:"Single site"},
-  skill:{tier:"Skilled grinder / trained worker",t:"e",basis:"Manufacturer literature cites a hand-honed final edge; the Solingen grinding trade carries a formal apprenticeship",
+  assembly:{sites:[{l:"Solingen, Germany",o:"Forging, grinding, hardening, assembly, honing"}],label:"Made in Germany — matches actual distribution",count:"Single site"},
+  skill:{tier:"Skilled grinder / trained worker",basis:"Manufacturer literature cites a hand-honed final edge; the Solingen grinding trade carries a formal apprenticeship",
     ops:[["blade","Forging","Machine-operated, trained worker"],["edge","Grinding","Skilled grinder"],["edge","Final hone","Skilled grinder, by hand"],["handle","Assembly","Trained worker"]]},
   parts:[
-    {c:"blade", n:"Blade — full tang",m:"X50CrMoV15, drop-forged",crit:"Critical",t:"e",fail:"Tang fracture ends the tool. The tang runs the full length of the handle."},
-    {c:"blade", n:"Bolster",m:"Integral, forged from the same billet",crit:"Critical",t:"e",fail:"An integral bolster removes the blade-to-handle joint entirely."},
-    {c:"handle",n:"Handle scales",m:"POM, triple-riveted",crit:"Structural",t:"e",fail:"Rivet loosening causes wobble; scales are replaceable."},
-    {c:"edge",  n:"Cutting edge",m:"14° per side, hand-honed",crit:"Functional",t:"e",fail:"Wears with use; fully restorable by sharpening."}
+    {c:"blade", n:"Blade — full tang",m:"X50CrMoV15, drop-forged",crit:"Critical",fail:"Tang fracture ends the tool. The tang runs the full length of the handle."},
+    {c:"blade", n:"Bolster",m:"Integral, forged from the same billet",crit:"Critical",fail:"An integral bolster removes the blade-to-handle joint entirely."},
+    {c:"handle",n:"Handle scales",m:"POM, triple-riveted",crit:"Structural",fail:"Rivet loosening causes wobble; scales are replaceable."},
+    {c:"edge",  n:"Cutting edge",m:"14° per side, hand-honed",crit:"Functional",fail:"Wears with use; fully restorable by sharpening."}
   ],
   issues:[]
 },
@@ -648,29 +648,29 @@ const P = [
     {id:"handle",n:"Handle",            role:"Structural"}
   ],
   materials:[
-    {c:"blade", n:"X50CrMoV15 stainless steel",share:55,spec:"Same alloy family as forged peers · 56 HRC",t:"e"},
-    {c:"handle",n:"Thermoplastic elastomer (TPE)",share:42,spec:"Fibrox compound, textured, NSF-listed",t:"e"},
-    {c:"handle",n:"Adhesive — none used",share:3,spec:"Handle is moulded directly onto the tang, not bonded",t:"l"}
+    {c:"blade", n:"X50CrMoV15 stainless steel",share:55,spec:"Same alloy family as forged peers · 56 HRC"},
+    {c:"handle",n:"Thermoplastic elastomer (TPE)",share:42,spec:"Fibrox compound, textured, NSF-listed"},
+    {c:"handle",n:"Adhesive — none used",share:3,spec:"Handle is moulded directly onto the tang, not bonded"}
   ],
   sourcing:[
-    {c:"blade", m:"Steel strip",o:"European stainless supplier, not named",s:"—",t:"l",note:"Inferred from alloy designation and Swiss forming"},
-    {c:"handle",m:"TPE compound",o:null,s:null,t:"u"}
+    {c:"blade", m:"Steel strip",o:"European stainless supplier, not named",s:"—",note:"Inferred from alloy designation and Swiss forming"},
+    {c:"handle",m:"TPE compound",o:null,s:null}
   ],
-  construction:{mode:"Factory",t:"e",auto:"Near-full automation, continuous line",tol:"Machine-set edge, approx. 15° per side",
+  construction:{mode:"Factory",auto:"Near-full automation, continuous line",tol:"Machine-set edge, approx. 15° per side",
     steps:[
       {c:"blade", p:"Stamped from rolled strip — no forging stage"},
       {c:"blade", p:"Hardened to 56 HRC"},
       {c:"edge",  p:"Machine-ground, no hand finishing published"},
       {c:"handle",p:"TPE injection-moulded directly over the tang, no rivets"}
     ]},
-  assembly:{sites:[{l:"Ibach, Switzerland",o:"Stamping, grinding, over-moulding, packing"}],label:"Made in Switzerland",t:"e",count:"Single site"},
-  skill:{tier:"Trained worker / machine operator",t:"l",basis:"No hand-finishing stage is published; the process is continuous-line stamping and over-moulding",
+  assembly:{sites:[{l:"Ibach, Switzerland",o:"Stamping, grinding, over-moulding, packing"}],label:"Made in Switzerland",count:"Single site"},
+  skill:{tier:"Trained worker / machine operator",basis:"No hand-finishing stage is published; the process is continuous-line stamping and over-moulding",
     ops:[["blade","Stamping","Machine operator"],["edge","Grinding","Machine-set"],["handle","Over-moulding","Machine operator"],["blade","QC","Trained inspector"]]},
   parts:[
-    {c:"blade", n:"Blade — stamped",m:"X50CrMoV15, cut from strip",crit:"Critical",t:"e",fail:"No forging grain refinement. The alloy matches forged peers; the forming does not."},
-    {c:"tang",  n:"Tang — concealed",m:"Extends into the handle, extent not published",crit:"Critical",t:"l",fail:"A concealed tang cannot be inspected. Length inferred from balance point and published teardowns."},
-    {c:"blade", n:"Bolster — absent",m:"None fitted",crit:"Absent",t:"e",fail:"No finger guard and no forged transition at the joint. Lighter as a result."},
-    {c:"handle",n:"Handle",m:"TPE over-moulded, no rivets",crit:"Structural",t:"e",fail:"Not serviceable — the handle cannot be removed or replaced."}
+    {c:"blade", n:"Blade — stamped",m:"X50CrMoV15, cut from strip",crit:"Critical",fail:"No forging grain refinement. The alloy matches forged peers; the forming does not."},
+    {c:"tang",  n:"Tang — concealed",m:"Extends into the handle, extent not published",crit:"Critical",fail:"A concealed tang cannot be inspected. Length inferred from balance point and published teardowns."},
+    {c:"blade", n:"Bolster — absent",m:"None fitted",crit:"Absent",fail:"No finger guard and no forged transition at the joint. Lighter as a result."},
+    {c:"handle",n:"Handle",m:"TPE over-moulded, no rivets",crit:"Structural",fail:"Not serviceable — the handle cannot be removed or replaced."}
   ],
   issues:[]
 },
@@ -684,28 +684,28 @@ const P = [
     {id:"rivets",n:"Rivets",            role:"Structural"}
   ],
   materials:[
-    {c:"blade", n:"X50CrMoV15 stainless steel",share:58,spec:"German-designation alloy · 56 HRC claimed by manufacturer",t:"l"},
-    {c:"handle",n:"Santoprene over POM core",share:36,spec:"Two-material grip with textured protrusions",t:"e"},
-    {c:"rivets",n:"Rivet stock",share:6,spec:null,t:"u"}
+    {c:"blade", n:"X50CrMoV15 stainless steel",share:58,spec:"German-designation alloy · 56 HRC claimed by manufacturer"},
+    {c:"handle",n:"Santoprene over POM core",share:36,spec:"Two-material grip with textured protrusions"},
+    {c:"rivets",n:"Rivet stock",share:6,spec:null}
   ],
   sourcing:[
-    {c:"blade", m:"Steel billet",o:null,s:null,t:"u"},
-    {c:"handle",m:"Handle polymer",o:null,s:null,t:"u"}
+    {c:"blade", m:"Steel billet",o:null,s:null},
+    {c:"handle",m:"Handle polymer",o:null,s:null}
   ],
-  construction:{mode:"Factory",t:"l",auto:"High automation assumed; no finishing stages published",tol:"Not published",
+  construction:{mode:"Factory",auto:"High automation assumed; no finishing stages published",tol:"Not published",
     steps:[
       {c:"blade", p:"Forged blade with integral bolster, per manufacturer claim"},
       {c:"edge",  p:"Machine-ground; no hand-honing stage published"},
       {c:"handle",p:"Two-shot moulded, then triple-riveted to the tang"}
     ]},
-  assembly:{sites:[{l:"Taiwan",o:"Stated country of manufacture; facility not published"}],label:"Made in Taiwan — facility unknown",t:"l",count:"Single site (likely)"},
-  skill:{tier:"Trained worker",t:"l",basis:"Inferred from price tier and the absence of any published hand-finishing stage",
+  assembly:{sites:[{l:"Taiwan",o:"Stated country of manufacture; facility not published"}],label:"Made in Taiwan — facility unknown",count:"Single site (likely)"},
+  skill:{tier:"Trained worker",basis:"Inferred from price tier and the absence of any published hand-finishing stage",
     ops:[["blade","Forging","Machine-operated"],["edge","Grinding","Machine-set"],["handle","Assembly","Trained worker"]]},
   parts:[
-    {c:"blade", n:"Blade — forged",m:"X50CrMoV15, forged",crit:"Critical",t:"l",fail:"Forged forming is claimed by the manufacturer but not independently verified."},
-    {c:"blade", n:"Full tang",m:"Runs the full handle length, visible at the spine",crit:"Critical",t:"e",fail:"The visible tang line confirms full-length construction."},
-    {c:"blade", n:"Bolster",m:"Appears forged and integral",crit:"Critical",t:"l",fail:"Separate-piece construction is not ruled out by external inspection."},
-    {c:"handle",n:"Handle",m:"Triple-riveted, serviceable",crit:"Structural",t:"e",fail:"Rivets allow scale replacement."}
+    {c:"blade", n:"Blade — forged",m:"X50CrMoV15, forged",crit:"Critical",fail:"Forged forming is claimed by the manufacturer but not independently verified."},
+    {c:"blade", n:"Full tang",m:"Runs the full handle length, visible at the spine",crit:"Critical",fail:"The visible tang line confirms full-length construction."},
+    {c:"blade", n:"Bolster",m:"Appears forged and integral",crit:"Critical",fail:"Separate-piece construction is not ruled out by external inspection."},
+    {c:"handle",n:"Handle",m:"Triple-riveted, serviceable",crit:"Structural",fail:"Rivets allow scale replacement."}
   ],
   issues:[]
 },
@@ -719,28 +719,28 @@ const P = [
     {id:"ext",    n:"Exterior finish",           role:"Cosmetic"}
   ],
   materials:[
-    {c:"body",   n:"Gray cast iron",share:97,spec:"Recycled scrap and pig iron charge · approx. 4.5 mm wall",t:"e"},
-    {c:"season", n:"Polymerised soy oil",share:3,spec:"Factory seasoning, oven-baked. No PTFE, no PFOA.",t:"e"},
-    {c:"ext",    n:"Paint or coating — none used",share:0,spec:"Exterior is bare seasoned iron",t:"e"}
+    {c:"body",   n:"Gray cast iron",share:97,spec:"Recycled scrap and pig iron charge · approx. 4.5 mm wall"},
+    {c:"season", n:"Polymerised soy oil",share:3,spec:"Factory seasoning, oven-baked. No PTFE, no PFOA."},
+    {c:"ext",    n:"Paint or coating — none used",share:0,spec:"Exterior is bare seasoned iron"}
   ],
   sourcing:[
-    {c:"body",  m:"Iron charge",o:"Domestic scrap, US foundry",s:"Lodge-owned foundry",t:"e",note:"Company states both foundries are US-operated"},
-    {c:"season",m:"Soy oil",o:"US agricultural supply",s:"—",t:"l"}
+    {c:"body",  m:"Iron charge",o:"Domestic scrap, US foundry",s:"Lodge-owned foundry",note:"Company states both foundries are US-operated"},
+    {c:"season",m:"Soy oil",o:"US agricultural supply",s:"—"}
   ],
-  construction:{mode:"Factory",t:"e",auto:"High automation; the sand mould is broken after each cast",tol:"As-cast surface, not machined — pebbled cooking face",
+  construction:{mode:"Factory",auto:"High automation; the sand mould is broken after each cast",tol:"As-cast surface, not machined — pebbled cooking face",
     steps:[
       {c:"body",   p:"Automated green-sand casting — wall, base and handle poured as one piece"},
       {c:"surface",p:"Shot-blast to remove sand, then left as-cast with no machining"},
       {c:"season", p:"Single-pass soy oil application, polymerised in an oven"}
     ]},
-  assembly:{sites:[{l:"South Pittsburg, Tennessee, USA",o:"Casting, finishing, seasoning, packing"}],label:"Made in USA",t:"e",count:"Single site"},
-  skill:{tier:"Trained worker / foundry operator",t:"l",basis:"Automated moulding line; skill is concentrated in pour control and mould maintenance",
+  assembly:{sites:[{l:"South Pittsburg, Tennessee, USA",o:"Casting, finishing, seasoning, packing"}],label:"Made in USA",count:"Single site"},
+  skill:{tier:"Trained worker / foundry operator",basis:"Automated moulding line; skill is concentrated in pour control and mould maintenance",
     ops:[["body","Moulding","Machine-operated"],["body","Pour","Foundry operator"],["surface","Finishing","Trained worker"],["season","Seasoning","Machine-operated"]]},
   parts:[
-    {c:"surface",n:"Cooking surface",m:"As-cast, pebbled texture",crit:"Functional",t:"e",fail:"A rougher face holds seasoning faster but releases food less cleanly when new."},
-    {c:"body",   n:"Wall and base",m:"Single casting, approx. 4.5 mm",crit:"Critical",t:"e",fail:"Thermal cracking risk on rapid quench; otherwise multi-generational."},
-    {c:"body",   n:"Handle",m:"Integral to the casting",crit:"Critical",t:"e",fail:"No joint to fail. Conducts heat fully — no insulation."},
-    {c:"season", n:"Seasoning layer",m:"Polymerised oil, factory-applied",crit:"Functional",t:"e",fail:"Wears and rebuilds with use. User-restorable."}
+    {c:"surface",n:"Cooking surface",m:"As-cast, pebbled texture",crit:"Functional",fail:"A rougher face holds seasoning faster but releases food less cleanly when new."},
+    {c:"body",   n:"Wall and base",m:"Single casting, approx. 4.5 mm",crit:"Critical",fail:"Thermal cracking risk on rapid quench; otherwise multi-generational."},
+    {c:"body",   n:"Handle",m:"Integral to the casting",crit:"Critical",fail:"No joint to fail. Conducts heat fully — no insulation."},
+    {c:"season", n:"Seasoning layer",m:"Polymerised oil, factory-applied",crit:"Functional",fail:"Wears and rebuilds with use. User-restorable."}
   ],
   issues:[]
 },
@@ -754,28 +754,28 @@ const P = [
     {id:"season", n:"Seasoning layer",      role:"Functional"}
   ],
   materials:[
-    {c:"body",  n:"Gray cast iron",share:96,spec:"Sand-cast then machined · approx. 4 mm wall",t:"e"},
-    {c:"season",n:"Polymerised grapeseed oil",share:4,spec:"Multi-pass seasoning, applied by hand",t:"e"}
+    {c:"body",  n:"Gray cast iron",share:96,spec:"Sand-cast then machined · approx. 4 mm wall"},
+    {c:"season",n:"Polymerised grapeseed oil",share:4,spec:"Multi-pass seasoning, applied by hand"}
   ],
   sourcing:[
-    {c:"body",  m:"Iron charge",o:"US foundry partner, not publicly named",s:"—",t:"l",note:"Company states US casting; foundry identity not disclosed"},
-    {c:"season",m:"Grapeseed oil",o:null,s:null,t:"u"}
+    {c:"body",  m:"Iron charge",o:"US foundry partner, not publicly named",s:"—",note:"Company states US casting; foundry identity not disclosed"},
+    {c:"season",m:"Grapeseed oil",o:null,s:null}
   ],
-  construction:{mode:"Both — factory cast, hand-finished",t:"e",auto:"Casting is automated; finishing is manual and per-unit",tol:"Machined and polished flat — measurably smoother than as-cast peers",
+  construction:{mode:"Both — factory cast, hand-finished",auto:"Casting is automated; finishing is manual and per-unit",tol:"Machined and polished flat — measurably smoother than as-cast peers",
     steps:[
       {c:"body",   p:"Sand cast at a partner foundry, wall and base as one piece"},
       {c:"surface",p:"CNC machined, then hand-polished to a smooth face"},
       {c:"handle", p:"Contour and thumb rest machined after casting"},
       {c:"season", p:"Multi-pass grapeseed oil, applied and baked by hand"}
     ]},
-  assembly:{sites:[{l:"Charleston, South Carolina, USA",o:"Machining, polishing, seasoning, finishing, packing"},{l:"US foundry partner (unnamed)",o:"Casting"}],label:"Made in USA — casting and finishing at different sites",t:"l",count:"Multiple sites"},
-  skill:{tier:"Craftsman",t:"e",basis:"Per-unit hand polishing and multi-pass hand seasoning are published process steps",
+  assembly:{sites:[{l:"Charleston, South Carolina, USA",o:"Machining, polishing, seasoning, finishing, packing"},{l:"US foundry partner (unnamed)",o:"Casting"}],label:"Made in USA — casting and finishing at different sites",count:"Multiple sites"},
+  skill:{tier:"Craftsman",basis:"Per-unit hand polishing and multi-pass hand seasoning are published process steps",
     ops:[["body","Casting","Foundry operator"],["surface","Machining","CNC technician"],["surface","Polishing","Craftsman, by hand"],["season","Seasoning","Craftsman, by hand"]]},
   parts:[
-    {c:"surface",n:"Cooking surface",m:"Machined then hand-polished",crit:"Functional",t:"e",fail:"A smooth face releases food more cleanly and takes seasoning more evenly."},
-    {c:"body",   n:"Wall and base",m:"Single casting, approx. 4 mm",crit:"Critical",t:"e",fail:"Thinner than commodity peers — heats faster, holds slightly less."},
-    {c:"handle", n:"Handle",m:"Integral, contoured with a thumb rest",crit:"Critical",t:"e",fail:"No joint to fail. The contour is machined, not cast."},
-    {c:"season", n:"Seasoning layer",m:"Multi-pass grapeseed, hand-applied",crit:"Functional",t:"e",fail:"Arrives more developed than single-pass factory seasoning."}
+    {c:"surface",n:"Cooking surface",m:"Machined then hand-polished",crit:"Functional",fail:"A smooth face releases food more cleanly and takes seasoning more evenly."},
+    {c:"body",   n:"Wall and base",m:"Single casting, approx. 4 mm",crit:"Critical",fail:"Thinner than commodity peers — heats faster, holds slightly less."},
+    {c:"handle", n:"Handle",m:"Integral, contoured with a thumb rest",crit:"Critical",fail:"No joint to fail. The contour is machined, not cast."},
+    {c:"season", n:"Seasoning layer",m:"Multi-pass grapeseed, hand-applied",crit:"Functional",fail:"Arrives more developed than single-pass factory seasoning."}
   ],
   issues:[]
 },
@@ -790,29 +790,29 @@ const P = [
     {id:"ext",    n:"Exterior finish",      role:"Cosmetic"}
   ],
   materials:[
-    {c:"body",  n:"Cast iron",share:95,spec:"Gray iron assumed from magnetic and thermal behaviour. Grade not published.",t:"l"},
-    {c:"season",n:"Seasoning oil",share:3,spec:null,t:"u"},
-    {c:"ext",   n:"Exterior coating",share:2,spec:null,t:"u"}
+    {c:"body",  n:"Cast iron",share:95,spec:"Gray iron assumed from magnetic and thermal behaviour. Grade not published."},
+    {c:"season",n:"Seasoning oil",share:3,spec:null},
+    {c:"ext",   n:"Exterior coating",share:2,spec:null}
   ],
   sourcing:[
-    {c:"body",  m:"Iron charge",o:null,s:null,t:"u"},
-    {c:"season",m:"Seasoning oil",o:null,s:null,t:"u"},
-    {c:"ext",   m:"Coating",o:null,s:null,t:"u"}
+    {c:"body",  m:"Iron charge",o:null,s:null},
+    {c:"season",m:"Seasoning oil",o:null,s:null},
+    {c:"ext",   m:"Coating",o:null,s:null}
   ],
-  construction:{mode:"Factory (likely)",t:"l",auto:null,tol:null,
+  construction:{mode:"Factory (likely)",auto:null,tol:null,
     steps:[
       {c:"body",   p:null},
       {c:"surface",p:null},
       {c:"season", p:null},
       {c:"ext",    p:null}
     ]},
-  assembly:{sites:[{l:"China — country of origin label only",o:"Facility, site count, and operation split not published"}],label:"Made in China — no facility disclosed",t:"l",count:"Unknown"},
-  skill:{tier:null,t:"u",basis:"No process literature exists for this product. There is no basis to infer a tier at this specificity.",ops:[]},
+  assembly:{sites:[{l:"China — country of origin label only",o:"Facility, site count, and operation split not published"}],label:"Made in China — no facility disclosed",count:"Unknown"},
+  skill:{tier:null,basis:"No process literature exists for this product. There is no basis to infer a tier at this specificity.",ops:[]},
   parts:[
-    {c:"surface",n:"Cooking surface",m:"As-cast, texture varies unit to unit",crit:"Functional",t:"l",fail:"Inconsistent finish reported across units, with no published spec to check against."},
-    {c:"body",   n:"Wall and base",m:null,crit:"Critical",t:"u",fail:"Wall thickness is not published and varies between production runs."},
-    {c:"handle", n:"Handle",m:"Appears integral to the casting",crit:"Critical",t:"l",fail:"Integral construction inferred from geometry alone."},
-    {c:"season", n:"Seasoning layer",m:null,crit:"Functional",t:"u",fail:"Coating chemistry is not disclosed. Some units report a paint-like exterior that burns off on first heat."}
+    {c:"surface",n:"Cooking surface",m:"As-cast, texture varies unit to unit",crit:"Functional",fail:"Inconsistent finish reported across units, with no published spec to check against."},
+    {c:"body",   n:"Wall and base",m:null,crit:"Critical",fail:"Wall thickness is not published and varies between production runs."},
+    {c:"handle", n:"Handle",m:"Appears integral to the casting",crit:"Critical",fail:"Integral construction inferred from geometry alone."},
+    {c:"season", n:"Seasoning layer",m:null,crit:"Functional",fail:"Coating chemistry is not disclosed. Some units report a paint-like exterior that burns off on first heat."}
   ],
   issues:["Coating chemistry undisclosed — verify before first high-heat use"]
 },
@@ -828,20 +828,20 @@ const P = [
     {id:"label",   n:"Label",                   role:"Cosmetic"}
   ],
   materials:[
-    {c:"solids", n:"Soluble coffee extract",share:99,spec:"100% coffee, no fillers or chicory. Robusta-forward blend; ratio not disclosed per lot.",t:"l"},
-    {c:"aroma",  n:"Coffee-derived volatiles",share:1,spec:"Aroma recovered during grinding and extraction, re-applied after drying. Not itemised on the label because it is coffee.",t:"l"},
-    {c:"solids", n:"Preservatives — none used",share:0,spec:"Water activity is too low to support microbial growth. No preservative is required or permitted to be needed.",t:"e"},
-    {c:"jar",    n:"Soda-lime glass",share:0,spec:"Clear flint glass, threaded finish",t:"e"},
-    {c:"closure",n:"Polypropylene and aluminium",share:0,spec:"PP screw lid over an aluminium-foil induction liner",t:"l"},
-    {c:"label",  n:"Paper or BOPP film with adhesive",share:0,spec:null,t:"u"}
+    {c:"solids", n:"Soluble coffee extract",share:99,spec:"100% coffee, no fillers or chicory. Robusta-forward blend; ratio not disclosed per lot."},
+    {c:"aroma",  n:"Coffee-derived volatiles",share:1,spec:"Aroma recovered during grinding and extraction, re-applied after drying. Not itemised on the label because it is coffee."},
+    {c:"solids", n:"Preservatives — none used",share:0,spec:"Water activity is too low to support microbial growth. No preservative is required or permitted to be needed."},
+    {c:"jar",    n:"Soda-lime glass",share:0,spec:"Clear flint glass, threaded finish"},
+    {c:"closure",n:"Polypropylene and aluminium",share:0,spec:"PP screw lid over an aluminium-foil induction liner"},
+    {c:"label",  n:"Paper or BOPP film with adhesive",share:0,spec:null}
   ],
   sourcing:[
-    {c:"solids", m:"Green coffee",o:"Multiple origins, blended per lot",s:"Nescafé Plan supplier network",t:"l",note:"A commodity blend cannot be traced to origin at the jar. Programme coverage is published; per-lot composition is not."},
-    {c:"aroma",  m:"Volatile fraction",o:"Recovered from the same green coffee",s:"—",t:"l"},
-    {c:"jar",    m:"Glass",o:null,s:null,t:"u"},
-    {c:"closure",m:"PP resin and aluminium foil",o:null,s:null,t:"u"}
+    {c:"solids", m:"Green coffee",o:"Multiple origins, blended per lot",s:"Nescafé Plan supplier network",note:"A commodity blend cannot be traced to origin at the jar. Programme coverage is published; per-lot composition is not."},
+    {c:"aroma",  m:"Volatile fraction",o:"Recovered from the same green coffee",s:"—"},
+    {c:"jar",    m:"Glass",o:null,s:null},
+    {c:"closure",m:"PP resin and aluminium foil",o:null,s:null}
   ],
-  construction:{mode:"Factory",t:"e",auto:"Fully automated continuous process; no manual stage in production",tol:"Moisture held below approx. 4% by mass — the shelf-stability threshold",
+  construction:{mode:"Factory",auto:"Fully automated continuous process; no manual stage in production",tol:"Moisture held below approx. 4% by mass — the shelf-stability threshold",
     steps:[
       {c:"solids", p:"Roasted, ground, then percolation-extracted with hot water under pressure and concentrated"},
       {c:"aroma",  p:"Volatiles captured at the grinding and extraction stages, held separately, re-applied after drying"},
@@ -853,14 +853,14 @@ const P = [
       {l:"Toluca, Mexico",o:"Extraction, drying, agglomeration, filling and sealing for the US market"},
       {l:"Multiple green-coffee origins",o:"Growing, wet or dry processing, milling"},
       {l:"Glass and closure suppliers (unnamed)",o:"Jar, lid and liner manufacture"}
-    ],label:"Product of Mexico — describes processing only, not where the coffee grew",t:"e",count:"Multiple sites"},
-  skill:{tier:"Process operator, with a trained sensory panel",t:"l",basis:"Production is automated. The skill sits in blend design and cup-quality QC, where trained sensory panels are standard industry practice but panel structure is not published.",
+    ],label:"Product of Mexico — describes processing only, not where the coffee grew",count:"Multiple sites"},
+  skill:{tier:"Process operator, with a trained sensory panel",basis:"Production is automated. The skill sits in blend design and cup-quality QC, where trained sensory panels are standard industry practice but panel structure is not published.",
     ops:[["solids","Roast profile control","Process operator"],["solids","Blend approval","Trained sensory panel"],["granule","Drying and agglomeration","Machine-operated"],["closure","Fill and seal QC","Trained inspector"]]},
   parts:[
-    {c:"solids", n:"Soluble solids",m:"Percolation extract, spray-dried",crit:"Critical",t:"l",fail:"Over-extraction raises yield but pulls bitter compounds. Yield per kilo of green coffee is the central economic lever and is never published."},
-    {c:"granule",n:"Agglomerated granule",m:"Spray-dried powder, steam-fused",crit:"Critical",t:"e",fail:"Spray drying uses heat, which drives off volatiles that freeze drying retains. Agglomeration fixes dissolution and dust, not aroma loss."},
-    {c:"aroma",  n:"Re-applied aroma",m:"Coffee volatiles, added post-drying",crit:"Functional",t:"l",fail:"Carries the smell on opening. Degrades on contact with oxygen, which is why the jar matters as much as the coffee."},
-    {c:"jar",    n:"Glass jar and induction seal",m:"Soda-lime glass, foil-lined closure",crit:"Critical",t:"e",fail:"For a consumable the container is structural. A broken seal stales the product regardless of how it was made."}
+    {c:"solids", n:"Soluble solids",m:"Percolation extract, spray-dried",crit:"Critical",fail:"Over-extraction raises yield but pulls bitter compounds. Yield per kilo of green coffee is the central economic lever and is never published."},
+    {c:"granule",n:"Agglomerated granule",m:"Spray-dried powder, steam-fused",crit:"Critical",fail:"Spray drying uses heat, which drives off volatiles that freeze drying retains. Agglomeration fixes dissolution and dust, not aroma loss."},
+    {c:"aroma",  n:"Re-applied aroma",m:"Coffee volatiles, added post-drying",crit:"Functional",fail:"Carries the smell on opening. Degrades on contact with oxygen, which is why the jar matters as much as the coffee."},
+    {c:"jar",    n:"Glass jar and induction seal",m:"Soda-lime glass, foil-lined closure",crit:"Critical",fail:"For a consumable the container is structural. A broken seal stales the product regardless of how it was made."}
   ],
   issues:["Per-lot origin is not traceable by design — blend composition varies with the commodity market"]
 },
@@ -875,18 +875,18 @@ const P = [
     {id:"closure", n:"Lid and induction seal", role:"Critical"}
   ],
   materials:[
-    {c:"solids", n:"Soluble coffee extract",share:99,spec:"100% arabica, certified organic and fair trade",t:"e"},
-    {c:"aroma",  n:"Coffee-derived volatiles",share:1,spec:"Largely retained in-process rather than re-applied; freeze drying does not drive them off",t:"l"},
-    {c:"solids", n:"Preservatives — none used",share:0,spec:"Low water activity; certification also bars synthetic additives",t:"e"},
-    {c:"jar",    n:"Soda-lime glass",share:0,spec:"Amber-tinted flint glass",t:"e"},
-    {c:"closure",n:"Polypropylene and aluminium",share:0,spec:"PP lid over foil induction liner",t:"l"}
+    {c:"solids", n:"Soluble coffee extract",share:99,spec:"100% arabica, certified organic and fair trade"},
+    {c:"aroma",  n:"Coffee-derived volatiles",share:1,spec:"Largely retained in-process rather than re-applied; freeze drying does not drive them off"},
+    {c:"solids", n:"Preservatives — none used",share:0,spec:"Low water activity; certification also bars synthetic additives"},
+    {c:"jar",    n:"Soda-lime glass",share:0,spec:"Amber-tinted flint glass"},
+    {c:"closure",n:"Polypropylene and aluminium",share:0,spec:"PP lid over foil induction liner"}
   ],
   sourcing:[
-    {c:"solids", m:"Green coffee",o:"Certified cooperatives, Peru and Ethiopia among them",s:"Named on pack by certification scheme",t:"e",note:"Certification forces a documented chain of custody, which is the only reason origin resolves here"},
-    {c:"jar",    m:"Glass",o:null,s:null,t:"u"},
-    {c:"closure",m:"PP resin and foil",o:null,s:null,t:"u"}
+    {c:"solids", m:"Green coffee",o:"Certified cooperatives, Peru and Ethiopia among them",s:"Named on pack by certification scheme",note:"Certification forces a documented chain of custody, which is the only reason origin resolves here"},
+    {c:"jar",    m:"Glass",o:null,s:null},
+    {c:"closure",m:"PP resin and foil",o:null,s:null}
   ],
-  construction:{mode:"Factory",t:"e",auto:"Automated, but a slower and more energy-intensive line than spray drying",tol:"Freeze-dried below the collapse temperature to hold crystal structure",
+  construction:{mode:"Factory",auto:"Automated, but a slower and more energy-intensive line than spray drying",tol:"Freeze-dried below the collapse temperature to hold crystal structure",
     steps:[
       {c:"solids", p:"Roasted, ground, percolation-extracted, then concentrated"},
       {c:"granule",p:"Frozen to a slab, ground to size, then vacuum-sublimated — no heat drying stage"},
@@ -896,14 +896,14 @@ const P = [
   assembly:{sites:[
       {l:"Germany",o:"Extraction, freeze drying, filling and sealing"},
       {l:"Certified cooperatives, Peru and Ethiopia",o:"Growing, processing, milling"}
-    ],label:"Made in Germany from certified origin coffee",t:"e",count:"Multiple sites"},
-  skill:{tier:"Process operator, with a trained sensory panel",t:"l",basis:"Freeze drying is automated; single-origin arabica blending demands more cupping judgement than a commodity blend",
+    ],label:"Made in Germany from certified origin coffee",count:"Multiple sites"},
+  skill:{tier:"Process operator, with a trained sensory panel",basis:"Freeze drying is automated; single-origin arabica blending demands more cupping judgement than a commodity blend",
     ops:[["solids","Roast profile control","Process operator"],["solids","Cupping and blend approval","Trained sensory panel"],["granule","Freeze drying","Machine-operated"]]},
   parts:[
-    {c:"granule",n:"Freeze-dried crystal",m:"Sublimated, irregular fracture faces",crit:"Critical",t:"e",fail:"No heat-drying stage, so volatiles survive that spray drying destroys. This is the forming difference that defines the category."},
-    {c:"solids", n:"Soluble solids",m:"Arabica percolation extract",crit:"Critical",t:"e",fail:"Arabica extracts to a lower yield than robusta. Costlier per jar, less bitter in the cup."},
-    {c:"aroma",  n:"Retained aroma",m:"In-process, not re-applied",crit:"Functional",t:"l",fail:"Degrades on oxygen contact once opened, as with any soluble coffee."},
-    {c:"jar",    n:"Glass jar and induction seal",m:"Amber glass, foil-lined closure",crit:"Critical",t:"e",fail:"Amber tint slows light-driven staling. A broken seal ends shelf stability."}
+    {c:"granule",n:"Freeze-dried crystal",m:"Sublimated, irregular fracture faces",crit:"Critical",fail:"No heat-drying stage, so volatiles survive that spray drying destroys. This is the forming difference that defines the category."},
+    {c:"solids", n:"Soluble solids",m:"Arabica percolation extract",crit:"Critical",fail:"Arabica extracts to a lower yield than robusta. Costlier per jar, less bitter in the cup."},
+    {c:"aroma",  n:"Retained aroma",m:"In-process, not re-applied",crit:"Functional",fail:"Degrades on oxygen contact once opened, as with any soluble coffee."},
+    {c:"jar",    n:"Glass jar and induction seal",m:"Amber glass, foil-lined closure",crit:"Critical",fail:"Amber tint slows light-driven staling. A broken seal ends shelf stability."}
   ],
   issues:[]
 },
@@ -918,32 +918,32 @@ const P = [
     {id:"closure", n:"Lid and induction seal", role:"Critical"}
   ],
   materials:[
-    {c:"solids", n:"Soluble coffee extract",share:99,spec:"Arabica and robusta blend; ratio not disclosed",t:"l"},
-    {c:"aroma",  n:"Coffee-derived volatiles",share:1,spec:null,t:"u"},
-    {c:"solids", n:"Preservatives — none used",share:0,spec:"Low water activity; none declared on the label",t:"e"},
-    {c:"jar",    n:"Glass or PET container",share:0,spec:"Container material varies by pack size",t:"l"},
-    {c:"closure",n:"Polypropylene and aluminium",share:0,spec:null,t:"u"}
+    {c:"solids", n:"Soluble coffee extract",share:99,spec:"Arabica and robusta blend; ratio not disclosed"},
+    {c:"aroma",  n:"Coffee-derived volatiles",share:1,spec:null},
+    {c:"solids", n:"Preservatives — none used",share:0,spec:"Low water activity; none declared on the label"},
+    {c:"jar",    n:"Glass or PET container",share:0,spec:"Container material varies by pack size"},
+    {c:"closure",n:"Polypropylene and aluminium",share:0,spec:null}
   ],
   sourcing:[
-    {c:"solids", m:"Green coffee",o:null,s:null,t:"u",note:"No origin, cooperative or certification scheme is published for this product"},
-    {c:"jar",    m:"Container stock",o:null,s:null,t:"u"},
-    {c:"closure",m:"PP resin and foil",o:null,s:null,t:"u"}
+    {c:"solids", m:"Green coffee",o:null,s:null,note:"No origin, cooperative or certification scheme is published for this product"},
+    {c:"jar",    m:"Container stock",o:null,s:null},
+    {c:"closure",m:"PP resin and foil",o:null,s:null}
   ],
-  construction:{mode:"Factory",t:"l",auto:"Fully automated",tol:null,
+  construction:{mode:"Factory",auto:"Fully automated",tol:null,
     steps:[
       {c:"solids", p:"Roasted, ground and extracted; extraction parameters not published"},
       {c:"granule",p:"Spray-dried to crystals; agglomeration stage not confirmed"},
       {c:"aroma",  p:null},
       {c:"closure",p:"Induction-sealed after filling"}
     ]},
-  assembly:{sites:[{l:"United States",o:"Stated country of manufacture; plant not published"}],label:"Made in USA — describes processing only",t:"l",count:"Single site (likely)"},
-  skill:{tier:"Process operator",t:"l",basis:"Inferred from continuous automated production; no sensory or QC structure is published",
+  assembly:{sites:[{l:"United States",o:"Stated country of manufacture; plant not published"}],label:"Made in USA — describes processing only",count:"Single site (likely)"},
+  skill:{tier:"Process operator",basis:"Inferred from continuous automated production; no sensory or QC structure is published",
     ops:[["solids","Roast and extraction","Process operator"],["granule","Spray drying","Machine-operated"]]},
   parts:[
-    {c:"granule",n:"Spray-dried crystal",m:"Heat-dried, agglomeration unconfirmed",crit:"Critical",t:"l",fail:"Heat drying strips volatiles. Whether an aroma fraction is re-applied is not disclosed."},
-    {c:"solids", n:"Soluble solids",m:"Blend extract, ratio undisclosed",crit:"Critical",t:"l",fail:"Robusta share drives yield and bitterness. Without the ratio there is no way to predict either."},
-    {c:"aroma",  n:"Aroma fraction",m:null,crit:"Functional",t:"u",fail:"Neither recovery nor re-application is documented."},
-    {c:"jar",    n:"Container and induction seal",m:"Material varies by pack size",crit:"Critical",t:"l",fail:"A PET container is more oxygen-permeable than glass over a long shelf life."}
+    {c:"granule",n:"Spray-dried crystal",m:"Heat-dried, agglomeration unconfirmed",crit:"Critical",fail:"Heat drying strips volatiles. Whether an aroma fraction is re-applied is not disclosed."},
+    {c:"solids", n:"Soluble solids",m:"Blend extract, ratio undisclosed",crit:"Critical",fail:"Robusta share drives yield and bitterness. Without the ratio there is no way to predict either."},
+    {c:"aroma",  n:"Aroma fraction",m:null,crit:"Functional",fail:"Neither recovery nor re-application is documented."},
+    {c:"jar",    n:"Container and induction seal",m:"Material varies by pack size",crit:"Critical",fail:"A PET container is more oxygen-permeable than glass over a long shelf life."}
   ],
   issues:["No origin or certification disclosure at any level"]
 }
@@ -1844,52 +1844,85 @@ function compareView(){
    CORPUS VERIFIER
    ------------------------------------------------------------------
    Runs twice: once in build-corpus.mjs before publication, once here
-   on load. A corpus that fails the certainty contract is corrected
-   before render rather than trusted because it shipped.
+   on load. One rule, applied without exception: a row reaches a table
+   only if it carries a citation that resolves. Everything else is
+   moved to `uncited`, where the renderer writes it as prose.
+
+   Nothing is deleted and nothing is nulled. A claim the generating
+   pass could not source is still the most interesting thing it found
+   — it just cannot sit in a table pretending to be checkable.
    ================================================================== */
 
-/* ---- the verifier: enforce the certainty contract regardless of what came back ---- */
 function verify(o){
-  const log=[], srcOK=i=>Number.isInteger(i)&&o.sources&&o.sources[i]&&/^https?:\/\//.test(o.sources[i].u||"");
-  const step=(obj,label)=>{
-    if(!obj) return;
-    const from=obj.t;
-    if(obj.t==="e" && !srcOK(obj.src)) obj.t="l";
-    if(obj.t==="l" && !(obj.why||"").trim()) obj.t="u";
-    if(obj.t!==from) log.push(label+" was tagged "+TAGN[from]+" without "+
-      (from==="e"?"a working source":"an inference basis")+" — now "+TAGN[obj.t]);
-    if(obj.t==="u"){ ["spec","o","s","p","m","tier","auto","tol"].forEach(k=>{ if(k in obj) obj[k]=null; }); }
-    if(!["e","l","u"].includes(obj.t)){ obj.t="u"; log.push(label+" had no certainty tag — treated as UNKNOWN"); }
-  };
-  const t=o.target;
-  t.materials.forEach(m=>step(m,"Material “"+m.n+"”"));
-  t.sourcing.forEach(x=>step(x,"Sourcing of “"+x.m+"”"));
-  step(t.construction,"Construction method");
-  step(t.assembly,"Assembly location");
-  step(t.skill,"Skill tier");
-  t.parts.forEach(x=>step(x,"Component “"+x.n+"”"));
+  const log=[], t=o.target;
+  const srcOK=i=>Number.isInteger(i)&&o.sources&&o.sources[i]&&
+                  /^https?:\/\//.test(o.sources[i].u||"");
 
-  // orphan guard: a row bound to a component that was never declared is unreadable
+  /* A source with no URL can never admit a row. Say so once, here, rather
+     than leaving every row that cites it to fail for no visible reason. */
+  (o.sources||[]).forEach((s,i)=>{
+    if(!/^https?:\/\//.test(s.u||""))
+      log.push("Source ["+i+"] “"+(s.t||"untitled")+"” has no resolvable URL — no row can cite it");
+  });
+
+  /* uncited rows keep their content and gain a reason. `sec` tells the
+     prose renderer which heading to write them under. */
+  t.uncited = t.uncited || [];
+  const demote=(row,sec,label)=>{
+    t.uncited.push({sec, label, row, why: row.src==null||row.src===undefined
+      ? "no source cited"
+      : "cited source ["+row.src+"] does not resolve"});
+    log.push(label+" is not cited — moved to prose");
+  };
+
+  /* list sections: partition in place */
+  const sift=(arr,sec,name)=>{
+    const kept=[];
+    (arr||[]).forEach(r=>{ if(srcOK(r.src)) kept.push(r); else demote(r,sec,name(r)); });
+    return kept;
+  };
+  t.materials = sift(t.materials, "materials", r=>"Material “"+r.n+"”");
+  t.sourcing  = sift(t.sourcing,  "sourcing",  r=>"Sourcing of “"+(r.m||"unnamed")+"”");
+  t.parts     = sift(t.parts,     "parts",     r=>"Component “"+r.n+"”");
+
+  /* singleton sections: null the slot so no renderer can read an
+     unsourced object as if it had passed */
+  const single=(key,sec,label)=>{
+    const v=t[key];
+    if(v && !srcOK(v.src)){ demote(v,sec,label); t[key]=null; }
+  };
+  single("construction","construction","Construction method");
+  single("assembly","assembly","Assembly location");
+  single("skill","skill","Skill tier");
+
+  /* orphan guard: a row bound to a component that was never declared is
+     unreadable wherever it lands, table or prose */
   const ids=new Set((t.comps||[]).map(c=>c.id));
   const prune=(arr,f,lbl)=>{
-    const before=arr.length;
-    const kept=arr.filter(x=>ids.has(f(x)));
-    if(kept.length<before) log.push((before-kept.length)+" "+lbl+" row(s) referenced an undeclared component — dropped");
+    const before=(arr||[]).length;
+    const kept=(arr||[]).filter(x=>ids.has(f(x)));
+    if(kept.length<before) log.push((before-kept.length)+" "+lbl+
+      " row(s) referenced an undeclared component — dropped");
     return kept;
   };
   t.materials=prune(t.materials,x=>x.c,"material");
-  t.sourcing=prune(t.sourcing,x=>x.c,"sourcing");
-  t.construction.steps=prune(t.construction.steps||[],x=>x.c,"process");
-  t.skill.ops=prune(t.skill.ops||[],x=>x[0],"skill");
-  t.parts=prune(t.parts,x=>x.c,"component");
+  t.sourcing =prune(t.sourcing, x=>x.c,"sourcing");
+  t.parts    =prune(t.parts,    x=>x.c,"component");
+  if(t.construction) t.construction.steps=prune(t.construction.steps,x=>x.c,"process");
+  if(t.skill)        t.skill.ops        =prune(t.skill.ops,        x=>x[0],"skill");
 
-  // mass share sanity
+  /* mass share sanity — only the cited rows are left to sum, so a total
+     well under 100 now means uncited mass, not missing mass */
   const sum=t.materials.reduce((a,m)=>a+(+m.share||0),0);
-  if(sum>105) log.push("Material shares summed to "+Math.round(sum)+"% — treat mass figures as approximate");
+  if(sum>105) log.push("Cited material shares summed to "+Math.round(sum)+
+    "% — treat mass figures as approximate");
 
-  // a report with no confirmed field anywhere is worth saying out loud
-  const cc=[...t.materials,...t.sourcing,t.construction,t.assembly,t.skill,...t.parts];
-  if(!cc.some(x=>x.t==="e")) log.push("No field in this report is source-confirmed — everything is inferred or missing");
+  /* citation coverage: the one number that replaces the certainty bar */
+  const cited=t.materials.length+t.sourcing.length+t.parts.length+
+    (t.construction?1:0)+(t.assembly?1:0)+(t.skill?1:0);
+  const total=cited+t.uncited.length;
+  t.coverage={cited, total};
+  if(cited===0) log.push("No claim in this report resolves to a source — the whole report is prose");
   return log;
 }
 
@@ -1909,9 +1942,9 @@ function ingest(o){
   const peers=(o.peers||[]).slice(0,2).map((p,i)=>({
     id:id+"-peer"+i, brand:p.brand, model:p.model, klass:kid, year:"unspecified",
     axes:p.axes, comps:[], materials:[], sourcing:[],
-    construction:{mode:"Unknown",t:"u",auto:null,tol:null,steps:[]},
-    assembly:{sites:[{l:"Not researched",o:"Peer included for delta comparison only"}],label:"Not researched",count:"Unknown",t:"u"},
-    skill:{tier:null,t:"u",basis:p.why||"Included as a delta reference; no report generated.",ops:[]},
+    construction:{mode:"Unknown",auto:null,tol:null,steps:[]},
+    assembly:{sites:[{l:"Not researched",o:"Peer included for delta comparison only"}],label:"Not researched",count:"Unknown"},
+    skill:{tier:null,basis:p.why||"Included as a delta reference; no report generated.",ops:[]},
     parts:[], issues:[], live:true, stub:true, sources:[], vlog:[]
   }));
   P.push(built,...peers);
