@@ -9,14 +9,6 @@
       "model": "Classic 8\" Cook's Knife",
       "klass": "knife8",
       "year": "Unknown (Classic line ongoing since 1930s; current PEtec spec since ~2010s)",
-      "axes": {
-        "material": 80,
-        "sourcing": 38,
-        "construction": 90,
-        "assembly": 90,
-        "skill": 80,
-        "superstructure": 85
-      },
       "comps": [
         {
           "id": "blade",
@@ -259,14 +251,7 @@
         "Assembly location was tagged EXACT without a working source — now UNKNOWN",
         "Skill tier was tagged EXACT against a retailer listing, which can evidence a specification but not a labour practice — now LIKELY, with the inference stated",
         "3 source(s) were listed but cited by no claim — removed, so the evidence list is what the report actually rests on"
-      ],
-      "srcAdj": {
-        "derived": true,
-        "model": 40,
-        "value": 38,
-        "diff": -2,
-        "rows": 4
-      }
+      ]
     }
   ]
 }

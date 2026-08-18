@@ -193,24 +193,24 @@ header{
     background:#fff!important;border-color:#bbb!important;break-inside:avoid;
   }
   .cmx th,.cmx td,.dt th,.dt td{border-color:#ccc!important}
-  .cmx td.k,.csub,.eyebrow,.gwhy,.cdflag,.cdp b,.note,.sub{color:#555!important}
+  .cmx td.k,.csub,.eyebrow,.gwhy,.gwhyx,.cdflag,.cdp b,.note,.sub{color:#555!important}
   .cmx td.lead,.cbig,h2,h3,h4{color:#000!important}
   .mprose,.cdshared,.cdp,.dt td{color:#222!important}
-  .tag.e{color:#0a6b66!important;border-color:#0a6b66!important;background:none!important}
-  .tag.l{color:#8a5a00!important;border-color:#8a5a00!important;background:none!important}
-  .tag.u{color:#555!important;border-color:#555!important}
+  .cite{color:#0a6b66!important;border-color:#0a6b66!important;background:none!important}
+  .gwhyx,.linkish{color:#555!important}
   .gap{color:#555!important;border-color:#999!important}
   .cbar{border:1px solid #999}
   a{color:#111!important;text-decoration:underline}
   .cmxwrap{overflow:visible}
 }
 
-/* ---------- certainty bar (signature element) ---------- */
-.cbar{display:flex;height:5px;border-radius:2px;overflow:hidden;background:var(--bg)}
+/* ---------- coverage bar (signature element) ----------
+   One filled span against an empty track. The empty part is not a
+   deficiency to shade in a warning colour — it is prose living on
+   another tab — so it stays neutral. */
+.cbar{display:flex;height:5px;border-radius:2px;overflow:hidden;background:var(--bg);border:1px solid var(--line-soft)}
 .cbar span{display:block;height:100%}
-.cbar .e{background:var(--exact)}
-.cbar .l{background:var(--likely)}
-.cbar .u{background:var(--unknown);opacity:.5}
+.cbar .cited{background:var(--exact)}
 .cbar.lg{height:9px}
 .cmeta{display:flex;justify-content:space-between;margin-top:6px;font-family:var(--mono);font-size:10.5px;color:var(--fg-3)}
 .cmeta b{color:var(--exact);font-weight:600}
@@ -262,20 +262,32 @@ header{
 .dt .sub{display:block;color:var(--fg-3);font-size:12px;margin-top:3px}
 
 /* certainty tag */
-.tag{
-  font-family:var(--mono);font-size:9.5px;letter-spacing:.14em;font-weight:600;
-  padding:2px 5px;border-radius:2px;white-space:nowrap;display:inline-block;
+/* ---------- the citation marker ----------
+   Sits where the tier chip used to. Small, monospaced, and a real
+   link — the whole point of the row is that you can follow it. */
+.cite{
+  font-family:var(--mono);font-size:10px;color:var(--exact);text-decoration:none;
+  border:1px solid rgba(63,208,201,.3);border-radius:3px;padding:1px 4px;
+  vertical-align:super;line-height:1;white-space:nowrap;
 }
-.tag.e{color:var(--exact);background:rgba(63,208,201,.1);border:1px solid rgba(63,208,201,.3)}
-.tag.l{color:var(--likely);background:rgba(240,181,66,.09);border:1px solid rgba(240,181,66,.28)}
-.tag.u{color:var(--unknown);background:transparent;border:1px solid var(--unknown)}
+.cite:hover{background:rgba(63,208,201,.12);border-color:var(--exact)}
+.pcnt{font-size:.5em;font-weight:400;color:var(--fg-3);margin-left:2px}
 
-/* the gap — unknown values render as visible absence */
+/* what was checked, written next to the claim it was checked for */
+.gwhyx{display:block;font-family:var(--mono);font-size:10.5px;color:var(--fg-3);margin-top:4px}
+.linkish{
+  background:none;border:none;padding:0;font:inherit;color:var(--exact);
+  cursor:pointer;text-decoration:underline;text-underline-offset:2px;
+}
+
+/* the gap — now only a sub-field a cited source does not state. It used
+   to be the site's whole visual signature, hatched and 130px wide, and
+   it fired on the most interesting content on the page. Uncited claims
+   are prose now, so this marks something much smaller and looks it. */
 .gap{
-  display:inline-block;min-width:130px;color:var(--unknown);font-family:var(--mono);
-  font-size:11.5px;letter-spacing:.1em;padding:3px 8px;border:1px dashed var(--unknown);
+  display:inline-block;color:var(--unknown);font-family:var(--mono);
+  font-size:11px;letter-spacing:.06em;padding:2px 6px;border:1px dashed var(--unknown);
   border-radius:2px;
-  background:repeating-linear-gradient(-45deg,transparent,transparent 5px,rgba(67,96,127,.12) 5px,rgba(67,96,127,.12) 6px);
 }
 
 /* material share bars */
@@ -574,35 +586,9 @@ const CLASSES = {
   instant: "Instant coffee, soluble — hot-water reconstitution"
 };
 
-const AXES = [
-  ["material","Raw materials"],
-  ["sourcing","Material sourcing"],
-  ["construction","Construction method"],
-  ["assembly","Assembly location"],
-  ["skill","Human skill required"],
-  ["superstructure","Superstructural parts"]
-];
-const DEFAULT_W = {material:1.0,sourcing:0.8,construction:1.2,assembly:0.8,skill:1.0,superstructure:1.4};
-
-/* Delta severity bands, in axis points away from the peer mean. renderMethod()
-   publishes these numbers, so they live here rather than inline in deltas() —
-   a documented threshold that drifts from the one in force is a lie on the page. */
-const SEV = {dq:22, fn:10};
-
-/* One line per axis, shown on the Method page. What the axis is actually judging. */
-const AXIS_NOTE = {
-  material:"What each part is made of, and how specifically the alloy, grade, or formulation is named.",
-  sourcing:"Where the raw material came from, and how far back up the chain it stays traceable.",
-  construction:"How the parts were formed — forged, cast, stamped, extruded — and how much of that is automated.",
-  assembly:"Where the parts were brought together, and whether that is one site or several.",
-  skill:"How much human judgment the process demands, and at what tier of training.",
-  superstructure:"The parts that carry load or fail first, and what those are made of."
-};
-
 const P = [
 {
   id:"wusthof", brand:"Wüsthof", model:"Classic 8\" Cook's Knife", klass:"knife8", year:"2020 rev.",
-  axes:{material:82,sourcing:58,construction:88,assembly:92,skill:86,superstructure:91},
   comps:[
     {id:"blade", n:"Blade and bolster", role:"Critical"},
     {id:"edge",  n:"Cutting edge",      role:"Functional"},
@@ -640,7 +626,6 @@ const P = [
 },
 {
   id:"victorinox", brand:"Victorinox", model:"Fibrox Pro 8\" Chef's Knife", klass:"knife8", year:"current",
-  axes:{material:78,sourcing:62,construction:71,assembly:90,skill:55,superstructure:54},
   comps:[
     {id:"blade", n:"Blade",             role:"Critical"},
     {id:"tang",  n:"Tang (concealed)",  role:"Critical"},
@@ -676,7 +661,6 @@ const P = [
 },
 {
   id:"mercer", brand:"Mercer Culinary", model:"Genesis 8\" Forged Chef's Knife", klass:"knife8", year:"current",
-  axes:{material:74,sourcing:34,construction:76,assembly:66,skill:60,superstructure:78},
   comps:[
     {id:"blade", n:"Blade and bolster", role:"Critical"},
     {id:"edge",  n:"Cutting edge",      role:"Functional"},
@@ -711,7 +695,6 @@ const P = [
 },
 {
   id:"lodge", brand:"Lodge", model:"Classic 10.25\" Cast Iron Skillet", klass:"skillet", year:"current",
-  axes:{material:76,sourcing:64,construction:72,assembly:90,skill:52,superstructure:70},
   comps:[
     {id:"body",   n:"Body — wall, base, handle", role:"Critical"},
     {id:"surface",n:"Cooking surface",           role:"Functional"},
@@ -746,7 +729,6 @@ const P = [
 },
 {
   id:"smithey", brand:"Smithey Ironware", model:"No. 12 Cast Iron Skillet", klass:"skillet", year:"current",
-  axes:{material:78,sourcing:55,construction:86,assembly:71,skill:88,superstructure:87},
   comps:[
     {id:"body",   n:"Body — wall and base", role:"Critical"},
     {id:"surface",n:"Cooking surface",      role:"Functional"},
@@ -781,7 +763,6 @@ const P = [
 },
 {
   id:"import", brand:"Unbranded", model:"Pre-Seasoned 10\" Cast Skillet", klass:"skillet", year:"unknown",
-  axes:{material:40,sourcing:8,construction:30,assembly:22,skill:15,superstructure:25},
   comps:[
     {id:"body",   n:"Body — wall and base", role:"Critical"},
     {id:"surface",n:"Cooking surface",      role:"Functional"},
@@ -818,7 +799,6 @@ const P = [
 },
 {
   id:"nescafe", brand:"Nescafé (Nestlé)", model:"Clásico Instant Coffee, 7 oz jar", klass:"instant", year:"current",
-  axes:{material:62,sourcing:30,construction:68,assembly:55,skill:48,superstructure:55},
   comps:[
     {id:"solids",  n:"Soluble coffee solids",   role:"Critical"},
     {id:"granule", n:"Granule structure",       role:"Critical"},
@@ -866,7 +846,6 @@ const P = [
 },
 {
   id:"hagen", brand:"Mount Hagen", model:"Organic Freeze Dried Instant Coffee, 3.53 oz", klass:"instant", year:"current",
-  axes:{material:80,sourcing:72,construction:84,assembly:62,skill:60,superstructure:82},
   comps:[
     {id:"solids",  n:"Soluble coffee solids",  role:"Critical"},
     {id:"granule", n:"Crystal structure",      role:"Critical"},
@@ -909,7 +888,6 @@ const P = [
 },
 {
   id:"folgers", brand:"Folgers (J.M. Smucker)", model:"Classic Roast Instant Coffee Crystals, 8 oz", klass:"instant", year:"current",
-  axes:{material:55,sourcing:22,construction:58,assembly:66,skill:40,superstructure:46},
   comps:[
     {id:"solids",  n:"Soluble coffee solids",  role:"Critical"},
     {id:"granule", n:"Crystal structure",      role:"Critical"},
@@ -950,130 +928,117 @@ const P = [
 ];
 
 /* ============================ HELPERS ============================ */
-const TAGN = {e:"EXACT",l:"LIKELY",u:"UNKNOWN"};
 /* accent-insensitive so "nescafe" finds "Nescafé" */
 const norm = t => (t||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase();
-const tag = c => `<span class="tag ${c}">${TAGN[c]}</span>`;
 const gap = (t="no data") => `<span class="gap">${t}</span>`;
 
-function certCount(p){
-  let e=0,l=0,u=0;
-  const add=c=>{c==="e"?e++:c==="l"?l++:u++};
-  p.materials.forEach(m=>add(m.t));
-  p.sourcing.forEach(s=>add(s.t));
-  add(p.construction.t); add(p.assembly.t); add(p.skill.t);
-  p.parts.forEach(x=>add(x.t));
-  const t=e+l+u;
-  return {e,l,u,t,pe:Math.round(e/t*100),pl:Math.round(l/t*100),pu:Math.round(u/t*100)};
-}
-function score(p,w){
-  w = w || DEFAULT_W;
-  let s=0,d=0;
-  AXES.forEach(([k])=>{ s+=p.axes[k]*w[k]; d+=w[k]; });
-  return Math.round(s/d);
-}
-function cbar(p,lg){
-  const c=certCount(p);
-  return `<div class="cbar ${lg?'lg':''}">
-    <span class="e" style="width:${c.pe}%"></span>
-    <span class="l" style="width:${c.pl}%"></span>
-    <span class="u" style="width:${c.pu}%"></span></div>`;
-}
-function peers(p){ return P.filter(x=>x.klass===p.klass && x.id!==p.id); }
-function deltas(p){
-  const ps=peers(p), out=[];
-  AXES.forEach(([k,label])=>{
-    const best=ps.reduce((a,b)=>b.axes[k]>a.axes[k]?b:a,ps[0]);
-    const worst=ps.reduce((a,b)=>b.axes[k]<a.axes[k]?b:a,ps[0]);
-    const avg=ps.reduce((s,x)=>s+x.axes[k],0)/ps.length;
-    const d=Math.round(p.axes[k]-avg);
-    out.push({k,label,d,best,worst,
-      sev: Math.abs(d)>=SEV.dq?"Disqualifying at this tier":Math.abs(d)>=SEV.fn?"Functional":"Cosmetic"});
-  });
-  return out.sort((a,b)=>Math.abs(b.d)-Math.abs(a.d));
-}
-
 /* ==================================================================
-   DERIVED AXES
+   CITATION COVERAGE
    ------------------------------------------------------------------
-   Five of the six axes are the generating pass's judgment. Sourcing is
-   not: it is computed from the sourcing rows on the report itself.
+   The only number the site computes about a report, and it is a fact
+   about the report rather than about the product: how many of its
+   claims resolve to a source. It ranks nothing and grades nothing. A
+   fully cited report on a bad product reads 100%, which is correct —
+   it is a statement about the evidence, not about the object.
 
-   Sourcing is the one axis where disclosure and the property being
-   scored are the same thing — traceability that nobody discloses is
-   not traceability. That equivalence does not hold for the others. A
-   thoroughly documented cheap steel is still a cheap steel, so
-   deriving the material axis from disclosure would score paperwork and
-   call it quality. Construction, assembly and skill carry exactly one
-   tagged field each, so a derived score could only ever be 0, 50 or
-   100 — too coarse to rank with.
+   verify() sets `coverage` on every product, including the embedded
+   ones, which carry no sources and so read 0%. That is the honest
+   number for a hand-written report, and it is visible rather than
+   assumed.
    ================================================================== */
-
-/* Credit per certainty tag. LIKELY earns half: an inference chain is on
-   record, a source is not. */
-const EVW = {e:1, l:0.5, u:0};
-
-/* Which axes are computed rather than judged. renderMethod() reads this, so the
-   page cannot claim an axis is derived after someone stops deriving it. */
-const DERIVED_AXES = ["sourcing"];
-
-/* Null when there are no rows to compute from — a stub peer has no sourcing
-   at all and keeps whatever the generating pass gave it. */
-function srcDensity(p){
-  const rows=p.sourcing||[];
-  if(!rows.length) return null;
-  return Math.round(rows.reduce((a,x)=>a+(EVW[x.t]||0),0)/rows.length*100);
+function coverage(p){
+  const c = p.coverage || {cited:0, total:0};
+  return {...c, uncited:c.total-c.cited, pct: c.total ? Math.round(c.cited/c.total*100) : 0};
+}
+function covbar(p,lg){
+  const c=coverage(p);
+  return `<div class="cbar ${lg?'lg':''}" title="${c.cited} of ${c.total} claims cited">
+    <span class="cited" style="width:${c.pct}%"></span></div>`;
 }
 
-/* Always recomputes from the rows and never from the axis, so running it
-   twice cannot compound. The pass's original is kept so the correction can
-   be shown rather than made quietly. */
-function deriveAxes(p){
-  const d=srcDensity(p);
-  if(d===null){ p.srcAdj={derived:false}; return; }
-  const model = p.srcAdj && p.srcAdj.derived ? p.srcAdj.model : p.axes.sourcing;
-  p.srcAdj={derived:true, model, value:d, diff:d-model, rows:(p.sourcing||[]).length};
-  p.axes.sourcing=d;
+/* The citation itself, rendered where the tier chip used to sit. A row
+   only reaches a renderer if verify() resolved its source, so the link
+   always goes somewhere; the guard is for a caller that forgets. */
+function cite(p,row){
+  const s=(p.sources||[])[row&&row.src];
+  if(!s||!/^https?:\/\//.test(s.u||"")) return "";
+  return `<a class="cite" href="${s.u}" target="_blank" rel="noopener"
+    title="${(s.t||"source").replace(/"/g,"&quot;")}">[${row.src+1}]</a>`;
 }
-function deriveAll(){ P.forEach(deriveAxes); }
-deriveAll();
+
+function peers(p){ return P.filter(x=>x.klass===p.klass && x.id!==p.id); }
+
+/* A section with nothing cited in it still gets its heading, and a line
+   saying where the content went. Silence about the silence would be the
+   one thing this site is supposed to never do. */
+function prosePointer(msg){
+  return `<p class="mprose">${msg} What the generating pass found is written out under
+    <button class="linkish" onclick="setTab('gaps')">Not cited</button>.</p>`;
+}
+
+/* What this report cites that its peers do not, and the reverse. It replaces
+   the strongest-advantage / strongest-deficit pair, which was pure axis
+   arithmetic, and unlike that pair it says nothing about product quality —
+   only about which manufacturer is willing to put a source behind what. */
+function covCompare(p){
+  const ps=peers(p).filter(x=>!x.stub);
+  if(!ps.length) return `<div class="dcol"><h4>Against the class</h4>${
+    gap("no researched peer to compare disclosure against")}</div>`;
+  const kinds=Object.keys(KINDL);
+  const only=kinds.filter(k=>citedBy(p,k)>0 && !ps.some(x=>citedBy(x,k)>0));
+  const miss=kinds.filter(k=>citedBy(p,k)===0 && ps.some(x=>citedBy(x,k)>0));
+  const col=(h4,ks,cls,empty)=>`<div class="dcol"><h4>${h4}</h4>${
+    ks.length?ks.map(k=>`<div class="d ${cls}"><div class="dtop"><span class="dax">${KINDL[k]}</span></div>
+      <div class="dwho">${cls==="pos"
+        ? "Cited here, cited by no peer in this class."
+        : "Cited by at least one peer here, not by this report."}</div></div>`).join(""):gap(empty)}</div>`;
+  return col("Discloses more than its class", only, "pos", "nothing this report cites uniquely")+
+         col("Discloses less than its class", miss, "neg", "no peer cites a section this report leaves out");
+}
+
+
+/* Every product goes through the same gate, embedded or built. The old
+   verifier could not be run on the embedded corpus because it nulled the
+   fields of anything it downgraded; this one relocates instead of
+   destroying, so there is one code path and no privileged data. */
+function verifyAll(){ P.forEach(p=>{ p._vlog=verify({target:p, sources:p.sources||[]}); }); }
+verifyAll();   // the embedded corpus goes through the same gate as anything built
 
 /* ============================ STATE ============================ */
 let S = {
   q:"", klass:new Set(), mode:new Set(), skillT:new Set(), sites:new Set(),
-  floor:0, sort:"score", view:"list", cur:null, tab:"quick", pivot:"attr", dpiv:"axis",
-  cmp:new Set(), w:{...DEFAULT_W}, secs:new Set(AXES.map(a=>a[0])), genq:"", gen:null
+  floor:0, sort:"cov", view:"list", cur:null, tab:"quick", pivot:"attr", dpiv:"attr",
+  cmp:new Set(), genq:"", gen:null
 };
 
 function matches(p){
-  const c=certCount(p);
-  if(c.pe < S.floor) return false;
+  if(coverage(p).pct < S.floor) return false;
   if(S.klass.size && !S.klass.has(p.klass)) return false;
-  if(S.mode.size && !S.mode.has(p.construction.mode.split(" ")[0])) return false;
+  if(S.mode.size && !S.mode.has((p.construction?.mode||"").split(" ")[0])) return false;
   if(S.skillT.size){
-    const t=(p.skill.tier||"unknown").toLowerCase();
+    const t=(p.skill?.tier||"unknown").toLowerCase();
     let hit=false;
     S.skillT.forEach(v=>{ if(t.includes(v)) hit=true; });
     if(!hit) return false;
   }
-  if(S.sites.size && !S.sites.has(p.assembly.count.split(" ")[0])) return false;
+  if(S.sites.size && !S.sites.has((p.assembly?.count||"").split(" ")[0])) return false;
   if(S.q){
     const hay=norm([p.brand,p.model,CLASSES[p.klass],
-      p.construction.steps.map(x=>x.p).join(" "),
-      p.assembly.sites.map(x=>x.l).join(" "),
+      (p.construction?.steps||[]).map(x=>x.p).join(" "),
+      (p.assembly?.sites||[]).map(x=>x.l).join(" "),
       p.materials.map(m=>m.n+" "+(m.spec||"")).join(" "),
       p.comps.map(c=>c.n).join(" "),
       p.parts.map(x=>x.n+" "+(x.m||"")).join(" "),
       p.sourcing.map(x=>x.m+" "+(x.o||"")).join(" "),
-      p.skill.tier||""].join(" "));
+      p.skill?.tier||"",
+      (p.uncited||[]).map(u=>u.label).join(" ")].join(" "));
     if(!hay.includes(norm(S.q))) return false;
   }
   return true;
 }
 function results(){
   const r=P.filter(matches);
-  if(S.sort==="score") r.sort((a,b)=>score(b)-score(a));
-  if(S.sort==="cert") r.sort((a,b)=>certCount(b).pe-certCount(a).pe);
+  if(S.sort==="cov") r.sort((a,b)=>coverage(b).pct-coverage(a).pct);
   if(S.sort==="brand") r.sort((a,b)=>a.brand.localeCompare(b.brand));
   return r;
 }
@@ -1111,18 +1076,18 @@ function setQ(v){ S.q=v; document.getElementById("bq").value=v; document.getElem
 function renderList(){
   const r=results();
   const rows = r.length ? r.map(p=>{
-    const c=certCount(p), on=S.cmp.has(p.id);
+    const c=coverage(p), on=S.cmp.has(p.id);
     return `<div class="rowwrap">
       <button class="row ${p.stub?"stub":""}" onclick="open_('${p.id}')">
       <div>
         <div class="brand">${p.brand}${p.live?`<span class="livemark">LIVE</span>`:""}</div>
         <div class="name">${p.model}</div>
-        <div class="facts">${p.materials.length?p.materials[0].n+" · ":""}${p.construction.mode} · <em>${p.assembly.sites[0].l}</em></div>
+        <div class="facts">${p.materials.length?p.materials[0].n+" · ":""}${p.construction?.mode||"process not cited"} · <em>${p.assembly?.sites?.[0]?.l||"origin not cited"}</em></div>
       </div>
-      <div class="cbarcell">${cbar(p)}
-        <div class="cmeta"><span><b>${c.pe}%</b> confirmed</span><span>${c.pu}% missing</span></div></div>
-      <div class="scorecell"><div class="score">${score(p)}</div>
-        <div class="scorelab">${stale(p)?"Due for review":"Quality"}</div></div>
+      <div class="cbarcell">${covbar(p)}
+        <div class="cmeta"><span><b>${c.cited}</b> cited</span><span>${c.uncited} in prose</span></div></div>
+      <div class="scorecell"><div class="score">${c.pct}<span class="pcnt">%</span></div>
+        <div class="scorelab">${stale(p)?"Due for review":"Cited"}</div></div>
       </button>
       <button class="cmpbtn ${on?"on":""}" onclick="tcmp('${p.id}')"
         aria-pressed="${on}" title="${on?"Remove from comparison":"Add to comparison"}"
@@ -1133,7 +1098,7 @@ function renderList(){
         Reports are built in batches, checked against their sources, and published together. Name this product and it goes into the next build.
         <div><button class="genbtn" onclick="openGen('${S.q.replace(/'/g,"\\'")}')">Request “${S.q}”</button></div></div>`
     : `<div class="empty"><b>No products match these filters.</b>
-        Lower the certainty floor or clear a facet to widen the set.</div>`);
+        Lower the coverage floor or clear a facet to widen the set.</div>`);
 
   document.getElementById("main").innerHTML=`
     <div class="rhead">
@@ -1152,20 +1117,18 @@ function renderList(){
 /* Tab order is reading order: what it is, the detail, how it compares,
    what is missing, then the reader's own weighting. */
 const TABL = {quick:"Quick report", full:"Full report", peers:"Peer deltas",
-              gaps:"Gaps", custom:"Build custom"};
+              gaps:"Not cited"};
 
 function open_(id){ S.cur=id; S.view="report"; S.tab="quick"; render(); window.scrollTo({top:260}); }
 function goHome(){ S.view="list"; render(); }
 function setTab(t){ S.tab=t; render(); }
 
 function renderReport(){
-  const p=P.find(x=>x.id===S.cur), c=certCount(p), ds=deltas(p);
-  const pos=ds.filter(d=>d.d>0), neg=ds.filter(d=>d.d<0);
-  const body = S.tab==="quick"?quickView(p,c,pos,neg)
-             : S.tab==="full"?fullView(p,ds)
+  const p=P.find(x=>x.id===S.cur), c=coverage(p);
+  const body = S.tab==="quick"?quickView(p,c)
+             : S.tab==="full"?fullView(p)
              : S.tab==="gaps"?gapView(p)
-             : S.tab==="custom"?customView(p)
-             : peerView(p,ds);
+             : peerView(p);
 
   document.getElementById("main").innerHTML=`
   <div class="rep">
@@ -1173,13 +1136,12 @@ function renderReport(){
     <div class="rtop">
       <div class="eyebrow">${p.brand} · ${p.year}${p.live?`<span class="livemark">LIVE — GENERATED</span>`:""}</div>
       <h2>${p.model}</h2>
-      <div class="cls">${CLASSES[p.klass]} ${tag("e")}</div>
+      <div class="cls">${CLASSES[p.klass]}</div>
       <div class="rsum">
-        <div class="bigscore"><b>${score(p)}</b><span>Composite quality score, default weighting</span></div>
-        <div>${cbar(p,true)}
-          <div class="cmeta"><span><b>${c.pe}%</b> confirmed</span><span>${c.pl}% inferred</span><span>${c.pu}% missing</span></div></div>
+        <div class="bigscore"><b>${c.pct}<span class="pcnt">%</span></b><span>of this report's claims resolve to a source</span></div>
+        <div>${covbar(p,true)}
+          <div class="cmeta"><span><b>${c.cited}</b> cited</span><span>${c.uncited} written as prose</span></div></div>
       </div>
-      ${srcNote(p)}
       ${vpanel(p)}
     </div>
     <div class="tabs">
@@ -1190,34 +1152,24 @@ function renderReport(){
   </div>`;
 }
 
-function quickView(p,c,pos,neg){
+function quickView(p,c){
   if(p.stub) return fullView(p);
   const q=(l,v,s)=>`<div class="q"><span class="eyebrow">${l}</span><div class="qv">${v}</div>${s?`<div class="qs">${s}</div>`:""}</div>`;
-  const top=p.materials.slice(0,3).map(m=>m.n).join(", ");
-  const bp=pos[0], bn=neg[0];
+  const top=p.materials.slice(0,3).map(m=>m.n).join(", ")||"<span class='gap'>no cited material</span>";
   return `<div class="sec"><div class="qcard">
     <div class="sechead"><h3>Quick report</h3>
       <span class="note">Fixed summary. Nothing configurable — for the full picture use Full report.</span></div>
     <div class="qgrid">
       ${q("Dominant materials",top)}
-      ${q("Construction",p.construction.mode,p.construction.steps[0].p||"process not published")}
-      ${q("Assembly",p.assembly.sites[0].l,p.assembly.count)}
-      ${q("Skill required",p.skill.tier||"<span class='gap'>no data</span>")}
+      ${q("Construction",p.construction?.mode||"<span class='gap'>not cited</span>",p.construction?.steps?.[0]?.p||"")}
+      ${q("Assembly",p.assembly?.sites?.[0]?.l||"<span class='gap'>not cited</span>",p.assembly?.count||"")}
+      ${q("Skill required",p.skill?.tier||"<span class='gap'>not cited</span>")}
       ${p.parts.slice(0,2).map(x=>q(cName(p,x.c),x.n,x.m||"spec not published")).join("")}
       ${p.parts.length<2?q("Core parts","<span class='gap'>fewer than two documented</span>"):""}
-      ${q("Certainty density",c.pe+"% confirmed",c.pu+"% of fields have no data")}
-      ${q("Class rank","#"+(P.filter(x=>x.klass===p.klass).sort((a,b)=>score(b)-score(a)).findIndex(x=>x.id===p.id)+1)+
-         " of "+P.filter(x=>x.klass===p.klass).length)}
+      ${q("Citation coverage",c.cited+" of "+c.total+" claims",c.uncited?c.uncited+" written as prose under Not cited":"every claim on this report is cited")}
     </div>
     <div class="dcols" style="margin-top:24px">
-      <div class="dcol"><h4>Strongest advantage</h4>
-        ${bp?`<div class="d pos"><div class="dtop"><span class="dax">${bp.label}</span><span class="dmag">+${bp.d}</span></div>
-          <div class="dwho">Ahead of class average. Nearest peer: <b>${bp.best.brand}</b>.</div></div>`:gap("no advantage over class")}
-      </div>
-      <div class="dcol"><h4>Strongest deficit</h4>
-        ${bn?`<div class="d neg"><div class="dtop"><span class="dax">${bn.label}</span><span class="dmag">${bn.d}</span></div>
-          <div class="dwho"><b>${bn.best.brand}</b> outperforms here.</div><span class="dsev">${bn.sev}</span></div>`:gap("no deficit found")}
-      </div>
+      ${covCompare(p)}
     </div>
   </div></div>`;
 }
@@ -1255,17 +1207,17 @@ function compView(p){
     ${p.comps.map(c=>{
       const mats=p.materials.filter(x=>x.c===c.id);
       const srcs=p.sourcing.filter(x=>x.c===c.id);
-      const steps=p.construction.steps.filter(x=>x.c===c.id);
-      const ops=p.skill.ops.filter(x=>x[0]===c.id);
+      const steps=(p.construction?.steps||[]).filter(x=>x.c===c.id);
+      const ops=(p.skill?.ops||[]).filter(x=>x[0]===c.id);
       const prts=p.parts.filter(x=>x.c===c.id);
       const line=(l,v)=>`<div class="crow"><span class="ck">${l}</span><span class="cv">${v}</span></div>`;
       return `<div class="cpanel ${c.role==="Critical"?"crit":""}">
         <div class="chead"><span class="crole">${c.role}</span><h4>${c.n}</h4></div>
         <div class="cbody">
           ${mats.length?line("Material",mats.map(m=>
-              `${m.n} ${tag(m.t)}${m.spec?`<span class="sub">${m.spec}</span>`:`<span class="sub">${gap("spec not published")}</span>`}`).join('<hr class="hr">')):""}
+              `${m.n} ${cite(p,m)}${m.spec?`<span class="sub">${m.spec}</span>`:""}`).join('<hr class="hr">')):""}
           ${srcs.length?line("Sourced from",srcs.map(x=>
-              `${x.o?x.o:gap("origin not disclosed")} ${tag(x.t)}<span class="sub">${x.m}${x.note?" · "+x.note:""}</span>`).join('<hr class="hr">')):""}
+              `${x.o?x.o:gap("origin not stated in the cited source")} ${cite(p,x)}<span class="sub">${x.m}${x.note?" · "+x.note:""}</span>`).join('<hr class="hr">')):""}
           ${steps.length?line("Formed by",steps.map(x=>
               x.p?x.p:gap("process not published")).join('<hr class="hr">')):""}
           ${ops.length?line("Skill applied",ops.map(x=>
@@ -1281,110 +1233,69 @@ function compView(p){
 function matSec(p){
   return `<div class="sec"><div class="sechead"><h3>Raw materials</h3>
     <span class="note">Share is by mass of the whole object. The chip on each row is the part that material belongs to.</span></div>
-    ${p.materials.map(m=>`<div class="mat"><div class="mname">${cchip(p,m.c)}<span>${m.n}</span>${tag(m.t)}
-      ${m.spec?`<span class="mspec">${m.spec}</span>`:`<span class="mspec">${gap("spec not published")}</span>`}
+    ${p.materials.length?p.materials.map(m=>`<div class="mat"><div class="mname">${cchip(p,m.c)}<span>${m.n}</span>${cite(p,m)}
+      ${m.spec?`<span class="mspec">${m.spec}</span>`:""}
       ${Number.isFinite(+m.share)?`<div class="mtrack"><div class="mfill" style="width:${Math.min(100,+m.share)}%"></div></div>`:""}</div>
-      <div class="mshare">${Number.isFinite(+m.share)?`${m.share}%`:gap("share not stated")}</div></div>`).join("")}</div>`;
+      <div class="mshare">${Number.isFinite(+m.share)?`${m.share}%`:gap("share not stated")}</div></div>`).join(""):prosePointer("No material on this object is cited.")}</div>`;
 }
 function srcSec(p){
   return `<div class="sec"><div class="sechead"><h3>Material sourcing</h3>
     <span class="note">Where the material itself came from, which is not the same as where the part was formed.</span></div>
-    <table class="dt"><tr><th>Component</th><th>Material</th><th>Origin</th><th>Supplier</th><th>Certainty</th></tr>
+    ${p.sourcing.length?`<table class="dt"><tr><th>Component</th><th>Material</th><th>Origin</th><th>Supplier</th><th>Source</th></tr>
     ${p.sourcing.map(x=>`<tr><td class="k">${cchip(p,x.c)}</td><td class="k">${x.m}</td>
-      <td class="v">${x.o?x.o:gap("origin not disclosed")}${x.note?`<span class="sub">${x.note}</span>`:""}</td>
-      <td class="v">${x.s?x.s:gap()}</td><td>${tag(x.t)}</td></tr>`).join("")}</table></div>`;
+      <td class="v">${x.o?x.o:gap("origin not stated in the cited source")}${x.note?`<span class="sub">${x.note}</span>`:""}</td>
+      <td class="v">${x.s?x.s:gap()}</td><td>${cite(p,x)}</td></tr>`).join("")}</table>`:prosePointer("No sourcing claim on this object is cited.")}</div>`;
 }
 function conSec(p){
   const k=p.construction;
   return `<div class="sec"><div class="sechead"><h3>Construction method</h3>
     <span class="note">How each part was formed. Forming usually matters more than what the material is.</span></div>
-    <table class="dt"><tr><th>Component</th><th>Process applied</th></tr>
-      ${k.steps.map(x=>`<tr><td class="k">${cchip(p,x.c)}</td>
+    ${k?`<table class="dt"><tr><th>Component</th><th>Process applied</th></tr>
+      ${(k.steps||[]).map(x=>`<tr><td class="k">${cchip(p,x.c)}</td>
         <td class="v">${x.p?x.p:gap("process not published")}</td></tr>`).join("")}
-      <tr><td class="k">Whole object</td><td class="v">${k.mode} ${tag(k.t)}
-        <span class="sub">${k.auto||gap("automation level not published")}</span>
-        <span class="sub">${k.tol||gap("tolerance not published")}</span></td></tr>
-    </table></div>`;
+      <tr><td class="k">Whole object</td><td class="v">${k.mode} ${cite(p,k)}
+        ${k.auto?`<span class="sub">${k.auto}</span>`:""}
+        ${k.tol?`<span class="sub">${k.tol}</span>`:""}</td></tr>
+    </table>`:prosePointer("How this object is formed is not cited.")}</div>`;
 }
 function asmSec(p){
   const a=p.assembly;
   return `<div class="sec"><div class="sechead"><h3>Assembly location</h3>
     <span class="note">The country on the label is a legal claim about final assembly, not about where the parts came from.</span></div>
-    <table class="dt"><tr><th>Site</th><th>Operation performed</th></tr>
-    ${a.sites.map(x=>`<tr><td class="k">${x.l||gap("site not named")}</td>
+    ${a?`<table class="dt"><tr><th>Site</th><th>Operation performed</th></tr>
+    ${(a.sites||[]).map(x=>`<tr><td class="k">${x.l||gap("site not named")}</td>
       <td class="v">${x.o?x.o:gap("operation not stated")}</td></tr>`).join("")}
     <tr><td class="k">Site count</td><td class="v">${a.count||gap()}</td></tr>
-    <tr><td class="k">Label basis</td><td class="v">${a.label?`${a.label} ${tag(a.t)}`:gap("no country-of-origin claim recorded")}</td></tr></table></div>`;
+    <tr><td class="k">Label basis</td><td class="v">${a.label?`${a.label} ${cite(p,a)}`:gap("no country-of-origin claim recorded")}</td></tr></table>`:prosePointer("Where this object was assembled is not cited.")}</div>`;
 }
 function skillSec(p){
   const k=p.skill;
   return `<div class="sec"><div class="sechead"><h3>Human skill required</h3>
-    <span class="note">Stated where the manufacturer publishes it, inferred where they do not, blank where neither holds.</span></div>
-    <table class="dt">
-      <tr><td class="k">Tier, whole object</td><td class="v">${k.tier?`${k.tier} ${tag(k.t)}`:gap("no tier can be assigned")}</td></tr>
+    <span class="note">What the process demands of the people running it, where a source states it.</span></div>
+    ${!k?prosePointer("The skill this object demands is not cited."):`<table class="dt">
+      <tr><td class="k">Tier, whole object</td><td class="v">${k.tier?`${k.tier} ${cite(p,k)}`:gap("no tier can be assigned")}</td></tr>
       <tr><td class="k">Basis</td><td class="v">${k.basis?k.basis:gap("no basis recorded")}</td></tr>
     </table>
-    ${k.ops.length?`<table class="dt" style="margin-top:16px"><tr><th>Component</th><th>Operation</th><th>Skill applied</th></tr>
+    ${(k.ops||[]).length?`<table class="dt" style="margin-top:16px"><tr><th>Component</th><th>Operation</th><th>Skill applied</th></tr>
       ${k.ops.map(o=>`<tr><td class="k">${cchip(p,o[0])}</td><td class="k">${o[1]||gap("operation not named")}</td>
-        <td class="v">${o[2]?o[2]:gap("skill not stated")}</td></tr>`).join("")}</table>`:""}</div>`;
+        <td class="v">${o[2]?o[2]:gap("skill not stated")}</td></tr>`).join("")}</table>`:""}`}</div>`;
 }
 function partSec(p){
   return `<div class="sec"><div class="sechead"><h3>Superstructural components</h3>
     <span class="note">Parts that carry the load or define the function. Trim and packaging are excluded.</span></div>
-    <div class="parts">${p.parts.map(x=>`<div class="part ${x.crit==="Critical"?"crit":""}">
-      <div class="pcrit">${x.crit||"Role not stated"} ${tag(x.t)}</div>
+    ${p.parts.length?`<div class="parts">${p.parts.map(x=>`<div class="part ${x.crit==="Critical"?"crit":""}">
+      <div class="pcrit">${x.crit||"Role not stated"} ${cite(p,x)}</div>
       <div class="pname">${x.n}</div>
       <div class="pscope">${cName(p,x.c)}</div>
       <div class="pspec">${x.m||gap("material not published")}</div>
-      <div class="pfail">${x.fail?x.fail:gap("failure mode not recorded")}</div></div>`).join("")}</div></div>`;
+      <div class="pfail">${x.fail?x.fail:gap("failure mode not recorded")}</div></div>`).join("")}</div>`:prosePointer("No load-bearing part on this object is cited.")}</div>`;
 }
 function issueSec(p){
   return `<div class="sec"><div class="sechead"><h3>Known issues</h3></div>
     <table class="dt">${p.issues.map(i=>`<tr><td class="v">${i}</td></tr>`).join("")}</table></div>`;
 }
 
-/* The peer tab has two pivots for the same peer set: whole-object axis scores,
-   or the same products compared part by part. */
-function dpivotBar(){
-  return `<div class="pivot">
-    <span class="eyebrow">Compare</span>
-    <button class="pv ${S.dpiv!=="comp"?"on":""}" onclick="setDpiv('axis')">By axis</button>
-    <button class="pv ${S.dpiv==="comp"?"on":""}" onclick="setDpiv('comp')">By component</button>
-    <span class="pvnote">${S.dpiv==="comp"
-      ? "Part against part. Where the class agrees, and where it does not."
-      : "Whole-object scores against the peer set."}</span>
-  </div>`;
-}
-
-function peerView(p,ds){
-  return dpivotBar()+(S.dpiv==="comp"?compDeltaView(p):peerAxisView(p,ds));
-}
-
-function peerAxisView(p,ds){
-  const ps=peers(p), all=[p,...ps];
-  const pos=ds.filter(d=>d.d>0), neg=ds.filter(d=>d.d<0);
-  return `<div class="sec"><div class="sechead"><h3>Peer set</h3>
-      <span class="note">Same function, different brand. Selected on shared functional class and comparable tier.</span></div>
-    <table class="mx"><tr><th>Axis</th>${all.map(x=>`<th class="${x.id===p.id?'self':''}">${x.brand}</th>`).join("")}</tr>
-    ${AXES.map(([k,l])=>`<tr><td>${l}</td>${all.map(x=>{
-        const d=x.id===p.id?0:p.axes[k]-x.axes[k];
-        const cls=x.id===p.id?"self":d>3?"up":d<-3?"dn":"eq";
-        const txt=x.id===p.id?x.axes[k]:(d>0?"+":"")+d;
-        return `<td class="${cls}">${txt}</td>`}).join("")}</tr>`).join("")}
-    </table>
-    <div class="cmeta" style="margin-top:10px"><span>Values in the highlighted column are absolute. All others are this product's delta against that peer.</span></div>
-  </div>
-  <div class="sec"><div class="dcols">
-    <div class="dcol"><h4>Where this wins</h4>
-      ${pos.length?pos.map(d=>`<div class="d pos"><div class="dtop"><span class="dax">${d.label}</span><span class="dmag">+${d.d}</span></div>
-        <div class="dwho">Closest challenger: <b>${d.best.brand}</b> at ${d.best.axes[d.k]}.</div></div>`).join(""):gap("no axis above class average")}
-    </div>
-    <div class="dcol"><h4>Where this loses</h4>
-      ${neg.length?neg.map(d=>`<div class="d neg"><div class="dtop"><span class="dax">${d.label}</span><span class="dmag">${d.d}</span></div>
-        <div class="dwho"><b>${d.best.brand}</b> leads at ${d.best.axes[d.k]}.</div><span class="dsev">${d.sev}</span></div>`).join(""):gap("no axis below class average")}
-    </div>
-  </div></div>`;
-}
+function peerView(p){ return compDeltaView(p); }
 
 /* ==================================================================
    COMPONENT DELTAS
@@ -1408,10 +1319,10 @@ const CATTR = [
   {k:"material", l:"Material", get:(p,id)=>{
     const m=(p.materials||[]).filter(x=>x.c===id); if(!m.length) return null;
     return {key:m.map(x=>x.n).join(" + "),
-            detail:m.map(x=>x.spec).filter(Boolean).join(" · ")||null, t:m[0].t}; }},
+            detail:m.map(x=>x.spec).filter(Boolean).join(" · ")||null}; }},
   {k:"origin", l:"Origin", get:(p,id)=>{
     const s=(p.sourcing||[]).filter(x=>x.c===id); if(!s.length) return null;
-    return {key:s.map(x=>x.o).filter(Boolean).join(" + ")||null, t:s[0].t}; }},
+    return {key:s.map(x=>x.o).filter(Boolean).join(" + ")||null}; }},
   {k:"forming", l:"Forming", get:(p,id)=>{
     const st=((p.construction||{}).steps||[]).filter(x=>x.c===id); if(!st.length) return null;
     return {key:st.map(x=>x.p).join(" → ")}; }},
@@ -1462,7 +1373,7 @@ function compDeltaView(p, others, scope){
   const cd=compDeltas(p, others);
   if(!cd) return `<div class="sec"><div class="empty">
     <b>No researched peer to compare against.</b>
-    Component deltas need at least one peer with a component tree. The peers in this class carry axis scores only.</div></div>`;
+    Component deltas need at least one peer with a component tree. The peers in this class carry no component roster.</div></div>`;
 
   const blocks=cd.rows.filter(r=>r.attrs.length).map(r=>{
     const rows=r.attrs.map(at=>{
@@ -1499,157 +1410,123 @@ function compDeltaView(p, others, scope){
   </div>`;
 }
 
-function setDpiv(v){ S.dpiv=v; render(); }
-
-function customView(p){
-  const rows=AXES.map(([k,l])=>`<div class="wrow"><span>${l}</span>
-    <input class="slider" type="range" min="0" max="2" step="0.1" value="${S.w[k]}"
-      oninput="S.w['${k}']=+this.value;render()" aria-label="Weight for ${l}">
-    <span class="wv">${S.w[k].toFixed(1)}</span></div>`).join("");
-  const secs=AXES.map(([k,l])=>`<label class="opt"><input type="checkbox" ${S.secs.has(k)?"checked":""}
-      onchange="toggleSec('${k}')"><span>${l}</span></label>`).join("");
-  const cs=score(p,S.w), base=score(p), diff=cs-base;
-  return `<div class="sec"><div class="build">
-    <div>
-      <div class="sechead"><h3>Build a custom report</h3>
-        <span class="note">Your filter facets become report sections. Weights recompute the score against the same peer set.</span></div>
-      <div class="bgroup"><span class="eyebrow">Sections to include</span>${secs}</div>
-      <div class="bgroup"><span class="eyebrow">Axis weighting</span>${rows}</div>
-      <div class="bgroup"><span class="eyebrow">Certainty floor for this report</span>
-        <label class="opt"><input type="checkbox"><span>Exclude values tagged LIKELY</span></label>
-        <label class="opt"><input type="checkbox" checked><span>Show UNKNOWN fields as gaps</span></label>
-      </div>
-    </div>
-    <div class="preview">
-      <span class="eyebrow">Live preview</span>
-      <h4 style="margin-top:8px">${p.brand} ${p.model}</h4>
-      <div class="pscore">${cs}</div>
-      <div class="pdelta">${diff===0?"same as default weighting":(diff>0?"+":"")+diff+" vs default weighting"}</div>
-      <ul>${AXES.filter(a=>S.secs.has(a[0])).map(a=>`<li>${a[1]} · ${p.axes[a[0]]}</li>`).join("")||"<li>No sections selected</li>"}</ul>
-      <button class="btn" onclick="exportOne('${p.id}')">Export JSON</button>
-      <button class="btn ghost" onclick="S.w={...DEFAULT_W};S.secs=new Set(AXES.map(a=>a[0]));render()">Reset to defaults</button>
-    </div>
-  </div></div>`;
-}
 /* ==================================================================
-   GAP REPORT
+   NOT CITED
    ------------------------------------------------------------------
-   The inverse view. Every other tab shows what is known; this one
-   shows what is not, and separates a gap this manufacturer left from
-   a gap the whole class leaves. Those read differently — the first is
-   a disclosure choice, the second an industry norm — and the reader
-   should not have to derive which is which by opening three peers.
+   The inverse view, and on most reports the interesting one. Every
+   other tab shows what resolves to a source; this one shows what did
+   not, in full, as prose.
 
-   Nothing here estimates. A gap renders as a gap.
+   Nothing here is hidden and nothing is hatched. A claim that could
+   not be sourced still says something — usually about the trade
+   rather than the product — and burying it in a texture was the worst
+   thing the old design did. What it cannot do is sit in a table, so
+   it sits here instead, with what was checked written next to it.
+
+   The class-level finding is stated first, because "nobody in this
+   class cites where the steel comes from" and "this one manufacturer
+   won't say" read completely differently, and a reader should not
+   have to open three peers to tell which they are looking at.
    ================================================================== */
 
-/* What the reader cannot conclude while the field is missing. Keyed by field
-   kind and never by product: a per-product consequence would be a claim, and
-   this view exists to show the absence of claims. */
+/* What the reader cannot conclude while the claim is uncited. Keyed by
+   section and never by product: a per-product consequence would itself be
+   a claim, and this view exists to mark where the claims run out. */
 const GAP_WHY = {
-  material:"Grade is what fixes hardness, corrosion behaviour, and how a part holds up under heat. Unstated, none of that follows from the report.",
+  materials:"Grade is what fixes hardness, corrosion behaviour, and how a part holds up under heat. Uncited, none of that follows from the report.",
   sourcing:"With no origin on record the chain cannot be traced, and any claim about where the material came from rests on the brand's word.",
-  construction:"Forming is what separates a forged part from a stamped one at the same price. Unstated, that difference is invisible to the buyer.",
-  assembly:"A country-of-origin label describes final assembly, not where the work happened. Without the sites, the label cannot be checked against anything.",
+  construction:"Forming is what separates a forged part from a stamped one at the same price. Uncited, that difference is invisible to the buyer.",
+  assembly:"A country-of-origin label describes final assembly, not where the work happened. Without a source for the sites, the label cannot be checked against anything.",
   skill:"How much of the price is labour rather than material or brand cannot be estimated without knowing the tier of work involved.",
-  part:"These are the parts that carry load and fail first. Their material is what predicts how the object eventually fails."
+  parts:"These are the parts that carry load and fail first. Their material is what predicts how the object eventually fails."
 };
 
-const KINDL = {material:"Materials", sourcing:"Sourcing", construction:"Construction",
-               assembly:"Assembly", skill:"Skill", part:"Components"};
+const KINDL = {materials:"Materials", sourcing:"Sourcing", construction:"Construction",
+               assembly:"Assembly", skill:"Skill", parts:"Components"};
 
-/* Every certainty-tagged field, flattened, carrying the component it belongs to.
-   Same field set certCount() counts, so the two can never disagree. */
-function gapFields(p){
-  const out=[];
-  (p.materials||[]).forEach(m=>out.push({kind:"material", c:m.c, label:m.n, t:m.t}));
-  (p.sourcing||[]).forEach(s=>out.push({kind:"sourcing", c:s.c, label:s.m, t:s.t}));
-  if(p.construction) out.push({kind:"construction", c:null, label:"Forming process", t:p.construction.t});
-  if(p.assembly)     out.push({kind:"assembly",     c:null, label:"Assembly location", t:p.assembly.t});
-  if(p.skill)        out.push({kind:"skill",        c:null, label:"Skill tier", t:p.skill.t});
-  (p.parts||[]).forEach(x=>out.push({kind:"part", c:x.c, label:x.n, t:x.t}));
-  return out;
+/* Cited rows by section. The list sections hold only what survived verify(),
+   so their length is the count; the singletons are null when demoted. */
+function citedBy(p,k){
+  if(k==="construction"||k==="assembly"||k==="skill") return p[k]?1:0;
+  return (p[k]||[]).length;
 }
 
-/* Which kinds of field nobody in the class confirms. Stubs are excluded on
-   purpose: a peer with no component tree is not evidence that an industry is
-   silent, it is only a peer nobody researched. With fewer than two researched
-   products there is nothing to compare against and the question is not asked. */
+/* Which sections nobody in the class cites. Stubs are excluded on purpose: a
+   peer nobody researched is not evidence that an industry is silent. With
+   fewer than two researched products there is nothing to compare against and
+   the question is not asked. */
 function classSilence(p){
   const real=[p,...peers(p)].filter(x=>!x.stub);
   const silent={};
-  Object.keys(KINDL).forEach(k=>{
-    silent[k] = !real.some(x=>gapFields(x).some(f=>f.kind===k && f.t==="e"));
-  });
+  Object.keys(KINDL).forEach(k=>{ silent[k] = !real.some(x=>citedBy(x,k)>0); });
   return {silent, comparable: real.length>=2, n: real.length};
+}
+
+/* One uncited claim, written out. `row` keeps everything the generating pass
+   found, so the content is shown rather than summarised away. */
+function proseItem(p,u){
+  const r=u.row||{};
+  const bits=[r.spec,r.o,r.s,r.m,r.mode,r.tier,r.label,r.count,r.auto,r.tol,r.basis,r.fail,r.crit]
+    .filter(x=>typeof x==="string"&&x.trim());
+  const detail=[...new Set(bits)].join(" · ");
+  return `<div class="gitem">
+    ${r.c&&cName(p,r.c)!==u.label?cchip(p,r.c):""}
+    <span>${u.label}</span>
+    ${detail?`<span class="cdsub" style="margin:0">${detail}</span>`:""}
+    <span class="gwhyx">${u.why}</span></div>`;
 }
 
 function gapView(p){
   if(p.stub) return `<div class="sec"><div class="empty">
     <b>This peer has not been researched.</b>
-    There is no component tree to find gaps in. It carries axis scores so the delta matrix has something to compare against, and nothing else.</div></div>`;
+    It was included so the component comparison has something to compare against, and carries nothing else.</div></div>`;
 
-  const f=gapFields(p);
-  const unknown=f.filter(x=>x.t==="u"), likely=f.filter(x=>x.t==="l");
+  const un=p.uncited||[];
+  const c=coverage(p);
   const {silent, comparable}=classSilence(p);
   const kinds=Object.keys(KINDL);
 
-  /* the class-level finding, stated before any product-level one. The class
-     label carries its own description after an em dash, which swallows the
-     sentence — the short name is what belongs in prose. */
+  /* The class label carries its own description after an em dash, which
+     swallows the sentence — the short name is what belongs in prose. */
   const klass=(CLASSES[p.klass]||"").split(" — ")[0];
   const silentKinds=kinds.filter(k=>silent[k]);
   const lead = !comparable
-    ? `Only this product in ${klass} has been researched, so there is no peer disclosure to measure it against. Every gap below is unclassified.`
+    ? `Only this product in ${klass} has been researched, so there is no peer disclosure to measure it against. Nothing below is classified as an industry norm.`
     : silentKinds.length
-      ? `No product in ${klass} confirms ${listing(silentKinds.map(k=>KINDL[k].toLowerCase()))}.${
-          unknown.length?" Where that overlaps a gap below, the silence is an industry norm rather than this manufacturer's choice.":""}`
-      : `Every kind of field here is confirmed by at least one product in ${klass}${
-          unknown.length?", so each gap below is this manufacturer's own":""}.`;
+      ? `No product in ${klass} has a cited ${listing(silentKinds.map(k=>KINDL[k].toLowerCase()))} claim.${
+          un.length?" Where that overlaps something below, the silence is an industry norm rather than this manufacturer's choice.":""}`
+      : `Every section here is cited by at least one product in ${klass}${
+          un.length?", so each item below is this report's own gap":""}.`;
 
-  const groups = kinds.map(k=>({k, items:unknown.filter(x=>x.kind===k)})).filter(g=>g.items.length);
+  const groups = kinds.map(k=>({k, items:un.filter(x=>x.sec===k)})).filter(g=>g.items.length);
 
   const blocks = groups.map(({k,items})=>{
     const badge = !comparable ? `<span class="gsys">no peer to compare</span>`
       : silent[k]             ? `<span class="gsys on">class-wide silence</span>`
-                              : `<span class="gsys">this product only</span>`;
+                              : `<span class="gsys">this report only</span>`;
     return `<div class="gblock">
       <div class="ghead"><span class="eyebrow">${KINDL[k]}</span>
-        <span class="gcount">${items.length} missing</span>${badge}</div>
+        <span class="gcount">${items.length} uncited</span>${badge}</div>
       <p class="gwhy">${GAP_WHY[k]}</p>
-      <div class="gitems">${items.map(x=>`<div class="gitem">${
-        x.c&&cName(p,x.c)!==x.label?cchip(p,x.c):""}<span>${x.label}</span>${gap("not disclosed")}</div>`).join("")}</div>
+      <div class="gitems">${items.map(u=>proseItem(p,u)).join("")}</div>
     </div>`;
   }).join("");
 
-  const body = unknown.length
+  const body = un.length
     ? blocks
-    : `<div class="empty"><b>Nothing in this report is missing.</b>
-        Every field carries either a source or a written inference chain. That is rare, and it is a fact about the manufacturer's disclosure, not about the product's quality.</div>`;
+    : `<div class="empty"><b>Every claim on this report is cited.</b>
+        That is rare, and it is a fact about the manufacturer's disclosure, not about the product's quality.</div>`;
 
-  const likelyBlock = likely.length ? `<div class="sec">
-    <div class="sechead"><h3>Inferred, not confirmed</h3>
-      <span class="note">Stated with a reason on record, but not from a source. A weaker claim than EXACT, not an absent one.</span></div>
-    <table class="dt">
-      ${likely.map(x=>`<tr>
-        <td class="k">${KINDL[x.kind]}${x.c&&cName(p,x.c)!==x.label?` <span class="sub">${cName(p,x.c)}</span>`:""}</td>
-        <td class="v">${x.label}</td>
-        <td class="v" style="text-align:right">${tag("l")}</td></tr>`).join("")}
-    </table></div>` : "";
-
-  const note = unknown.length
-    ? `${unknown.length} field${unknown.length===1?"":"s"} with no basis to state a value${
-        likely.length?`, and ${likely.length} inferred rather than confirmed`:""}.`
-    : likely.length
-      ? `No field is missing. ${likely.length} ${likely.length===1?"is":"are"} inferred rather than confirmed.`
-      : `Nothing is missing and nothing is inferred. Every field is source-confirmed.`;
+  const note = un.length
+    ? `${un.length} claim${un.length===1?"":"s"} could not be traced to a source, out of ${c.total}.`
+    : `Nothing is uncited. All ${c.total} claims resolve to a source.`;
 
   return `<div class="sec">
-    <div class="sechead"><h3>What this report does not know</h3>
+    <div class="sechead"><h3>What this report cannot show you</h3>
       <span class="note">${note}</span></div>
     <p class="mprose">${lead}</p>
     <div style="margin-top:18px">${body}</div>
-  </div>${likelyBlock}`;
+  </div>`;
 }
 
 /* "a, b and c" — used only for the class-silence sentence */
@@ -1658,7 +1535,7 @@ function listing(xs){
 }
 
 function setPivot(v){ S.pivot=v; render(); }
-function toggleSec(k){ S.secs.has(k)?S.secs.delete(k):S.secs.add(k); render(); }
+
 
 /* ============================ TRAY ============================ */
 function renderTray(){
@@ -1698,20 +1575,35 @@ function download(name, mime, text){
 }
 
 function exportRows(list){
-  return list.map(p=>({
-    id:p.id, brand:p.brand, model:p.model, klass:CLASSES[p.klass]||p.klass, year:p.year,
-    stub: !!p.stub,
-    reviewed: !!p.rev,
-    score:{ default: score(p), weighted: score(p, S.w) },
-    axes: {...p.axes},
-    sourcingAxis: p.srcAdj || null,
-    certainty: certCount(p),
-    missing: p.stub?[]:gapFields(p).filter(x=>x.t==="u").map(x=>({field:x.kind, of:x.label})),
-    inferred: p.stub?[]:gapFields(p).filter(x=>x.t==="l").map(x=>({field:x.kind, of:x.label})),
-    components:(p.comps||[]).map(c=>({id:c.id, name:c.n, role:c.role})),
-    sources:(p.sources||[]).map(s=>s&&s.u).filter(Boolean),
-    verifierAdjustments: p.vlog||[],
-  }));
+  return list.map(p=>{
+    const c=coverage(p);
+    return {
+      id:p.id, brand:p.brand, model:p.model, klass:CLASSES[p.klass]||p.klass, year:p.year,
+      stub: !!p.stub,
+      reviewed: !!p.rev,
+      coverage: {cited:c.cited, uncited:c.uncited, total:c.total, pct:c.pct},
+      cited: p.stub?[]:citedClaims(p),
+      uncited: p.stub?[]:(p.uncited||[]).map(u=>({section:u.sec, of:u.label, why:u.why})),
+      components:(p.comps||[]).map(c=>({id:c.id, name:c.n, role:c.role})),
+      sources:(p.sources||[]).map(s=>s&&s.u).filter(Boolean),
+      verifierAdjustments: p.vlog||p._vlog||[],
+    };
+  });
+}
+
+/* Every claim that reached a table, with the URL it rests on. This is the
+   part of the export worth having: a reader can check the whole report
+   against its sources without opening the page. */
+function citedClaims(p){
+  const url=i=>((p.sources||[])[i]||{}).u||null;
+  const out=[];
+  (p.materials||[]).forEach(m=>out.push({section:"materials", of:m.n, source:url(m.src)}));
+  (p.sourcing||[]).forEach(s=>out.push({section:"sourcing", of:s.m, source:url(s.src)}));
+  if(p.construction) out.push({section:"construction", of:p.construction.mode, source:url(p.construction.src)});
+  if(p.assembly)     out.push({section:"assembly", of:p.assembly.label, source:url(p.assembly.src)});
+  if(p.skill)        out.push({section:"skill", of:p.skill.tier, source:url(p.skill.src)});
+  (p.parts||[]).forEach(x=>out.push({section:"parts", of:x.n, source:url(x.src)}));
+  return out;
 }
 
 /* Payload building is kept separate from the download so the contents can be
@@ -1720,10 +1612,10 @@ function exportPayload(list){
   return {
     generated: new Date().toISOString(),
     schema: META.schema, corpusBuilt: META.built, corpusSource: META.source,
-    weighting: {...S.w},
-    note: "Sourcing is computed from each report's own rows. The other five axis "
-        + "scores are the generating pass's judgment and carry no certainty tag. "
-        + "Fields listed under \"missing\" have no basis at all and were not estimated.",
+    note: "Every entry under \"cited\" carries the URL it rests on. Entries under "
+        + "\"uncited\" are claims the generating pass could not trace to a source; "
+        + "they are reported in full, not estimated and not dropped. Coverage is a "
+        + "fact about this report's evidence, not a rating of the product.",
     products: exportRows(list),
   };
 }
@@ -1733,14 +1625,10 @@ function comparisonCSV(list){
   const rows=[
     ["Field", ...list.map(p=>`${p.brand} ${p.model}`)],
     ["Class", ...list.map(p=>CLASSES[p.klass]||p.klass)],
-    ["Composite — default weighting", ...list.map(p=>score(p))],
-    ["Composite — your weighting", ...list.map(p=>score(p, S.w))],
-    ...AXES.map(([k,l])=>[`${l} — ${DERIVED_AXES.includes(k)?"derived from evidence":"pass judgment, unverified"}`,
-      ...list.map(p=>p.axes[k])]),
-    ["Confirmed %", ...list.map(p=>certCount(p).pe)],
-    ["Inferred %", ...list.map(p=>certCount(p).pl)],
-    ["Missing %", ...list.map(p=>certCount(p).pu)],
-    ["Fields with no basis", ...list.map(p=>p.stub?"":gapFields(p).filter(x=>x.t==="u").length)],
+    ["Claims cited", ...list.map(p=>coverage(p).cited)],
+    ["Claims in prose, uncited", ...list.map(p=>coverage(p).uncited)],
+    ["Citation coverage %", ...list.map(p=>coverage(p).pct)],
+    ["Distinct sources", ...list.map(p=>new Set((p.sources||[]).map(s=>s&&s.u).filter(Boolean)).size)],
     ["Reviewed by a person", ...list.map(p=>p.rev?"yes":"no")],
   ];
   return rows.map(r=>r.map(q).join(",")).join("\r\n");
@@ -1778,20 +1666,12 @@ function compareView(){
       `<td class="${lead&&Number(v)===top?"lead":""}">${v}</td>`).join("")}</tr>`;
   };
 
-  const weighted=sel.map(p=>score(p,S.w));
-  const topW=Math.max(...weighted);
-
   const body=[
-    `<tr><td class="k">Composite</td>${sel.map((p,i)=>
-      `<td><span class="cbig${weighted[i]===topW?" lead":""}">${weighted[i]}</span>
-        <span class="csub">${weighted[i]===score(p)?"default weighting":`${score(p)} at default`}</span></td>`).join("")}</tr>`,
     `<tr><td class="k">Class</td>${sel.map(p=>`<td>${CLASSES[p.klass]||p.klass}</td>`).join("")}</tr>`,
-    ...AXES.map(([k,l])=>row(
-      `${l}${DERIVED_AXES.includes(k)?' <span class="csub">derived</span>':""}`,
-      sel.map(p=>p.axes[k]), true)),
-    `<tr><td class="k">Certainty</td>${sel.map(p=>{const c=certCount(p);
-      return `<td>${cbar(p)}<span class="csub">${c.pe}% confirmed · ${c.pu}% missing</span></td>`}).join("")}</tr>`,
-    row("Fields with no basis", sel.map(p=>p.stub?"—":gapFields(p).filter(x=>x.t==="u").length)),
+    `<tr><td class="k">Citation coverage</td>${sel.map(p=>{const c=coverage(p);
+      return `<td>${covbar(p)}<span class="csub">${c.cited} of ${c.total} claims cited</span></td>`}).join("")}</tr>`,
+    row("Claims in prose, uncited", sel.map(p=>p.stub?"—":coverage(p).uncited)),
+    row("Distinct sources", sel.map(p=>new Set((p.sources||[]).map(s=>s&&s.u).filter(Boolean)).size), true),
     row("Reviewed by a person", sel.map(p=>p.rev?"yes":"no")),
   ].join("");
 
@@ -1802,38 +1682,25 @@ function compareView(){
     : `<div class="sec"><div class="empty">
         <b>Parts cannot be compared across ${klasses.size>1?"different classes":"this selection"}.</b>
         ${klasses.size>1
-          ? "These products do not share a component roster — a blade and a jar have nothing to line up. The axis scores above still compare, because they are on the same 0–100 scale."
-          : "Component deltas need at least two researched products; a generated peer carries axis scores only."}</div></div>`;
-
-  const sliders=AXES.map(([k,l])=>`<div class="wrow"><span>${l}</span>
-    <input class="slider" type="range" min="0" max="2" step="0.1" value="${S.w[k]}"
-      oninput="S.w['${k}']=+this.value;render()" aria-label="Weight for ${l}">
-    <span class="wv">${S.w[k].toFixed(1)}</span></div>`).join("");
+          ? "These products do not share a component roster — a blade and a jar have nothing to line up."
+          : "Component deltas need at least two researched products; a generated peer carries no component roster."}</div></div>`;
 
   return `
   <button class="back" onclick="goHome()">← Back to results</button>
   <div class="genwrap">
     <h3>Comparing ${sel.length} products</h3>
-    <p>The composite recomputes as you move the weights. Only the sourcing axis is derived from evidence; the other five are the generating pass's judgment, so read the certainty row before the scores.</p>
+    <p>Coverage is a fact about each report's evidence, not a rating of the product. A thoroughly documented cheap object cites at 100%. What separates these products is in the component rows further down.</p>
   </div>
 
   <div class="sec">
     <div class="sechead"><h3>Side by side</h3>
-      <span class="note">The strongest figure in each row is highlighted. It is not a recommendation.</span></div>
+      <span class="note">The strongest figure in each row is highlighted. It measures the evidence, not the object.</span></div>
     <div class="cmxwrap"><table class="cmx">${th}${body}</table></div>
     <div class="exprow">
       <button class="btn ghost" onclick="exportJSON(cmpSet())">Export JSON</button>
       <button class="btn ghost" onclick="exportCSV(cmpSet())">Comparison sheet</button>
       <button class="btn ghost" onclick="window.print()">Print or save as PDF</button>
     </div>
-  </div>
-
-  <div class="sec">
-    <div class="sechead"><h3>Axis weighting</h3>
-      <span class="note">Your weighting applies to every product above and travels with the exports.</span></div>
-    ${sliders}
-    <button class="btn ghost" style="width:auto;margin-top:14px;padding:8px 16px"
-      onclick="S.w={...DEFAULT_W};render()">Reset to defaults</button>
   </div>
 
   ${parts}`;
@@ -1934,21 +1801,20 @@ function ingest(o){
   const t=o.target, id="gen-"+slug(t.brand+"-"+t.model);
   const built = {
     id, brand:t.brand, model:t.model, klass:kid, year:t.year||"unspecified",
-    axes:t.axes, comps:t.comps, materials:t.materials, sourcing:t.sourcing,
+    comps:t.comps, materials:t.materials, sourcing:t.sourcing,
     construction:t.construction, assembly:t.assembly, skill:t.skill,
     parts:t.parts, issues:t.issues||[],
     live:true, sources:o.sources||[], vlog:o._vlog||[], searches:o._searches||0
   };
   const peers=(o.peers||[]).slice(0,2).map((p,i)=>({
     id:id+"-peer"+i, brand:p.brand, model:p.model, klass:kid, year:"unspecified",
-    axes:p.axes, comps:[], materials:[], sourcing:[],
-    construction:{mode:"Unknown",auto:null,tol:null,steps:[]},
-    assembly:{sites:[{l:"Not researched",o:"Peer included for delta comparison only"}],label:"Not researched",count:"Unknown"},
-    skill:{tier:null,basis:p.why||"Included as a delta reference; no report generated.",ops:[]},
+    comps:[], materials:[], sourcing:[],
+    construction:null, assembly:null, skill:null,
+    note:p.why||"Included as a comparison reference; no report generated.",
     parts:[], issues:[], live:true, stub:true, sources:[], vlog:[]
   }));
   P.push(built,...peers);
-  deriveAll();   // every path that admits a product derives its axes
+  verifyAll();   // every path that admits a product runs the citation gate
   return built;
 }
 
@@ -1992,7 +1858,7 @@ async function loadCorpus(){
       const i=P.findIndex(x=>x.id===p.id);
       if(i>=0) P[i]=p; else P.push(p);
     });
-    deriveAll();
+    verifyAll();
     Object.assign(CLASSES,c.classes||{});
     META.built=c.built; META.merged=c.products.length; META.adjusted=bad;
     META.source=`embedded + ${c.products.length} from corpus.json`;
@@ -2053,23 +1919,6 @@ function renderGen(){
     </div>
   </div>`;
 }
-/* The sourcing axis is computed, not judged. Where that lands somewhere other
-   than the generating pass put it, the site says so on the report rather than
-   revising a published number in silence. */
-function srcNote(p){
-  const a=p.srcAdj;
-  if(!a) return "";
-  if(!a.derived) return `<div class="vpanel">
-    <span class="eyebrow">Derived axis</span>
-    <ul><li>Material sourcing could not be computed — this record has no sourcing rows. The axis is the generating pass's judgment, unchecked.</li></ul></div>`;
-  const off = a.diff===0 ? "which is where the generating pass put it."
-    : `The generating pass scored it ${a.model}, ${Math.abs(a.diff)} point${Math.abs(a.diff)===1?"":"s"} ${a.diff<0?"above":"below"} what the disclosure supports.`;
-  return `<div class="vpanel ${a.diff===0?"fresh":""}">
-    <span class="eyebrow">Derived axis</span>
-    <ul><li class="${a.diff===0?"clean":""}">Material sourcing is computed from the ${a.rows} sourcing row${a.rows===1?"":"s"} on this report rather than judged: <b>${a.value}</b> of 100. ${off}</li></ul>
-  </div>`;
-}
-
 function vpanel(p){
   const srcs=(p.sources||[]).filter(x=>x&&x.u), age=ageDays(p);
   if(!p.gen && !srcs.length) return "";
@@ -2091,98 +1940,90 @@ function vpanel(p){
 /* ==================================================================
    METHOD
    ------------------------------------------------------------------
-   Weights come from DEFAULT_W, severity bands from SEV, the review
-   cycle from META. Nothing here is transcribed by hand: a methodology
-   page that documents a rule the code stopped following is worse than
-   no page at all.
+   The rule this page describes is one line of code — a row renders if
+   its source resolves — so there is very little here that can drift
+   from what runs. Coverage figures are counted from the live corpus
+   rather than typed into the copy, for the same reason: a methodology
+   page documenting a rule the code stopped following is worse than no
+   page at all.
    ================================================================== */
 function openMethod(){ S.view="method"; render(); window.scrollTo({top:260}); }
 
 function renderMethod(){
-  const wrows = AXES.map(([k,l])=>`<tr>
-    <td class="k">${l}</td>
-    <td class="v mono">${DEFAULT_W[k].toFixed(1)}</td>
-    <td class="v">${AXIS_NOTE[k]}${DERIVED_AXES.includes(k)
-      ?` <span class="sub">Computed from this report's own rows, not judged.</span>`:""}</td></tr>`).join("");
-  const formula = AXES.map(([k])=>`${DEFAULT_W[k].toFixed(1)}·${k}`).join("  +  ");
-  const wsum = AXES.reduce((s,[k])=>s+DEFAULT_W[k],0).toFixed(1);
-
   const check = (c,e)=>`<tr><td class="k">${c}</td><td class="v">${e}</td></tr>`;
+  const real = P.filter(p=>!p.stub);
+  const tot = real.reduce((a,p)=>a+coverage(p).total,0);
+  const cit = real.reduce((a,p)=>a+coverage(p).cited,0);
+  const full = real.filter(p=>coverage(p).total && coverage(p).pct===100).length;
+  const none = real.filter(p=>coverage(p).cited===0).length;
 
   return `
   <button class="back" onclick="goHome()">← Back to results</button>
   <div class="genwrap">
     <h3>Method</h3>
-    <p>Substrate publishes what it can confirm and marks the rest as missing. This page sets out the three certainty tags and what earns each one, the checks a claim has to survive before it renders, how the composite score is computed, and how a product is placed against its peers.</p>
-    <p>Every number on this page is read out of the running code rather than typed into the copy, so a rule described here is the rule in force.</p>
+    <p>Substrate reports what consumer products are made of, part by part, and shows where each fact came from. There is one rule underneath all of it: <b>a claim in a table carries a citation, or it is not in the table.</b></p>
+    <p>No confidence tier, no score, no estimate. You can follow any row to a source and check it, and that is the whole promise.</p>
   </div>
 
   <div class="sec">
-    <div class="sechead"><h3>The three tags</h3>
-      <span class="note">Every field on every report carries exactly one.</span></div>
+    <div class="sechead"><h3>Two kinds of content</h3>
+      <span class="note">A table you can check row by row, and prose that says what the table cannot carry.</span></div>
     <table class="dt">
-      ${check(tag("e"), `Stated in manufacturer literature, a spec sheet, a teardown, or a regulatory filing, and carrying a link to it.
-        <span class="sub">A claim holds this tag only while it cites a source in that report's own list. Whether that link still resolves is checked when the report is built, not in your browser — a page cannot fetch another site to find out. A citation that has since gone dead will say so on the next rebuild, not the next load. And no check anywhere can tell you the source actually supports the claim; that is what review is for.</span>`)}
-      ${check(tag("l"), `Not stated anywhere, but inferred from class norms, price tier, or material analysis — with the inference chain written down and shown on the report.
-        <span class="sub">A LIKELY with no recorded chain is not a weaker claim, it is an unsupported one, and it is treated as missing.</span>`)}
-      ${check(tag("u"), `No basis to state a value. The value is discarded and the field renders as ${gap("a visible gap")}
-        <span class="sub">Nothing is interpolated from a peer, a class average, or a plausible default. A report with holes in it is the correct output when the holes are real.</span>`)}
+      ${check("In a table", `A claim whose source resolves to a working link in that report's own list.
+        <span class="sub">Whether the link still resolves is checked when the report is built, not in your browser — a page cannot fetch another site to find out. A citation that has since gone dead will say so on the next rebuild, not the next load.</span>`)}
+      ${check("In prose", `Everything else, in full, under <b>Not cited</b>.
+        <span class="sub">Nothing is hidden, hatched, or nulled. "Wüsthof does not publish its POM resin supplier" is a sentence, and often the most interesting one on the page — non-disclosure in consumer manufacturing is a finding, not an error state.</span>`)}
     </table>
+    <p class="mprose">Nothing sits in between and nothing is graded. Nothing is interpolated from a peer, a class average, or a plausible default either: a report with holes in it is the correct output when the holes are real.</p>
+  </div>
+
+  <div class="sec">
+    <div class="sechead"><h3>Every row says what it is a fact about</h3>
+      <span class="note">Attribution is not hedging. It is the fact.</span></div>
+    <p class="mprose">A patent says what a company patented. A label says what is declared. A spec sheet says what is specified. A teardown says what was found in one unit. None of them says what the product <i>is</i>, in the abstract.</p>
+    <p class="mprose"><span class="mono">Wüsthof patented a cold-forging method for blade blanks</span> and <span class="mono">this blade is cold-forged</span> are different claims, and the patent supports only the first. Substrate writes the first. You draw the inference yourself, which is the whole arrangement: show the evidence, name its scope, let the reader decide.</p>
+    <p class="mprose">This is also why there are no quality scores here. <span class="mono">58 HRC per the manufacturer's spec sheet</span> is a fact with a subject. <span class="mono">Good steel</span> is a verdict with none.</p>
   </div>
 
   <div class="sec">
     <div class="sechead"><h3>What a claim has to survive</h3>
       <span class="note">Runs once when the corpus is built, then again in your browser on load.</span></div>
-    <p class="mprose">Reports are assembled by a model, and model output is untrusted. Before anything reaches the page it goes through a verifier that can only ever remove confidence, never add it. It does not check whether a claim is true — it checks whether the claim is carrying the evidence its tag asserts.</p>
+    <p class="mprose">Reports are assembled by a model, and model output is untrusted. Before anything reaches the page it goes through a verifier that can only ever move a claim out of a table, never into one. It does not check whether a claim is true — it checks whether the claim is carrying the evidence a table implies.</p>
     <table class="dt" style="margin-top:16px">
       <tr><th>Condition</th><th>Effect</th></tr>
-      ${check("EXACT, citing no source","Downgraded to LIKELY. The claim may still be right, but it is no longer cited.")}
-      ${check("EXACT, citing a source that has 404'd","Downgraded the same way. Liveness is checked at build time, where fetching another site is possible; a 403 is treated as a block rather than a dead page.")}
-      ${check("LIKELY, no inference chain","Downgraded to UNKNOWN. Reasoning that was never written down cannot be audited.")}
-      ${check("Lands on UNKNOWN","The value is nulled and the field renders as a gap, whatever it originally said.")}
-      ${check("Bound to an undeclared component","The row is dropped. A claim about a part that is not on the roster cannot be read.")}
+      ${check("Cites no source","Moved to prose under Not cited, with its content intact.")}
+      ${check("Cites a source with no URL, or one that has 404'd","Moved the same way. Liveness is checked at build time, where fetching another site is possible; a 403 is treated as a block rather than a dead page.")}
+      ${check("Cites a source that resolves","Renders in its table, with a numbered link to the source beside it.")}
+      ${check("Bound to an undeclared component","The row is dropped. A claim about a part that is not on the roster cannot be read anywhere.")}
       ${check("Material shares over 105%","Flagged, and mass figures on that report are marked approximate.")}
-      ${check("Nothing confirmed anywhere","Said out loud on the report rather than left for the reader to notice.")}
+      ${check("Nothing cited anywhere","Said out loud on the report rather than left for the reader to notice.")}
     </table>
-    <p class="mprose">A claim can fall two steps in one pass — EXACT to LIKELY to UNKNOWN — and that cascade is recorded as a single entry, not two. Every adjustment appears in the provenance panel at the top of the report it affected, so a downgrade is visible on the page rather than buried in a build log.</p>
+    <p class="mprose">Every adjustment appears in the provenance panel at the top of the report it affected, so a demotion is visible on the page rather than buried in a build log.</p>
   </div>
 
   <div class="sec">
-    <div class="sechead"><h3>The composite score</h3>
-      <span class="note">Weighted mean of six axes, each 0–100.</span></div>
-    <p class="mprose">Each product carries six axis scores. The composite shown on the results row and at the top of each report is their weighted mean, rounded to a whole number:</p>
-    <div class="mform">score = ( ${formula} ) / ${wsum}</div>
-    <table class="dt">
-      <tr><th>Axis</th><th>Weight</th><th>What it judges</th></tr>
-      ${wrows}
-    </table>
-    <p class="mprose">These weights are an editorial judgment about what matters in a durable object, not a derived quantity. They are the default only — <b>Build custom</b> on any report re-runs the same arithmetic against weights you set yourself, over the same peer set.</p>
-    <p class="mprose">One of the six is computed rather than judged. <b>Material sourcing</b> is derived from the certainty of the report's own sourcing rows — a confirmed row counts full, an inferred one half, a missing one nothing — because traceability that nobody discloses is not traceability. The two are the same property, so there is no reason to guess at it.</p>
-    <div class="mform">sourcing = ( EXACT + 0.5 × LIKELY ) / sourcing rows × 100</div>
-    <p class="mprose">Where that lands somewhere other than the generating pass put it, the report shows both numbers rather than revising a published one in silence. Across the current corpus the pass scored sourcing above what disclosure supports on seven of nine products, by as much as 41 points.</p>
-    <p class="mprose">The other five are deliberately left alone. Disclosure and the property being scored coincide only for sourcing: a thoroughly documented cheap steel is still a cheap steel, so deriving the material axis would score paperwork and call it quality. Construction, assembly and skill carry one tagged field each, so a derived score there could only ever be 0, 50, or 100 — too coarse to rank with.</p>
-    <p class="mprose"><b>Those five remain the least verified thing on this site.</b> Materials, forming process, and origin are checked against sources and tagged accordingly, but the five judged axes carry no certainty tag of their own, which means an unchecked number still drives part of a visible ranking. When you want to know how much of a report is actually confirmed, read the certainty bar, not the score.</p>
+    <div class="sechead"><h3>Citation coverage</h3>
+      <span class="note">The only number Substrate computes, and it is about the report.</span></div>
+    <div class="mform">coverage = cited claims / all claims × 100</div>
+    <p class="mprose">Coverage measures the evidence, not the object. A fully documented cheap product reads 100%, which is correct — it says the report can be checked, and says nothing about whether the thing is any good. Ranking by coverage ranks how well a manufacturer discloses, and that is the only ranking on this site.</p>
+    <p class="mprose">Across the ${real.length} researched products currently loaded, ${cit} of ${tot} claims resolve to a source${
+      full?`, ${full} report${full===1?"":"s"} cite everything`:""}${
+      none?`, and ${none} cite${none===1?"s":""} nothing at all — those are hand-written records that have not been through the pipeline, and they read as prose end to end.`:"."}</p>
+    <p class="mprose">There used to be six 0–100 quality axes here and a weighted composite over them. Five were the generating model's own judgment and came back between 80 and 90 on the one report measured end to end — a ten-point spread, all of it at the top. The sixth was changed to compute from evidence and immediately came back 38. Scores clustering at the top are a model being agreeable in the shape of an assessment, so they were removed rather than tuned.</p>
   </div>
 
   <div class="sec">
-    <div class="sechead"><h3>Peer deltas</h3>
-      <span class="note">How a product is placed against its own class.</span></div>
-    <p class="mprose">Peers are the other products in the same functional class. For each axis, Substrate averages the peers' scores and subtracts that from the product's own, rounded to whole points:</p>
-    <div class="mform">delta = product axis − mean( peer axes on that axis )</div>
-    <p class="mprose">A positive delta puts the product above its class mean on that axis, a negative one below. Deltas are sorted by absolute size so the widest separation leads, and each is banded by how much the gap is likely to matter in use:</p>
-    <table class="dt" style="margin-top:14px">
-      <tr><th>Distance from the mean</th><th>Band</th></tr>
-      ${check(`${SEV.dq} points or more`,`Disqualifying at this tier <span class="sub">A difference a buyer at this price would reject the product over.</span>`)}
-      ${check(`${SEV.fn} to ${SEV.dq-1} points`,`Functional <span class="sub">Changes how the object behaves or how long it lasts.</span>`)}
-      ${check(`Under ${SEV.fn} points`,`Cosmetic <span class="sub">Real, measurable, and unlikely to be noticed in use.</span>`)}
-    </table>
-    <p class="mprose">Deltas currently compare whole products. A component-level comparison — the same alloy formed two different ways, one blade against another — is the comparison most readers actually want, and it is not built yet.</p>
+    <div class="sechead"><h3>Comparing products</h3>
+      <span class="note">Part against part, not score against score.</span></div>
+    <p class="mprose">Peers are the other products in the same functional class, and they are compared component by component rather than as whole objects. Every chef's knife here is the same alloy — X50CrMoV15 — and the blades are drop-forged, stamped, and "forged per manufacturer claim" respectively. That is the fact that decides the purchase, and no single score can carry it.</p>
+    <p class="mprose">What is compared is the <b>key</b> of an attribute, with the detail shown under it: comparing raw strings would call two blades different because one is 58 HRC and the other 56, and miss that the alloy is identical. An attribute marked <b>same across class</b> is a class norm and tells you nothing about a product in particular. The rows marked <b>differs</b> are what actually separates them.</p>
+    <p class="mprose">The same logic runs at class level on every report's <b>Not cited</b> tab. "No product in this class has a cited sourcing claim" and "this one manufacturer will not say" read completely differently, and you should not have to open three peers to tell which you are looking at.</p>
   </div>
 
   <div class="sec">
     <div class="sechead"><h3>What this does not do</h3>
       <span class="note">The limits are part of the method.</span></div>
-    <p class="mprose">The verifier is mechanical. It confirms that a claim tagged EXACT has a source attached and that a claim tagged LIKELY has reasoning attached. It cannot tell whether the source is correct, whether the manufacturer's own literature is accurate, or whether a specification changed after it was published. An unsourced claim is caught every time; a well-sourced wrong claim is not caught at all.</p>
+    <p class="mprose">The verifier is mechanical. It confirms that a claim in a table has a working source attached. It cannot tell whether the source is correct, whether the manufacturer's own literature is accurate, whether a specification changed after it was published, or — most importantly — whether the source actually supports the claim it is attached to. An uncited claim is caught every time; a well-cited wrong claim is not caught at all. That is what review is for.</p>
     <p class="mprose">For that reason every report is published unreviewed and says so on its face — machine-built, source-checked only — until a person has read it and flipped it. Composition is rebuilt on a ${META.ttlDays}-day cycle, and a report older than that shows as due for review rather than quietly ageing.</p>
     <p class="mprose">Substrate does not research on demand. An unmatched search becomes a request that enters the next batch, which is why the same product returns the same report every time and any correction can be traced to a version.</p>
   </div>`;
