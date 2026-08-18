@@ -387,6 +387,15 @@ header{
 .cdflag{font-family:var(--mono);font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:var(--fg-3)}
 .cdrow.differs .cdflag{color:var(--fg-2)}
 .cdrow.thin{opacity:.72}
+
+/* the three that decide most of what an object is */
+.qgrid.rocks{border-bottom:1px solid var(--line-soft);padding-bottom:18px}
+.qgrid.rocks .q .qv{font-size:19px}
+.held{color:var(--fg-2);border-bottom:1px dotted var(--fg-3)}
+.nodatanote{
+  font-size:12px;color:var(--fg-3);line-height:1.6;max-width:74ch;margin-top:16px;
+}
+.nodatanote b{color:var(--fg-2);font-weight:600}
 .cdshared{font-size:13px;color:var(--fg-2)}
 .cdp{font-size:13px;color:var(--fg-2);padding:3px 0;display:flex;gap:11px;align-items:baseline}
 .cdp b{color:var(--fg-3);font-weight:600;min-width:96px;flex:none;font-size:12px;font-family:var(--mono)}
@@ -931,7 +940,19 @@ const P = [
 /* ============================ HELPERS ============================ */
 /* accent-insensitive so "nescafe" finds "Nescafé" */
 const norm = t => (t||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase();
-const gap = (t="no data") => `<span class="gap">${t}</span>`;
+const gap = (t="No Data For Now") => `<span class="gap">${t}</span>`;
+
+/* The disclaimer that makes the phrase above safe to use. Rendered on every
+   report rather than tucked onto the Method page: a reader who lands on one
+   product and leaves must still see it, because the misreading it prevents —
+   "they wouldn't say" — happens on the field, not on the methodology. */
+const NODATA_NOTE =
+  `<b>No Data For Now</b> means Substrate has not recorded that field yet. It is
+   not a statement about the product, and not a claim that the manufacturer
+   withholds it — most often nobody has looked. Where something <i>is</i> known
+   but not yet traceable to a source, it is written out under
+   <button class="linkish" onclick="setTab('gaps')">Not cited</button> rather
+   than left blank.`;
 
 /* ==================================================================
    CITATION COVERAGE
@@ -1172,17 +1193,32 @@ function renderReport(){
 function quickView(p,c){
   if(p.stub) return fullView(p);
   const q=(l,v,s)=>`<div class="q"><span class="eyebrow">${l}</span><div class="qv">${v}</div>${s?`<div class="qs">${s}</div>`:""}</div>`;
-  const top=p.materials.slice(0,3).map(m=>m.n).join(", ")||"<span class='gap'>no cited material</span>";
+  /* An empty section reads differently depending on WHY it is empty, and
+     conflating the two is the one misreading this page has to avoid. Nothing
+     recorded is a hole in the corpus. Something recorded but not yet traceable
+     is a different state entirely, and saying "No Data For Now" over it would
+     claim an absence that is not there. */
+  const rock=(label,value,sub,sec)=>{
+    if(value) return q(label,value,sub);
+    const held=(p.uncited||[]).some(u=>u.sec===sec);
+    return q(label, held
+      ? `<span class="held">Recorded, not yet cited</span>`
+      : `<span class="gap">No Data For Now</span>`,
+      held?"written out under Not cited":"");
+  };
+
+  const top=p.materials.slice(0,3).map(m=>m.n).join(", ");
   return `<div class="sec"><div class="qcard">
     <div class="sechead"><h3>Quick report</h3>
-      <span class="note">Fixed summary. Nothing configurable — for the full picture use Full report.</span></div>
-    <div class="qgrid">
-      ${q("Dominant materials",top)}
-      ${q("Construction",p.construction?.mode||"<span class='gap'>not cited</span>",p.construction?.steps?.[0]?.p||"")}
-      ${q("Assembly",p.assembly?.sites?.[0]?.l||"<span class='gap'>not cited</span>",p.assembly?.count||"")}
-      ${q("Skill required",p.skill?.tier||"<span class='gap'>not cited</span>")}
-      ${p.parts.slice(0,2).map(x=>q(cName(p,x.c),x.n,x.m||"spec not published")).join("")}
-      ${p.parts.length<2?q("Core parts","<span class='gap'>fewer than two documented</span>"):""}
+      <span class="note">The three that decide most of what an object is. Everything else is under Full report.</span></div>
+    <div class="qgrid rocks">
+      ${rock("Materials",top,p.materials.length>3?`and ${p.materials.length-3} more`:"","materials")}
+      ${rock("How it's made",p.construction?.mode,p.construction?.steps?.[0]?.p||"","construction")}
+      ${rock("Where it's made",p.assembly?.sites?.[0]?.l,p.assembly?.count||"","assembly")}
+    </div>
+    <p class="nodatanote">${NODATA_NOTE}</p>
+    <div class="qgrid" style="margin-top:20px">
+      ${q("Skill required",p.skill?.tier||`<span class="gap">No Data For Now</span>`)}
       ${q("Citation coverage",c.cited+" of "+c.total+" claims",c.uncited?c.uncited+" written as prose under Not cited":"every claim on this report is cited")}
     </div>
     <div class="dcols" style="margin-top:24px">
@@ -1198,7 +1234,7 @@ function fullView(p){
     <div><button class="genbtn" onclick="openGen('${(p.brand+" "+p.model).replace(/'/g,"\\'")}')">Request this report</button></div></div></div>`;
   const body = S.pivot==="comp"
     ? compView(p)
-    : matSec(p)+srcSec(p)+conSec(p)+asmSec(p)+skillSec(p)+partSec(p);
+    : matSec(p)+conSec(p)+asmSec(p)+srcSec(p)+skillSec(p)+partSec(p);
   return pivotBar(p)+body+(p.issues.length?issueSec(p):"");
 }
 /* component helpers */
@@ -1234,13 +1270,13 @@ function compView(p){
           ${mats.length?line("Material",mats.map(m=>
               `${m.n} ${cite(p,m)}${m.spec?`<span class="sub">${m.spec}</span>`:""}`).join('<hr class="hr">')):""}
           ${srcs.length?line("Sourced from",srcs.map(x=>
-              `${x.o?x.o:gap("origin not stated in the cited source")} ${cite(p,x)}<span class="sub">${x.m}${x.note?" · "+x.note:""}</span>`).join('<hr class="hr">')):""}
+              `${x.o?x.o:gap()} ${cite(p,x)}<span class="sub">${x.m}${x.note?" · "+x.note:""}</span>`).join('<hr class="hr">')):""}
           ${steps.length?line("Formed by",steps.map(x=>
-              x.p?x.p:gap("process not published")).join('<hr class="hr">')):""}
+              x.p?x.p:gap()).join('<hr class="hr">')):""}
           ${ops.length?line("Skill applied",ops.map(x=>
-              `${x[2]?x[2]:gap("skill not stated")}<span class="sub">${x[1]||"operation not named"}</span>`).join('<hr class="hr">')):""}
+              `${x[2]?x[2]:gap()}<span class="sub">${x[1]||"operation not named"}</span>`).join('<hr class="hr">')):""}
           ${prts.length?line("If it fails",prts.map(x=>
-              x.fail?x.fail:gap("failure mode not recorded")).join('<hr class="hr">')):""}
+              x.fail?x.fail:gap()).join('<hr class="hr">')):""}
         </div></div>`;
     }).join("")}
   </div>`;
@@ -1253,14 +1289,14 @@ function matSec(p){
     ${p.materials.length?p.materials.map(m=>`<div class="mat"><div class="mname">${cchip(p,m.c)}<span>${m.n}</span>${cite(p,m)}
       ${m.spec?`<span class="mspec">${m.spec}</span>`:""}
       ${Number.isFinite(+m.share)?`<div class="mtrack"><div class="mfill" style="width:${Math.min(100,+m.share)}%"></div></div>`:""}</div>
-      <div class="mshare">${Number.isFinite(+m.share)?`${m.share}%`:gap("share not stated")}</div></div>`).join(""):prosePointer("No material on this object is cited.")}</div>`;
+      <div class="mshare">${Number.isFinite(+m.share)?`${m.share}%`:gap()}</div></div>`).join(""):prosePointer("No material on this object is cited.")}</div>`;
 }
 function srcSec(p){
   return `<div class="sec"><div class="sechead"><h3>Material sourcing</h3>
     <span class="note">Where the material itself came from, which is not the same as where the part was formed.</span></div>
     ${p.sourcing.length?`<table class="dt"><tr><th>Component</th><th>Material</th><th>Origin</th><th>Supplier</th><th>Source</th></tr>
     ${p.sourcing.map(x=>`<tr><td class="k">${cchip(p,x.c)}</td><td class="k">${x.m}</td>
-      <td class="v">${x.o?x.o:gap("origin not stated in the cited source")}${x.note?`<span class="sub">${x.note}</span>`:""}</td>
+      <td class="v">${x.o?x.o:gap()}${x.note?`<span class="sub">${x.note}</span>`:""}</td>
       <td class="v">${x.s?x.s:gap()}</td><td>${cite(p,x)}</td></tr>`).join("")}</table>`:prosePointer("No sourcing claim on this object is cited.")}</div>`;
 }
 function conSec(p){
@@ -1269,7 +1305,7 @@ function conSec(p){
     <span class="note">How each part was formed. Forming usually matters more than what the material is.</span></div>
     ${k?`<table class="dt"><tr><th>Component</th><th>Process applied</th></tr>
       ${(k.steps||[]).map(x=>`<tr><td class="k">${cchip(p,x.c)}</td>
-        <td class="v">${x.p?x.p:gap("process not published")}</td></tr>`).join("")}
+        <td class="v">${x.p?x.p:gap()}</td></tr>`).join("")}
       <tr><td class="k">Whole object</td><td class="v">${k.mode} ${cite(p,k)}
         ${k.auto?`<span class="sub">${k.auto}</span>`:""}
         ${k.tol?`<span class="sub">${k.tol}</span>`:""}</td></tr>
@@ -1280,22 +1316,22 @@ function asmSec(p){
   return `<div class="sec"><div class="sechead"><h3>Assembly location</h3>
     <span class="note">The country on the label is a legal claim about final assembly, not about where the parts came from.</span></div>
     ${a?`<table class="dt"><tr><th>Site</th><th>Operation performed</th></tr>
-    ${(a.sites||[]).map(x=>`<tr><td class="k">${x.l||gap("site not named")}</td>
-      <td class="v">${x.o?x.o:gap("operation not stated")}</td></tr>`).join("")}
+    ${(a.sites||[]).map(x=>`<tr><td class="k">${x.l||gap()}</td>
+      <td class="v">${x.o?x.o:gap()}</td></tr>`).join("")}
     <tr><td class="k">Site count</td><td class="v">${a.count||gap()}</td></tr>
-    <tr><td class="k">Label basis</td><td class="v">${a.label?`${a.label} ${cite(p,a)}`:gap("no country-of-origin claim recorded")}</td></tr></table>`:prosePointer("Where this object was assembled is not cited.")}</div>`;
+    <tr><td class="k">Label basis</td><td class="v">${a.label?`${a.label} ${cite(p,a)}`:gap()}</td></tr></table>`:prosePointer("Where this object was assembled is not cited.")}</div>`;
 }
 function skillSec(p){
   const k=p.skill;
   return `<div class="sec"><div class="sechead"><h3>Human skill required</h3>
     <span class="note">What the process demands of the people running it, where a source states it.</span></div>
     ${!k?prosePointer("The skill this object demands is not cited."):`<table class="dt">
-      <tr><td class="k">Tier, whole object</td><td class="v">${k.tier?`${k.tier} ${cite(p,k)}`:gap("no tier can be assigned")}</td></tr>
-      <tr><td class="k">Basis</td><td class="v">${k.basis?k.basis:gap("no basis recorded")}</td></tr>
+      <tr><td class="k">Tier, whole object</td><td class="v">${k.tier?`${k.tier} ${cite(p,k)}`:gap()}</td></tr>
+      <tr><td class="k">Basis</td><td class="v">${k.basis?k.basis:gap()}</td></tr>
     </table>
     ${(k.ops||[]).length?`<table class="dt" style="margin-top:16px"><tr><th>Component</th><th>Operation</th><th>Skill applied</th></tr>
-      ${k.ops.map(o=>`<tr><td class="k">${cchip(p,o[0])}</td><td class="k">${o[1]||gap("operation not named")}</td>
-        <td class="v">${o[2]?o[2]:gap("skill not stated")}</td></tr>`).join("")}</table>`:""}`}</div>`;
+      ${k.ops.map(o=>`<tr><td class="k">${cchip(p,o[0])}</td><td class="k">${o[1]||gap()}</td>
+        <td class="v">${o[2]?o[2]:gap()}</td></tr>`).join("")}</table>`:""}`}</div>`;
 }
 function partSec(p){
   return `<div class="sec"><div class="sechead"><h3>Superstructural components</h3>
@@ -1304,8 +1340,8 @@ function partSec(p){
       <div class="pcrit">${x.crit||"Role not stated"} ${cite(p,x)}</div>
       <div class="pname">${x.n}</div>
       <div class="pscope">${cName(p,x.c)}</div>
-      <div class="pspec">${x.m||gap("material not published")}</div>
-      <div class="pfail">${x.fail?x.fail:gap("failure mode not recorded")}</div></div>`).join("")}</div>`:prosePointer("No load-bearing part on this object is cited.")}</div>`;
+      <div class="pspec">${x.m||gap()}</div>
+      <div class="pfail">${x.fail?x.fail:gap()}</div></div>`).join("")}</div>`:prosePointer("No load-bearing part on this object is cited.")}</div>`;
 }
 function issueSec(p){
   return `<div class="sec"><div class="sechead"><h3>Known issues</h3></div>
@@ -1403,7 +1439,7 @@ function compDeltaView(p, others, scope){
             `<div class="cdp ${v.p.id===p.id?"self":""}"><b>${v.p.brand}</b><span class="cdsub" style="margin:0">${v.v.detail}</span></div>`).join("")
         : at.vals.map(v=>{
             if(!v.has) return `<div class="cdp"><b>${v.p.brand}</b><span>${gap("not on this roster")}</span></div>`;
-            if(!v.v||!v.v.key) return `<div class="cdp ${v.p.id===p.id?"self":""}"><b>${v.p.brand}</b><span>${gap("not disclosed")}</span></div>`;
+            if(!v.v||!v.v.key) return `<div class="cdp ${v.p.id===p.id?"self":""}"><b>${v.p.brand}</b><span>${gap()}</span></div>`;
             return `<div class="cdp ${v.p.id===p.id?"self":""}"><b>${v.p.brand}</b><span>${v.v.key}${
               v.v.detail?`<span class="cdsub">${v.v.detail}</span>`:""}</span></div>`;
           }).join("");
@@ -1966,7 +2002,7 @@ function vpanel(p){
     ${srcs.length?`<div style="margin-top:12px"><span class="eyebrow">Sources</span>
       <div class="srcs">${srcs.map(x=>`<a class="src" href="${x.u}" target="_blank" rel="noopener">${
         (x.t||x.u).slice(0,52)} ↗</a>`).join("")}</div></div>`
-      :`<div style="margin-top:12px">${gap("no sources recorded")}</div>`}
+      :`<div style="margin-top:12px">${gap()}</div>`}
   </div>`;
 }
 

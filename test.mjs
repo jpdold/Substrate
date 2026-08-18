@@ -381,6 +381,44 @@ ok("the prose tab and the coverage bar agree on every product");
   ok("class silence reads cited rows, excludes stubs, and declines a class of one");
 }
 
+/* --------------------------------------------- 7b. the two empty states */
+/* "No Data For Now" and "recorded but not cited" must never be confused. The
+   first says this corpus has nothing; the second says something is known and
+   not yet traceable. Printing the first over the second would claim an absence
+   that is not there — the exact false attribution the disclaimer exists to
+   prevent, pointed the other way. */
+console.log("\nempty states");
+{
+  const held = P.find(p => !p.stub && (p.uncited || []).some(u => u.sec === "materials"));
+  if (!held) fail("no product holds an uncited materials claim to test against");
+  else {
+    const q = quickView(held, coverage(held));
+    if (!/Recorded, not yet cited/.test(q))
+      fail(`${held.id}: an uncited-but-recorded field did not say so`);
+    if (/No Data For Now/.test(q.split("nodatanote")[0]))
+      fail(`${held.id}: claimed "No Data For Now" over a field that is recorded`);
+  }
+
+  /* and the true-absence case, which no product in the corpus currently hits */
+  const empty = {
+    id: "empty", brand: "Empty", model: "Nothing Recorded", klass: "knife8", year: "unspecified",
+    comps: [], materials: [], sourcing: [], parts: [],
+    construction: null, assembly: null, skill: null,
+    uncited: [], coverage: { cited: 0, total: 0 },
+    issues: [], sources: [], vlog: [],
+  };
+  const qe = quickView(empty, coverage(empty));
+  if ((qe.split("No Data For Now").length - 1) < 4)
+    fail("a product with nothing recorded did not say No Data For Now on all three rocks");
+  if (/Recorded, not yet cited/.test(qe))
+    fail("claimed a field was recorded when nothing is");
+
+  /* the disclaimer travels with the report, not the Method page */
+  if (!/not a statement about the product/.test(qe))
+    fail("the report does not disclaim what an absent field means");
+  ok("absent and uncited read differently, and every report carries the disclaimer");
+}
+
 /* ------------------------------------------------------- 8. coverage math */
 console.log("\ncoverage");
 for (const p of P) {
