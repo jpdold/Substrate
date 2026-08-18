@@ -386,6 +386,7 @@ header{
 .cdk{display:flex;flex-direction:column;gap:3px}
 .cdflag{font-family:var(--mono);font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:var(--fg-3)}
 .cdrow.differs .cdflag{color:var(--fg-2)}
+.cdrow.thin{opacity:.72}
 .cdshared{font-size:13px;color:var(--fg-2)}
 .cdp{font-size:13px;color:var(--fg-2);padding:3px 0;display:flex;gap:11px;align-items:baseline}
 .cdp b{color:var(--fg-3);font-weight:600;min-width:96px;flex:none;font-size:12px;font-family:var(--mono)}
@@ -1011,6 +1012,22 @@ let S = {
   cmp:new Set(), genq:"", gen:null
 };
 
+/* Everything a demoted claim still says. A claim that moved to prose is no
+   less a claim about the product, so it stays searchable — indexing only the
+   cited tables would make an undisclosed product progressively harder to find
+   the less its maker discloses, which is exactly backwards. */
+function proseText(p){
+  return (p.uncited||[]).map(u=>{
+    const r=u.row||{};
+    return [u.label, r.n, r.m, r.o, r.s, r.spec, r.note, r.mode, r.auto, r.tol,
+            r.tier, r.basis, r.label, r.count, r.crit, r.fail,
+            (r.steps||[]).map(x=>x.p).join(" "),
+            (r.sites||[]).map(x=>x.l+" "+(x.o||"")).join(" "),
+            (r.ops||[]).map(x=>x.join(" ")).join(" ")]
+      .filter(x=>typeof x==="string"&&x).join(" ");
+  }).join(" ");
+}
+
 function matches(p){
   if(coverage(p).pct < S.floor) return false;
   if(S.klass.size && !S.klass.has(p.klass)) return false;
@@ -1031,7 +1048,7 @@ function matches(p){
       p.parts.map(x=>x.n+" "+(x.m||"")).join(" "),
       p.sourcing.map(x=>x.m+" "+(x.o||"")).join(" "),
       p.skill?.tier||"",
-      (p.uncited||[]).map(u=>u.label).join(" ")].join(" "));
+      proseText(p)].join(" "));
     if(!hay.includes(norm(S.q))) return false;
   }
   return true;
@@ -1375,7 +1392,7 @@ function compDeltaView(p, others, scope){
     <b>No researched peer to compare against.</b>
     Component deltas need at least one peer with a component tree. The peers in this class carry no component roster.</div></div>`;
 
-  const blocks=cd.rows.filter(r=>r.attrs.length).map(r=>{
+  const blocks=cd.rows.map(r=>{
     const rows=r.attrs.map(at=>{
       const flag = at.state==="same" ? "same across class"
                  : at.state==="differs" ? "differs"
@@ -1398,8 +1415,8 @@ function compDeltaView(p, others, scope){
     return `<div class="cdelta ${r.onTarget?"":"absent"}">
       <div class="cdhead"><span class="crole">${r.role}</span><h4>${r.name}</h4>
         <span class="cdsum">${r.onTarget?"":"not on this product · "}${
-          r.differs} of ${r.attrs.length} differ</span></div>
-      ${rows}</div>`;
+          r.attrs.length?`${r.differs} of ${r.attrs.length} differ`:"nothing cited to compare"}</span></div>
+      ${r.attrs.length?rows:rosterOnly(cd,r,p)}</div>`;
   }).join("");
 
   return `<div class="sec">
@@ -1532,6 +1549,20 @@ function gapView(p){
 /* "a, b and c" — used only for the class-silence sentence */
 function listing(xs){
   return xs.length<2 ? (xs[0]||"") : xs.slice(0,-1).join(", ")+" and "+xs[xs.length-1];
+}
+
+/* When no product in the class cites an attribute on this component, the only
+   comparison left is which products carry the part at all. That is still a
+   comparison, and saying nothing would read as "identical". */
+function rosterOnly(cd,r,p){
+  return `<div class="cdrow thin">
+    <div class="cdk"><span class="eyebrow">On the roster</span>
+      <span class="cdflag">no cited attribute</span></div>
+    <div>${cd.all.map(x=>{
+      const has=(x.comps||[]).some(c=>c.id===r.id);
+      return `<div class="cdp ${x.id===p.id?"self":""}"><b>${x.brand}</b><span>${
+        has?"carries this part":gap("not on this roster")}</span></div>`;
+    }).join("")}</div></div>`;
 }
 
 function setPivot(v){ S.pivot=v; render(); }
@@ -1732,6 +1763,24 @@ function verify(o){
       log.push("Source ["+i+"] “"+(s.t||"untitled")+"” has no resolvable URL — no row can cite it");
   });
 
+  /* orphan guard, first: a row bound to a component that was never declared
+     is unreadable wherever it lands, so it must go before anything is moved
+     to prose rather than after. Pruning second let an orphan ride into the
+     prose inside a demoted parent. */
+  const ids=new Set((t.comps||[]).map(c=>c.id));
+  const prune=(arr,f,lbl)=>{
+    const before=(arr||[]).length;
+    const kept=(arr||[]).filter(x=>ids.has(f(x)));
+    if(kept.length<before) log.push((before-kept.length)+" "+lbl+
+      " row(s) referenced an undeclared component — dropped");
+    return kept;
+  };
+  t.materials=prune(t.materials,x=>x.c,"material");
+  t.sourcing =prune(t.sourcing, x=>x.c,"sourcing");
+  t.parts    =prune(t.parts,    x=>x.c,"component");
+  if(t.construction) t.construction.steps=prune(t.construction.steps,x=>x.c,"process");
+  if(t.skill)        t.skill.ops        =prune(t.skill.ops,        x=>x[0],"skill");
+
   /* uncited rows keep their content and gain a reason. `sec` tells the
      prose renderer which heading to write them under. */
   t.uncited = t.uncited || [];
@@ -1761,22 +1810,6 @@ function verify(o){
   single("construction","construction","Construction method");
   single("assembly","assembly","Assembly location");
   single("skill","skill","Skill tier");
-
-  /* orphan guard: a row bound to a component that was never declared is
-     unreadable wherever it lands, table or prose */
-  const ids=new Set((t.comps||[]).map(c=>c.id));
-  const prune=(arr,f,lbl)=>{
-    const before=(arr||[]).length;
-    const kept=(arr||[]).filter(x=>ids.has(f(x)));
-    if(kept.length<before) log.push((before-kept.length)+" "+lbl+
-      " row(s) referenced an undeclared component — dropped");
-    return kept;
-  };
-  t.materials=prune(t.materials,x=>x.c,"material");
-  t.sourcing =prune(t.sourcing, x=>x.c,"sourcing");
-  t.parts    =prune(t.parts,    x=>x.c,"component");
-  if(t.construction) t.construction.steps=prune(t.construction.steps,x=>x.c,"process");
-  if(t.skill)        t.skill.ops        =prune(t.skill.ops,        x=>x[0],"skill");
 
   /* mass share sanity — only the cited rows are left to sum, so a total
      well under 100 now means uncited mass, not missing mass */

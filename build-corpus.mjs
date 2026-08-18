@@ -62,44 +62,51 @@ const MAX = (() => {
 })();
 
 /* Nothing above the main() guard at the bottom may exit or do I/O: test.mjs
-   imports verify() and deriveAxes() from here to prove they still agree with
-   the copies in index.html, and an import that calls process.exit takes the
-   test suite down with it. */
+   imports verify() from here to prove it still agrees with the copy in
+   index.html, and an import that calls process.exit takes the test suite
+   down with it. */
 
 /* -------------------------------------------------------------- schema ask */
 const SCHEMA_NOTE = `Return ONE json object, no prose, no markdown fences:
 {"klassLabel":"<functional class: what it DOES, not the brand>",
  "target":{"brand":"","model":"","year":"",
-   "axes":{"material":0,"sourcing":0,"construction":0,"assembly":0,"skill":0,"superstructure":0},
    "comps":[{"id":"","n":"","role":"Critical|Structural|Functional|Cosmetic"}],
-   "materials":[{"c":"<comp id>","n":"","share":0,"spec":"","t":"e|l|u","src":0,"why":""}],
-   "sourcing":[{"c":"","m":"","o":"","s":"","t":"","src":0,"why":"","note":""}],
-   "construction":{"mode":"Factory|Hand-made|Both|Unknown","t":"","auto":"","tol":"","src":0,"why":"",
+   "materials":[{"c":"<comp id>","n":"","share":0,"spec":"","src":0}],
+   "sourcing":[{"c":"","m":"","o":"","s":"","src":0,"note":""}],
+   "construction":{"mode":"Factory|Hand-made|Both|Unknown","auto":"","tol":"","src":0,
      "steps":[{"c":"","p":""}]},
-   "assembly":{"sites":[{"l":"","o":""}],"label":"","count":"Single site|Multiple sites|Unknown","t":"","src":0,"why":""},
-   "skill":{"tier":"","t":"","basis":"","src":0,"why":"","ops":[["<comp id>","operation","skill applied"]]},
-   "parts":[{"c":"","n":"","m":"","crit":"","t":"","fail":"","src":0,"why":""}],
+   "assembly":{"sites":[{"l":"","o":""}],"label":"","count":"Single site|Multiple sites|Unknown","src":0},
+   "skill":{"tier":"","basis":"","src":0,"ops":[["<comp id>","operation","skill applied"]]},
+   "parts":[{"c":"","n":"","m":"","crit":"","fail":"","src":0}],
    "issues":[]},
- "peers":[{"brand":"","model":"","axes":{...same six keys...},"why":"one line on how it differs"}],
+ "peers":[{"brand":"","model":"","why":"one line on how it differs"}],
  "sources":[{"t":"page title","u":"https://..."}]}
 
 RULES — these decide whether the report is usable:
-- t is the certainty of that specific field. "e" EXACT, "l" LIKELY, "u" UNKNOWN.
-- EVERY object that shows a "t" above must carry one, including construction,
-  assembly and skill. These three are single objects rather than arrays and are
-  the ones most often forgotten. An object with no t is treated as UNKNOWN and
-  its values are discarded, so omitting it throws away work you already did.
+- src is an index into sources[] of a page that STATES that specific claim. It
+  is the only thing that puts a row in a table. A row without a resolving src
+  is moved out of the table and written as prose, so leaving one off does not
+  soften a claim — it relocates it.
+- Do not omit a claim you found but could not source. Write it anyway, with no
+  src. It will render as prose, which is where the interesting findings live:
+  "the manufacturer does not state the resin supplier" is a real finding.
+- Say what each source is a fact ABOUT. A patent says what a company patented,
+  a label says what is declared, a spec sheet says what is specified, a
+  teardown says what was found in one unit. None of them says what the product
+  is in the abstract. Write "cold-forging method patented by the maker", not
+  "this blade is cold-forged", when a patent is all you have.
+- Never attach a source to a claim it does not state. A well-cited wrong claim
+  is the one failure nothing downstream can catch.
 - share is percent BY MASS OF THE WHOLE OBJECT, not of its component. All
   material shares together must total 100 or less. If you cannot apportion by
   mass, omit share rather than guessing — a set summing to several hundred
   percent tells the reader nothing.
-- "e" REQUIRES src = index into sources[] of a page that states it. No source, do not use "e".
-- "l" REQUIRES why = the inference chain in one line.
-- "u" means you could not establish it. Set the value to null. Do NOT guess.
-  UNKNOWN is a correct answer and is preferred over a plausible fabrication.
+- Do NOT guess a value to fill a field. Omit it. There are no quality scores,
+  no ratings and no confidence levels in this schema, by design: every one of
+  them turned out to be the model agreeing with itself in the shape of an
+  assessment.
 - Every c must match a comps[].id. Max 5 comps, 6 materials, 4 sourcing, 5 steps, 4 parts.
 - Components are physical parts of the object (blade, handle, jar, seal), not qualities.
-- axes are 0-100 and must be defensible from what you found.
 - Exactly 2 peers: same function, different brand.
 - Every string under 160 chars. Terse.`;
 
@@ -196,9 +203,9 @@ export async function callModel(query) {
 
 /* ----------------------------------------------------------- link liveness */
 /* verify() can only regex a URL: it runs in the browser too, and a page cannot
-   fetch cross-origin to see whether a citation resolves. So an EXACT claim
-   citing a 404 passes it — which it did on the first real build. Node can
-   fetch, so liveness is checked here, once, at build time.
+   fetch cross-origin to see whether a citation resolves. So a row citing a 404
+   passes it — which it did on the first real build. Node can fetch, so
+   liveness is checked here, once, at build time.
 
    Only 404 and 410 count as broken. A 403 is a site blocking automated
    fetches, not a dead page — Bladeforums returns one for a thread a reader can
@@ -206,8 +213,8 @@ export async function callModel(query) {
    Anything else is recorded as unverified and left alone.
 
    A broken source has its `u` blanked (kept as `deadUrl`) so the ordinary
-   verifier cascade does the downgrade and logs it, rather than duplicating
-   that logic here and drifting from index.html. */
+   verifier does the demotion and logs it, rather than duplicating that logic
+   here and drifting from index.html. */
 const GONE = new Set([404, 410]);
 
 export async function checkSources(o, fetchImpl = fetch) {
@@ -225,7 +232,7 @@ export async function checkSources(o, fetchImpl = fetch) {
        exists is worse than no log line. */
     if (GONE.has(status)) {
       s.deadUrl = s.u; s.u = ""; s.httpStatus = status;
-      log.push(`Source “${s.t}” returned ${status} — anything citing it can no longer be EXACT`);
+      log.push(`Source “${s.t}” returned ${status} — anything citing it moves to prose`);
     } else if (status !== 200) {
       s.httpStatus = status;
       log.push(`Source “${s.t}” answered ${status} — left in place; a block or a timeout is not a dead page`);
@@ -238,74 +245,82 @@ export async function checkSources(o, fetchImpl = fetch) {
 /* Byte-for-byte the same logic and the same log wording as the copy in
    index.html — invariant 1. The site re-runs this on load, so a divergence
    silently corrects a corpus that passed its own build. The two had already
-   drifted in their log text once; test.mjs now imports both and asserts they
+   drifted in their log text once; test.mjs imports both and asserts they
    produce identical output rather than trusting this comment. */
-const TAGN = { e: "EXACT", l: "LIKELY", u: "UNKNOWN" };
 
-export function verify(o) {
-  const log = [], srcOK = i => Number.isInteger(i) && o.sources && o.sources[i] && /^https?:\/\//.test(o.sources[i].u || "");
-  const step = (obj, label) => {
-    if (!obj) return;
-    const from = obj.t;
-    if (obj.t === "e" && !srcOK(obj.src)) obj.t = "l";
-    if (obj.t === "l" && !(obj.why || "").trim()) obj.t = "u";
-    if (obj.t !== from) log.push(label + " was tagged " + TAGN[from] + " without " +
-      (from === "e" ? "a working source" : "an inference basis") + " — now " + TAGN[obj.t]);
-    if (obj.t === "u") { ["spec", "o", "s", "p", "m", "tier", "auto", "tol"].forEach(k => { if (k in obj) obj[k] = null; }); }
-    if (!["e", "l", "u"].includes(obj.t)) { obj.t = "u"; log.push(label + " had no certainty tag — treated as UNKNOWN"); }
-  };
-  const t = o.target;
-  t.materials.forEach(m => step(m, "Material “" + m.n + "”"));
-  t.sourcing.forEach(x => step(x, "Sourcing of “" + x.m + "”"));
-  step(t.construction, "Construction method");
-  step(t.assembly, "Assembly location");
-  step(t.skill, "Skill tier");
-  t.parts.forEach(x => step(x, "Component “" + x.n + "”"));
+export function verify(o){
+  const log=[], t=o.target;
+  const srcOK=i=>Number.isInteger(i)&&o.sources&&o.sources[i]&&
+                  /^https?:\/\//.test(o.sources[i].u||"");
 
-  // orphan guard: a row bound to a component that was never declared is unreadable
-  const ids = new Set((t.comps || []).map(c => c.id));
-  const prune = (arr, f, lbl) => {
-    const before = arr.length;
-    const kept = arr.filter(x => ids.has(f(x)));
-    if (kept.length < before) log.push((before - kept.length) + " " + lbl + " row(s) referenced an undeclared component — dropped");
+  /* A source with no URL can never admit a row. Say so once, here, rather
+     than leaving every row that cites it to fail for no visible reason. */
+  (o.sources||[]).forEach((s,i)=>{
+    if(!/^https?:\/\//.test(s.u||""))
+      log.push("Source ["+i+"] “"+(s.t||"untitled")+"” has no resolvable URL — no row can cite it");
+  });
+
+  /* orphan guard, first: a row bound to a component that was never declared
+     is unreadable wherever it lands, so it must go before anything is moved
+     to prose rather than after. Pruning second let an orphan ride into the
+     prose inside a demoted parent. */
+  const ids=new Set((t.comps||[]).map(c=>c.id));
+  const prune=(arr,f,lbl)=>{
+    const before=(arr||[]).length;
+    const kept=(arr||[]).filter(x=>ids.has(f(x)));
+    if(kept.length<before) log.push((before-kept.length)+" "+lbl+
+      " row(s) referenced an undeclared component — dropped");
     return kept;
   };
-  t.materials = prune(t.materials, x => x.c, "material");
-  t.sourcing = prune(t.sourcing, x => x.c, "sourcing");
-  t.construction.steps = prune(t.construction.steps || [], x => x.c, "process");
-  t.skill.ops = prune(t.skill.ops || [], x => x[0], "skill");
-  t.parts = prune(t.parts, x => x.c, "component");
+  t.materials=prune(t.materials,x=>x.c,"material");
+  t.sourcing =prune(t.sourcing, x=>x.c,"sourcing");
+  t.parts    =prune(t.parts,    x=>x.c,"component");
+  if(t.construction) t.construction.steps=prune(t.construction.steps,x=>x.c,"process");
+  if(t.skill)        t.skill.ops        =prune(t.skill.ops,        x=>x[0],"skill");
 
-  // mass share sanity
-  const sum = t.materials.reduce((a, m) => a + (+m.share || 0), 0);
-  if (sum > 105) log.push("Material shares summed to " + Math.round(sum) + "% — treat mass figures as approximate");
+  /* uncited rows keep their content and gain a reason. `sec` tells the
+     prose renderer which heading to write them under. */
+  t.uncited = t.uncited || [];
+  const demote=(row,sec,label)=>{
+    t.uncited.push({sec, label, row, why: row.src==null||row.src===undefined
+      ? "no source cited"
+      : "cited source ["+row.src+"] does not resolve"});
+    log.push(label+" is not cited — moved to prose");
+  };
 
-  // a report with no confirmed field anywhere is worth saying out loud
-  const cc = [...t.materials, ...t.sourcing, t.construction, t.assembly, t.skill, ...t.parts];
-  if (!cc.some(x => x.t === "e")) log.push("No field in this report is source-confirmed — everything is inferred or missing");
+  /* list sections: partition in place */
+  const sift=(arr,sec,name)=>{
+    const kept=[];
+    (arr||[]).forEach(r=>{ if(srcOK(r.src)) kept.push(r); else demote(r,sec,name(r)); });
+    return kept;
+  };
+  t.materials = sift(t.materials, "materials", r=>"Material “"+r.n+"”");
+  t.sourcing  = sift(t.sourcing,  "sourcing",  r=>"Sourcing of “"+(r.m||"unnamed")+"”");
+  t.parts     = sift(t.parts,     "parts",     r=>"Component “"+r.n+"”");
+
+  /* singleton sections: null the slot so no renderer can read an
+     unsourced object as if it had passed */
+  const single=(key,sec,label)=>{
+    const v=t[key];
+    if(v && !srcOK(v.src)){ demote(v,sec,label); t[key]=null; }
+  };
+  single("construction","construction","Construction method");
+  single("assembly","assembly","Assembly location");
+  single("skill","skill","Skill tier");
+
+  /* mass share sanity — only the cited rows are left to sum, so a total
+     well under 100 now means uncited mass, not missing mass */
+  const sum=t.materials.reduce((a,m)=>a+(+m.share||0),0);
+  if(sum>105) log.push("Cited material shares summed to "+Math.round(sum)+
+    "% — treat mass figures as approximate");
+
+  /* citation coverage: the one number that replaces the certainty bar */
+  const cited=t.materials.length+t.sourcing.length+t.parts.length+
+    (t.construction?1:0)+(t.assembly?1:0)+(t.skill?1:0);
+  const total=cited+t.uncited.length;
+  t.coverage={cited, total};
+  if(cited===0) log.push("No claim in this report resolves to a source — the whole report is prose");
   return log;
-}
-
-/* ---------------------------------------------------------- derived axes */
-/* Also duplicated from index.html. The site derives on load regardless, so a
-   corpus written without this still renders correctly — but corpus.json would
-   carry the pass's judged sourcing number while the site displayed a different
-   one, and the PR that is meant to be the review gate would be reviewing a
-   figure nobody sees. Deriving here keeps the artifact and the page in step. */
-export const EVW = { e: 1, l: 0.5, u: 0 };
-
-export function srcDensity(p) {
-  const rows = p.sourcing || [];
-  if (!rows.length) return null;
-  return Math.round(rows.reduce((a, x) => a + (EVW[x.t] || 0), 0) / rows.length * 100);
-}
-
-export function deriveAxes(p) {
-  const d = srcDensity(p);
-  if (d === null) { p.srcAdj = { derived: false }; return; }
-  const model = p.srcAdj && p.srcAdj.derived ? p.srcAdj.model : p.axes.sourcing;
-  p.srcAdj = { derived: true, model, value: d, diff: d - model, rows: (p.sourcing || []).length };
-  p.axes.sourcing = d;
 }
 
 /* ---------------------------------------------------------------- helpers */
@@ -325,24 +340,22 @@ export function toProducts(o, pin = {}) {
   const id = pin.id || slug(t.brand + "-" + t.model);
   const target = {
     id, brand: t.brand, model: t.model, klass: kid, year: t.year || "unspecified",
-    axes: t.axes, comps: t.comps, materials: t.materials, sourcing: t.sourcing,
+    comps: t.comps, materials: t.materials, sourcing: t.sourcing,
     construction: t.construction, assembly: t.assembly, skill: t.skill,
     parts: t.parts, issues: t.issues || [],
     gen: today, rev: false, sources: o.sources || [], vlog: o._vlog || []
   };
   /* A pinned class already has real peers. Attaching generated stubs to it
      would put unresearched placeholders next to researched products and drag
-     the class-silence reduction toward "nobody discloses this". */
+     the class-silence reduction toward "nobody cites this". */
   const peers = pin.klass ? [] : (o.peers || []).slice(0, 2).map((p, i) => ({
     id: `${id}-peer${i}`, brand: p.brand, model: p.model, klass: kid, year: "unspecified",
-    axes: p.axes, comps: [], materials: [], sourcing: [],
-    construction: { mode: "Unknown", t: "u", auto: null, tol: null, steps: [] },
-    assembly: { sites: [{ l: "Not researched", o: "Included for delta comparison only" }], label: "Not researched", count: "Unknown", t: "u" },
-    skill: { tier: null, t: "u", basis: p.why || "Delta reference; no report built.", ops: [] },
+    comps: [], materials: [], sourcing: [],
+    construction: null, assembly: null, skill: null,
+    note: p.why || "Comparison reference; no report built.",
     parts: [], issues: [], stub: true, gen: today, rev: false, sources: [], vlog: []
   }));
   const products = [target, ...peers];
-  products.forEach(deriveAxes);   // stubs have no sourcing rows and keep the judged axis
   return { kid, klassLabel: o.klassLabel, products };
 }
 
@@ -495,6 +508,6 @@ sources. The site shows unreviewed reports as machine-built.
 ─────────────────────────────────────────────`);
 }
 
-/* Only run when invoked directly — test.mjs imports verify() and deriveAxes()
+/* Only run when invoked directly — test.mjs imports verify()
    from this file to check them against the copies in index.html. */
 if (import.meta.url === pathToFileURL(process.argv[1] || "").href) await main();
