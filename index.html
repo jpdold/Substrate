@@ -22,6 +22,8 @@
   --exact:#0A6B63;
   --warn:#8A5A00;
   --unknown:#78948C;
+  /* drafting-paper dots — visible on the milky ground, gone under any card */
+  --grid:rgba(14,35,32,.14);
   /* Segoe UI Variable is the Win11 system face and renders noticeably
      cleaner than the Segoe UI fallback at these sizes. */
   --sans:"Segoe UI Variable Text","Segoe UI",-apple-system,BlinkMacSystemFont,"Helvetica Neue",Arial,sans-serif;
@@ -31,9 +33,20 @@
 *{box-sizing:border-box;margin:0;padding:0}
 html{scroll-behavior:smooth}
 body{
-  background:var(--bg);color:var(--fg);font-family:var(--sans);
+  color:var(--fg);font-family:var(--sans);
+  font-size:15px;line-height:1.55;
+  /* auto, not antialiased: antialiased thins strokes on a light ground.
+     This used to be set twice, and the second one won. */
   -webkit-font-smoothing:auto;text-rendering:optimizeLegibility;
-  font-size:15px;line-height:1.55;-webkit-font-smoothing:antialiased;
+  background-color:var(--bg);
+  background-image:
+    radial-gradient(circle, var(--grid) 1px, transparent 1.3px),
+    radial-gradient(circle, var(--grid) 1px, transparent 1.3px);
+  background-size:72px 6px, 6px 72px;
+  background-position:0 0, 0 0;
+  /* scrolls with the document: it should read as the paper the page is
+     printed on, not as a fixed field the content slides over. */
+  background-attachment:scroll;
 }
 a{color:inherit}
 button{font:inherit;color:inherit;background:none;border:none;cursor:pointer}
@@ -79,12 +92,10 @@ header{
 .hnav button:hover{color:var(--fg)}
 
 /* ---------- hero ---------- */
-.hero{padding:76px 0 46px;border-bottom:1px solid var(--line-soft)}
+.hero{padding:46px 0 42px;border-bottom:1px solid var(--line-soft)}
+/* the results column sits on the ground too — no panel behind it */
+.wrap.body{background:transparent}
 body.reading .hero{display:none}
-.hero h1{
-  font-size:clamp(2.3rem,5.6vw,4rem);font-weight:700;letter-spacing:-.038em;
-  line-height:1.02;max-width:16ch;
-}
 .hero p{
   margin-top:20px;max-width:56ch;color:var(--fg-2);font-size:16px;
 }
@@ -211,6 +222,7 @@ body.reading .hero{display:none}
   .gwhyx,.linkish{color:#555!important}
   .gap{color:#555!important;border-color:#999!important}
   .cbar{border:1px solid #999}
+  body{background-image:none!important}
   a{color:#111!important;text-decoration:underline}
   .cmxwrap{overflow:visible}
 }
@@ -641,7 +653,6 @@ footer .frow{display:flex;gap:26px;flex-wrap:wrap}
 <section class="hero">
   <div class="wrap">
     <div class="eyebrow">Product composition reports</div>
-    <h1>What is it actually made of?</h1>
     <p>What each part is made of, where it was made, and how — with the source for every line. Nothing here is rated, scored, or ranked. Nothing is filled in to look complete.</p>
     <div class="bigsearch"><input id="bq" type="search" placeholder="e.g. chef's knife, cast iron skillet, Wüsthof Classic" aria-label="Search products"></div>
     <div class="tries">
