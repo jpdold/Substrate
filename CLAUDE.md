@@ -431,6 +431,42 @@ product is), and why every report ships `rev: false` and displays as
 
 ---
 
+## Comparing products
+
+Two views, and the split is structural rather than editorial.
+
+**The spec sheet (`SPECS`, `specTable()`) is first**, because it answers what a
+reader arrives with: what is it made of, where was it made, how was it made.
+Products are rows and the three rocks are columns — rows because a column per
+product runs out of horizontal room at four selections while a row per product
+just gets taller, and because alphabetical order reads down a page.
+
+**It compares across categories, and the component view cannot.**
+`compDeltas()` joins on component id, which only exists within a class, so a
+blade and a coffee jar have nothing to line up and it correctly declines. But
+every object is made of something, somewhere, somehow. Do not "fix" the
+component view to handle mixed selections — the spec sheet is the fix.
+
+**All three cell states carry through from the report**, and a comparison is
+where confusing them would do the most damage, because an absent field sits
+directly beside a populated one:
+
+| state | renders as |
+|---|---|
+| cited | the value, plus the source it rests on |
+| recorded, not yet cited | says so, links to the prose |
+| nothing recorded | No Data For Now |
+
+`cmpSet()` **sorts alphabetically.** It used to read straight off a `Set`, so the
+tray was in click order and two readers comparing the same pair saw different
+tables.
+
+Adding a fourth spec column means one entry in `SPECS` — `{k, l, get}`, where
+`get` returns `null` for nothing recorded or an array of `{l, v, s, src}` lines.
+The cell renderer, the CSV and the empty states all follow from it.
+
+---
+
 ## Citation coverage
 
 The only number the site computes:
