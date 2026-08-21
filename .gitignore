@@ -9,6 +9,12 @@ secrets.json
 # Local scratch from the request queue's JSON export.
 requests.json
 
+# Throwaway patch and probe scripts. Dotted so they sort out of the way, and
+# ignored so an amend is not the thing that catches them.
+.*.mjs
+.*.tmp
+.*.txt
+
 # Tooling that shouldn't follow the site.
 node_modules/
 npm-debug.log*
