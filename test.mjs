@@ -39,6 +39,7 @@ const mod = await import(
     "norm, addReq, REQS, renderGen, renderMethod, " +
     "gapView, classSilence, citedBy, prosePointer, covCompare, TABL, " +
     "compDeltas, compDeltaView, CATTR, " +
+    "SPECS, specCell, specTable, " +
     "tcmp, clearCmp, cmpSet, compareView, exportPayload, comparisonCSV, exportRows, citedClaims, " +
     "loadCorpus, META };"
   )
@@ -50,6 +51,7 @@ const {
   quickView, fullView, peerView, vpanel, results, stale, norm,
   renderMethod, gapView, classSilence, citedBy, TABL,
   compDeltas, compDeltaView, CATTR,
+  SPECS, specCell, specTable,
   tcmp, clearCmp, cmpSet, compareView, exportPayload, comparisonCSV, exportRows, citedClaims,
   loadCorpus, META
 } = mod;
@@ -660,7 +662,8 @@ console.log("\ncompare tray and exports");
   tcmp(knives[1].id);
   out = compareView();
   if (strays(out)) fail(`compare workspace: stray value — …${strays(out).replace(/\s+/g, " ")}…`);
-  if (!/Side by side/.test(out)) fail("compare workspace did not render the matrix");
+  if (!/Specifications/.test(out)) fail("compare workspace did not render the spec sheet");
+  if (!/Evidence behind these reports/.test(out)) fail("compare workspace lost the coverage matrix");
   if (!/Component deltas/.test(out)) fail("same-class selection did not get component deltas");
   if (/Axis weighting|slider/.test(out)) fail("the weight panel survived in the compare workspace");
   for (const p of knives) if (!out.includes(p.brand)) fail(`${p.brand} missing from the matrix`);
@@ -670,9 +673,9 @@ console.log("\ncompare tray and exports");
   tcmp(skillet.id);
   out = compareView();
   if (strays(out)) fail("cross-class compare: stray value in output");
-  if (!/cannot be compared across different classes/.test(out))
+  if (!/Parts cannot be lined up across different categories/.test(out))
     fail("cross-class selection still offered a component comparison");
-  if (!/Side by side/.test(out)) fail("cross-class selection lost the coverage matrix, which is still valid");
+  if (!/Specifications/.test(out)) fail("cross-class selection lost the spec sheet, which compares fine");
   ok("workspace handles one, same-class, and cross-class selections");
 }
 
@@ -743,6 +746,100 @@ console.log("\ncompare tray and exports");
   ok(`comparison sheet: ${lines.length} rows, quoted and escaped`);
 
   clearCmp();
+}
+
+/* -------------------------------------------- 10b. the flat spec sheet */
+/* What a reader actually came for: what it is made of, where, and how, for
+   two products at once. The component view cannot answer that across
+   categories, so this one carries the cross-class case. */
+console.log("\nspec comparison");
+{
+  if (SPECS.length !== 3) fail(`expected the three rocks, found ${SPECS.length} spec columns`);
+  if (SPECS.map(x => x.k).join(",") !== "materials,construction,assembly")
+    fail("the spec columns are not materials, how, where — in that order");
+
+  /* Alphabetical, because a Set preserves click order and two readers
+     comparing the same pair would otherwise see different tables. */
+  clearCmp();
+  const knives = P.filter(p => p.klass === "knife8" && !p.stub);
+  [...knives].reverse().forEach(p => tcmp(p.id));
+  const order = cmpSet().map(p => p.brand + " " + p.model);
+  if (order.join("|") !== [...order].sort((a, b) => a.localeCompare(b)).join("|"))
+    fail(`compare tray is not alphabetical: ${order.join(" , ")}`);
+  ok("the tray sorts alphabetically regardless of click order");
+
+  /* Three cell states, and the two empty ones must stay distinct here too —
+     a comparison is exactly where "No Data For Now" over a recorded claim
+     would mislead most, because it sits beside a product that has one. */
+  {
+    const held = P.find(p => !p.stub && (p.uncited || []).some(u => u.sec === "materials")
+                                     && !(p.materials || []).length);
+    if (held) {
+      const c = specCell(held, SPECS[0]);
+      if (!/Recorded, not yet cited/.test(c)) fail("a recorded-but-uncited spec cell did not say so");
+      if (/No Data For Now/.test(c)) fail("a recorded spec cell claimed there is no data");
+    } else fail("no product holds an uncited materials claim to test the spec cell against");
+
+    const bare = { id: "bare", brand: "B", model: "M", klass: "knife8", comps: [],
+                   materials: [], sourcing: [], parts: [], construction: null,
+                   assembly: null, skill: null, uncited: [], coverage: { cited: 0, total: 0 },
+                   issues: [], sources: [] };
+    for (const spec of SPECS) {
+      const c = specCell(bare, spec);
+      if (!/No Data For Now/.test(c)) fail(`${spec.k}: nothing recorded did not say No Data For Now`);
+      if (/Recorded, not yet cited/.test(c)) fail(`${spec.k}: claimed a recorded value that does not exist`);
+    }
+    ok("cited, recorded-but-uncited, and absent render as three distinct states");
+  }
+
+  /* Every value shown carries the source it rests on — the same rule the
+     report tables run on, applied here. */
+  {
+    let links = 0, bad = 0;
+    for (const p of P) {
+      for (const spec of SPECS) {
+        const v = spec.get(p);
+        if (!Array.isArray(v)) continue;
+        const cell = specCell(p, spec);
+        v.forEach(() => links++);
+        for (const href of [...cell.matchAll(/class="cite" href="([^"]*)"/g)].map(x => x[1])) {
+          if (!/^https?:\/\//.test(href)) bad++;
+        }
+      }
+    }
+    if (bad) fail(`${bad} spec citation(s) point nowhere`);
+    ok(`${links} spec lines rendered, every citation on them resolving`);
+  }
+
+  /* The case the component view has to decline and this one must not. */
+  {
+    clearCmp();
+    const knife = P.find(p => p.klass === "knife8" && !p.stub);
+    const coffee = P.find(p => p.klass === "instant" && !p.stub);
+    tcmp(knife.id); tcmp(coffee.id);
+    const out = compareView();
+    if (strays(out)) fail(`cross-class spec sheet: stray value — ${strays(out).replace(/\s+/g, " ")}`);
+    if (!/Specifications/.test(out)) fail("cross-class comparison lost the spec sheet");
+    if (!/Parts cannot be lined up/.test(out))
+      fail("cross-class comparison tried to line up components anyway");
+    for (const p of [knife, coffee]) if (!out.includes(p.brand)) fail(`${p.brand} missing from the spec sheet`);
+    ok("specs compare across categories where components cannot");
+  }
+
+  /* And the sheet a spreadsheet reads. */
+  {
+    clearCmp();
+    knives.slice(0, 2).forEach(p => tcmp(p.id));
+    const csv = comparisonCSV(cmpSet());
+    for (const l of SPECS.map(x => x.l)) {
+      if (!csv.includes(`"${l}"`)) fail(`comparison sheet omits the "${l}" row`);
+    }
+    const cols = csv.split("\r\n")[0].split('","').length;
+    for (const [i, line] of csv.split("\r\n").entries())
+      if (line.split('","').length !== cols) fail(`comparison sheet row ${i} is ragged after adding specs`);
+    ok("the comparison sheet carries all three rocks, columns intact");
+    clearCmp();
+  }
 }
 
 /* ------------------------------------------- 11. the two duplicated copies */

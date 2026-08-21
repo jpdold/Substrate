@@ -415,6 +415,54 @@ header{
 .genbtn.sm{padding:5px 12px;font-size:11.5px}
 .cls .crumb{font-size:11.5px}
 
+/* ---------- the flat spec sheet ----------
+   Products are rows, so the table grows downward rather than running out
+   of horizontal room at the fourth selection. */
+.spec{width:100%;border-collapse:collapse;font-size:13px}
+.spec th{
+  text-align:left;padding:9px 14px;font-family:var(--mono);font-size:10.5px;
+  letter-spacing:.14em;text-transform:uppercase;color:var(--fg-3);
+  border-bottom:1px solid var(--line);vertical-align:bottom;white-space:nowrap;
+}
+.spec th.pcol{width:210px}
+.spec td{
+  padding:16px 14px;border-bottom:1px solid var(--line-soft);vertical-align:top;
+}
+.spec tr:last-child td{border-bottom:none}
+.spec .pcell{background:var(--bg-2);border-right:1px solid var(--line-soft)}
+.spec .pcell .brand{font-weight:600;font-size:14px;color:var(--fg)}
+.spec .pcell .name{color:var(--fg-2);margin:2px 0 7px;line-height:1.4}
+.spec .pcell .crumb{display:block;margin-bottom:9px}
+.spec .scell{min-width:190px}
+
+.specline{padding:5px 0;border-top:1px dotted var(--line-soft)}
+.specline:first-child{border-top:none;padding-top:0}
+.sl{
+  display:block;font-family:var(--mono);font-size:9.5px;letter-spacing:.12em;
+  text-transform:uppercase;color:var(--fg-3);margin-bottom:2px;
+}
+.sv{display:block;color:var(--fg);line-height:1.45}
+.ss{display:block;color:var(--fg-3);font-size:12px;line-height:1.5;margin-top:2px}
+.shr{font-family:var(--mono);font-size:10.5px;color:var(--fg-3);margin-left:6px}
+
+.nodatacell,.heldcell{padding-top:2px}
+.heldcell .linkish,.alsoheld .linkish{font-size:12px}
+.alsoheld{
+  margin-top:9px;padding-top:8px;border-top:1px dotted var(--line-soft);
+  font-size:11.5px;color:var(--fg-3);
+}
+
+@media (max-width:820px){
+  .spec,.spec tbody,.spec tr,.spec td{display:block;width:100%}
+  .spec thead{display:none}
+  .spec tr{border-bottom:1px solid var(--line);padding-bottom:10px;margin-bottom:10px}
+  .spec .pcell{border-right:none;border-radius:var(--r)}
+  .spec .scell::before{
+    content:attr(data-l);display:block;font-family:var(--mono);font-size:9.5px;
+    letter-spacing:.14em;text-transform:uppercase;color:var(--fg-3);margin-bottom:6px;
+  }
+}
+
 /* the three that decide most of what an object is */
 .qgrid.rocks{border-bottom:1px solid var(--line-soft);padding-bottom:18px}
 .qgrid.rocks .q .qv{font-size:19px}
@@ -1818,7 +1866,10 @@ function renderTray(){
 function uncmp(id){ S.cmp.delete(id); render(); }
 function tcmp(id){ S.cmp.has(id)?S.cmp.delete(id):S.cmp.add(id); render(); }
 function clearCmp(){ S.cmp.clear(); if(S.view==="compare") S.view="list"; render(); }
-function cmpSet(){ return [...S.cmp].map(id=>P.find(x=>x.id===id)).filter(Boolean); }
+function cmpSet(){
+  return [...S.cmp].map(id=>P.find(x=>x.id===id)).filter(Boolean)
+    .sort((a,b)=>(a.brand+" "+a.model).localeCompare(b.brand+" "+b.model));
+}
 function openCompare(){ S.view="compare"; render(); window.scrollTo({top:0}); }
 
 /* ==================================================================
@@ -1890,6 +1941,11 @@ function comparisonCSV(list){
   const rows=[
     ["Field", ...list.map(p=>`${p.brand} ${p.model}`)],
     ["Category", ...list.map(p=>catCrumb(p.klass))],
+    ...SPECS.map(s=>[s.l, ...list.map(p=>{
+      const v=s.get(p);
+      if(!v) return (p.uncited||[]).some(u=>u.sec===s.k) ? "Recorded, not yet cited" : "No Data For Now";
+      return v.map(x=>x.l+": "+x.v+(x.s?" ("+x.s+")":"")).join("; ");
+    })]),
     ["Claims cited", ...list.map(p=>coverage(p).cited)],
     ["Claims in prose, uncited", ...list.map(p=>coverage(p).uncited)],
     ["Citation coverage %", ...list.map(p=>coverage(p).pct)],
@@ -1913,6 +1969,89 @@ function exportOne(id){ const p=P.find(x=>x.id===id); if(p) exportJSON([p]); }
 /* ==================================================================
    COMPARE WORKSPACE
    ================================================================== */
+/* ==================================================================
+   SPEC COMPARISON
+   ------------------------------------------------------------------
+   The flat sheet: one row per product, one column per rock, read top
+   to bottom in alphabetical order.
+
+   Products are rows rather than columns for two reasons. A reader
+   asked for "Victorinox above Wüsthof" and that is the honest layout
+   for it — but also, a column per product runs out of horizontal room
+   at four selections, while a row per product just gets taller, and
+   the page already scrolls.
+
+   This compares across classes, which the component view cannot. A
+   blade and a coffee jar share no component roster, so `compDeltas()`
+   correctly declines them — but "what is it made of, how, and where"
+   is answerable for both, and is most of what a reader came for.
+   Component deltas stay underneath as the deeper cut.
+   ================================================================== */
+
+/* Each `get` returns one of three things, and the difference between the
+   last two is the distinction the whole site turns on:
+     null           nothing recorded          -> No Data For Now
+     {held:true}    recorded, not yet cited   -> points at the prose
+     [ ...lines ]   cited, renders with its source
+   `l` sub-label (component or site) · `v` the value · `s` detail under it */
+const SPECS = [
+  {k:"materials", l:"Materials", get:p=>{
+    if((p.materials||[]).length) return p.materials.map(m=>({
+      l:cName(p,m.c), v:m.n, s:m.spec||"", src:m.src,
+      share:Number.isFinite(+m.share)?+m.share:null}));
+    return null;
+  }},
+  {k:"construction", l:"How it's made", get:p=>{
+    const k=p.construction;
+    if(!k) return null;
+    return [{l:"Whole object", v:k.mode, s:k.auto||"", src:k.src}]
+      .concat((k.steps||[]).map(x=>({l:cName(p,x.c), v:x.p, s:"", src:k.src})));
+  }},
+  {k:"assembly", l:"Where it's made", get:p=>{
+    const a=p.assembly;
+    if(!a) return null;
+    return (a.sites||[]).map(x=>({l:"Site", v:x.l, s:x.o||"", src:a.src}))
+      .concat(a.label?[{l:"Label", v:a.label, s:a.count||"", src:a.src}]:[]);
+  }}
+];
+
+/* A section is empty for two different reasons and they must not render the
+   same. Nothing recorded is a hole in the corpus; recorded-but-uncited is a
+   claim living one tab away. Saying "No Data For Now" over the second would
+   assert an absence that is not there. */
+function specCell(p, spec){
+  const held=(p.uncited||[]).some(u=>u.sec===spec.k);
+  const v=spec.get(p);
+  if(!v) return held
+    ? `<div class="heldcell"><span class="held">Recorded, not yet cited</span>
+       <button class="linkish" onclick="open_('${p.id}');setTab('gaps')">read it</button></div>`
+    : `<div class="nodatacell"><span class="gap">No Data For Now</span></div>`;
+  return v.map(x=>`<div class="specline">
+    <span class="sl">${x.l}</span>
+    <span class="sv">${x.v}${cite(p,{src:x.src})}${
+      x.share!=null?`<span class="shr">${x.share}%</span>`:""}</span>
+    ${x.s?`<span class="ss">${x.s}</span>`:""}
+  </div>`).join("") + (held
+    ? `<div class="alsoheld">More recorded but not yet cited —
+       <button class="linkish" onclick="open_('${p.id}');setTab('gaps')">read it</button></div>`
+    : "");
+}
+
+function specTable(sel){
+  const head=`<tr><th class="pcol">Product</th>${
+    SPECS.map(s=>`<th>${s.l}</th>`).join("")}</tr>`;
+  const rows=sel.map(p=>`<tr>
+    <td class="pcell">
+      <div class="brand">${p.brand}</div>
+      <div class="name">${p.model}</div>
+      <div class="crumb">${catCrumb(p.klass)}</div>
+      <button class="linkish" onclick="open_('${p.id}')">Full report</button>
+    </td>
+    ${SPECS.map(s=>`<td class="scell" data-l="${s.l}">${specCell(p,s)}</td>`).join("")}
+  </tr>`).join("");
+  return `<div class="cmxwrap"><table class="spec">${head}${rows}</table></div>`;
+}
+
 function compareView(){
   const sel=cmpSet();
   if(sel.length<2) return `
@@ -1942,30 +2081,45 @@ function compareView(){
 
   const klasses=new Set(sel.map(p=>p.klass));
   const researched=sel.filter(p=>!p.stub);
+
+  /* The component view joins on component id, which only exists within a
+     class. It declines rather than inventing an alignment between a blade
+     and a coffee jar — the spec sheet above already answered those. */
   const parts = klasses.size===1 && researched.length>=2
     ? compDeltaView(researched[0], researched, "selected product")
     : `<div class="sec"><div class="empty">
-        <b>Parts cannot be compared across ${klasses.size>1?"different classes":"this selection"}.</b>
+        <b>Parts cannot be lined up across ${klasses.size>1?"different categories":"this selection"}.</b>
         ${klasses.size>1
-          ? "These products do not share a component roster — a blade and a jar have nothing to line up."
-          : "Component deltas need at least two researched products; a generated peer carries no component roster."}</div></div>`;
+          ? "A blade and a coffee jar share no component roster. The specs above still compare, because every object is made of something, somewhere, somehow."
+          : "Lining up parts needs at least two researched products; a generated peer carries no component roster."}</div></div>`;
+
+  const mixed = klasses.size>1;
 
   return `
   <button class="back" onclick="goHome()">← Back to results</button>
   <div class="genwrap">
     <h3>Comparing ${sel.length} products</h3>
-    <p>Coverage is a fact about each report's evidence, not a rating of the product. A thoroughly documented cheap object cites at 100%. What separates these products is in the component rows further down.</p>
+    <p>${mixed
+      ? "Different categories, so there is no shared component roster to line up. What every object has in common — what it is made of, where, and how — still compares."
+      : "Sorted by name. What each object is made of, where it was made, and how."}</p>
   </div>
 
   <div class="sec">
-    <div class="sechead"><h3>Side by side</h3>
-      <span class="note">The strongest figure in each row is highlighted. It measures the evidence, not the object.</span></div>
-    <div class="cmxwrap"><table class="cmx">${th}${body}</table></div>
+    <div class="sechead"><h3>Specifications</h3>
+      <span class="note">Every value carries the source it rests on. Nothing here is a rating.</span></div>
+    ${specTable(sel)}
+    <p class="nodatanote">${NODATA_NOTE}</p>
     <div class="exprow">
       <button class="btn ghost" onclick="exportJSON(cmpSet())">Export JSON</button>
       <button class="btn ghost" onclick="exportCSV(cmpSet())">Comparison sheet</button>
       <button class="btn ghost" onclick="window.print()">Print or save as PDF</button>
     </div>
+  </div>
+
+  <div class="sec">
+    <div class="sechead"><h3>Evidence behind these reports</h3>
+      <span class="note">How much of each report can be followed to a source. It measures the evidence, not the object.</span></div>
+    <div class="cmxwrap"><table class="cmx">${th}${body}</table></div>
   </div>
 
   ${parts}`;
