@@ -6,25 +6,33 @@
 <title>Substrate — what consumer products are actually made of</title>
 <style>
 :root{
-  --bg:#071426;
-  --bg-2:#0C1E36;
-  --bg-3:#112843;
-  --line:#1B3A5C;
-  --line-soft:#143050;
-  --fg:#EEF3F9;
-  --fg-2:#A8BDD6;
-  --fg-3:#6B87A8;
-  --exact:#3FD0C9;
-  --likely:#F0B542;
-  --unknown:#43607F;
-  --sans:-apple-system,BlinkMacSystemFont,"Segoe UI","Helvetica Neue",Arial,sans-serif;
-  --mono:ui-monospace,"SF Mono","Cascadia Mono","Roboto Mono",Menlo,Consolas,monospace;
+  /* Milky blue-green. Paper, not screen — the reports are meant to be read
+     and printed, and the print stylesheet no longer has to invert anything.
+     Every foreground here clears 4.5:1 on --bg; --fg-3 is the one that had
+     to be darkened from its dark-theme value to get there, and it carries
+     most of the small text on the page. */
+  --bg:#DCEAE6;
+  --bg-2:#EDF5F2;
+  --bg-3:#F6FAF9;
+  --line:#A6C2BA;
+  --line-soft:#C3D8D1;
+  --fg:#0E2320;
+  --fg-2:#365049;
+  --fg-3:#57736B;
+  --exact:#0A6B63;
+  --warn:#8A5A00;
+  --unknown:#78948C;
+  /* Segoe UI Variable is the Win11 system face and renders noticeably
+     cleaner than the Segoe UI fallback at these sizes. */
+  --sans:"Segoe UI Variable Text","Segoe UI",-apple-system,BlinkMacSystemFont,"Helvetica Neue",Arial,sans-serif;
+  --mono:"Cascadia Mono",ui-monospace,"SF Mono",Consolas,"Roboto Mono",Menlo,monospace;
   --r:3px;
 }
 *{box-sizing:border-box;margin:0;padding:0}
 html{scroll-behavior:smooth}
 body{
   background:var(--bg);color:var(--fg);font-family:var(--sans);
+  -webkit-font-smoothing:auto;text-rendering:optimizeLegibility;
   font-size:15px;line-height:1.55;-webkit-font-smoothing:antialiased;
 }
 a{color:inherit}
@@ -43,7 +51,7 @@ input{font:inherit;color:inherit}
 
 /* ---------- header ---------- */
 header{
-  position:sticky;top:0;z-index:40;background:rgba(7,20,38,.9);
+  position:sticky;top:0;z-index:40;background:rgba(220,234,230,.88);
   backdrop-filter:blur(12px);border-bottom:1px solid var(--line-soft);
 }
 .hbar{display:flex;align-items:center;gap:22px;height:58px}
@@ -72,6 +80,7 @@ header{
 
 /* ---------- hero ---------- */
 .hero{padding:76px 0 46px;border-bottom:1px solid var(--line-soft)}
+body.reading .hero{display:none}
 .hero h1{
   font-size:clamp(2.3rem,5.6vw,4rem);font-weight:700;letter-spacing:-.038em;
   line-height:1.02;max-width:16ch;
@@ -136,7 +145,7 @@ header{
 
 /* ---------- product rows ---------- */
 .row{
-  display:grid;grid-template-columns:1fr 200px 120px;gap:20px;align-items:center;
+  display:grid;grid-template-columns:1fr auto;gap:20px;align-items:center;
   background:var(--bg-2);border:1px solid var(--line-soft);border-radius:var(--r);
   padding:15px 17px;margin-bottom:9px;cursor:pointer;text-align:left;width:100%;
   transition:border-color .14s,background .14s,transform .14s;
@@ -146,9 +155,10 @@ header{
 .row .name{font-size:15.5px;font-weight:600;letter-spacing:-.01em;margin-top:2px}
 .row .facts{margin-top:6px;font-size:12.5px;color:var(--fg-2)}
 .row .facts em{font-style:normal;color:var(--fg-3)}
-.row .scorecell{text-align:right}
-.row .score{font-family:var(--mono);font-size:26px;font-weight:600;letter-spacing:-.02em;line-height:1}
-.row .scorelab{font-family:var(--mono);font-size:9.5px;letter-spacing:.16em;color:var(--fg-3);text-transform:uppercase;margin-top:4px}
+.staleflag{
+  font-family:var(--mono);font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;
+  color:var(--fg-3);border:1px solid var(--line);border-radius:2px;padding:2px 7px;white-space:nowrap;
+}
 
 /* The row is a <button>, so the compare toggle cannot live inside it — it sits
    beside it in a wrapper. Both stay keyboard-reachable that way. Selected state
@@ -230,9 +240,12 @@ header{
 .rtop h2{font-size:clamp(1.7rem,3.4vw,2.4rem);font-weight:700;letter-spacing:-.032em;line-height:1.06;margin-top:4px}
 .rtop .cls{margin-top:10px;font-size:13px;color:var(--fg-2)}
 .rsum{display:grid;grid-template-columns:1fr 260px;gap:34px;margin-top:22px;align-items:end}
-.bigscore{display:flex;align-items:baseline;gap:12px}
-.bigscore b{font-family:var(--mono);font-size:52px;font-weight:600;letter-spacing:-.03em;line-height:.9}
-.bigscore span{font-size:12.5px;color:var(--fg-3);max-width:20ch}
+/* Coverage on a report: one line, the size of a caption. It is a fact about
+   our evidence, not about the object, and it should never be the largest
+   thing on a page describing a knife. */
+.covline{max-width:420px;margin-top:14px}
+.covline span{display:block;font-size:12.5px;color:var(--fg-3);margin-bottom:7px}
+.covline b{color:var(--fg-2);font-weight:600}
 
 /* tabs */
 .tabs{display:flex;gap:2px;margin:26px 0 0;border-bottom:1px solid var(--line-soft)}
@@ -314,12 +327,12 @@ header{
 .dcol h4{font-family:var(--mono);font-size:11px;letter-spacing:.16em;text-transform:uppercase;margin-bottom:12px;color:var(--fg-2)}
 .d{border-left:2px solid var(--line);padding:9px 0 9px 13px;margin-bottom:10px}
 .d.pos{border-left-color:var(--exact)}
-.d.neg{border-left-color:var(--likely)}
+.d.neg{border-left-color:var(--warn)}
 .d .dtop{display:flex;align-items:baseline;gap:9px}
 .d .dax{font-size:13.5px;font-weight:600}
 .d .dmag{font-family:var(--mono);font-size:12px;margin-left:auto}
 .d.pos .dmag{color:var(--exact)}
-.d.neg .dmag{color:var(--likely)}
+.d.neg .dmag{color:var(--warn)}
 .d .dwho{font-size:12.5px;color:var(--fg-2);margin-top:4px}
 .d .dwho b{color:var(--fg);font-weight:600}
 .d .dsev{font-family:var(--mono);font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--fg-3);margin-top:5px;display:block}
@@ -331,7 +344,7 @@ header{
 .mx td{padding:9px 10px;border-bottom:1px solid var(--line-soft);text-align:center;font-family:var(--mono);font-size:12.5px}
 .mx td:first-child{text-align:left;font-family:var(--sans);color:var(--fg-2);padding-left:0}
 .mx .self{background:rgba(63,208,201,.06)}
-.mx .up{color:var(--exact)} .mx .dn{color:var(--likely)} .mx .eq{color:var(--fg-3)}
+.mx .up{color:var(--exact)} .mx .dn{color:var(--warn)} .mx .eq{color:var(--fg-3)}
 
 /* custom builder */
 .build{display:grid;grid-template-columns:1fr 300px;gap:34px;align-items:start}
@@ -348,7 +361,7 @@ header{
 .preview li:before{content:"";width:3px;height:3px;border-radius:50%;background:var(--exact);margin-top:8px;flex:none}
 .btn{
   display:block;width:100%;margin-top:18px;text-align:center;
-  background:var(--exact);color:#04131F;font-weight:600;font-size:13px;
+  background:var(--exact);color:#F6FAF9;font-weight:600;font-size:13px;
   padding:10px;border-radius:var(--r);letter-spacing:.01em;
 }
 .btn:hover{filter:brightness(1.08)}
@@ -368,7 +381,7 @@ header{
 .genwrap h3{font-size:17px;font-weight:600;letter-spacing:-.015em}
 .genwrap p{color:var(--fg-2);font-size:13.5px;margin-top:7px;max-width:62ch}
 .genbtn{
-  margin-top:18px;background:var(--exact);color:#04131F;font-weight:600;font-size:13.5px;
+  margin-top:18px;background:var(--exact);color:#F6FAF9;font-weight:600;font-size:13.5px;
   padding:11px 22px;border-radius:var(--r);display:inline-block;
 }
 .genbtn:hover{filter:brightness(1.08)}
@@ -465,8 +478,12 @@ header{
 }
 
 /* the three that decide most of what an object is */
-.qgrid.rocks{border-bottom:1px solid var(--line-soft);padding-bottom:18px}
-.qgrid.rocks .q .qv{font-size:19px}
+/* .qgrid draws its cell separators as a background showing through a 1px
+   gap, so any padding on the container is painted in the separator colour.
+   Space below belongs on the margin. */
+.qgrid.rocks{margin-bottom:20px}
+.qgrid.rocks .q{padding:17px 16px}
+.qgrid.rocks .q .qv{font-size:15.5px;line-height:1.4}
 .held{color:var(--fg-2);border-bottom:1px dotted var(--fg-3)}
 .nodatanote{
   font-size:12px;color:var(--fg-3);line-height:1.6;max-width:74ch;margin-top:16px;
@@ -512,21 +529,21 @@ header{
   border:1px solid var(--line);background:transparent;
 }
 .stage.run{color:var(--fg)}
-.stage.run i{background:var(--likely);border-color:var(--likely);animation:pulse 1.1s ease-in-out infinite}
+.stage.run i{background:var(--warn);border-color:var(--warn);animation:pulse 1.1s ease-in-out infinite}
 .stage.ok{color:var(--fg-2)}
 .stage.ok i{background:var(--exact);border-color:var(--exact)}
-.stage.err{color:var(--likely)}
-.stage.err i{background:var(--likely);border-color:var(--likely)}
+.stage.err{color:var(--warn)}
+.stage.err i{background:var(--warn);border-color:var(--warn)}
 .stage small{display:block;color:var(--fg-3);font-size:12px;margin-top:2px}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
 .vpanel{
-  border:1px solid var(--line);border-left:2px solid var(--likely);border-radius:var(--r);
+  border:1px solid var(--line);border-left:2px solid var(--warn);border-radius:var(--r);
   background:var(--bg-2);padding:16px 18px;margin-top:18px;
 }
 .vpanel .eyebrow{display:block;margin-bottom:9px}
 .vpanel ul{list-style:none}
 .vpanel li{font-size:12.5px;color:var(--fg-2);padding:4px 0;display:flex;gap:9px;line-height:1.45}
-.vpanel li:before{content:"↓";color:var(--likely);font-family:var(--mono);font-size:11px;flex:none;margin-top:2px}
+.vpanel li:before{content:"↓";color:var(--warn);font-family:var(--mono);font-size:11px;flex:none;margin-top:2px}
 .vpanel .clean:before{content:"✓";color:var(--exact)}
 .vpanel.fresh{border-left-color:var(--exact)}
 .srcs{display:flex;flex-wrap:wrap;gap:7px;margin-top:4px}
@@ -536,12 +553,12 @@ header{
 }
 .src:hover{border-color:var(--exact);color:var(--fg)}
 .livemark{
-  font-family:var(--mono);font-size:9px;letter-spacing:.15em;color:var(--likely);
-  border:1px solid rgba(240,181,66,.4);border-radius:2px;padding:1px 5px;margin-left:8px;
+  font-family:var(--mono);font-size:9px;letter-spacing:.15em;color:var(--warn);
+  border:1px solid rgba(138,90,0,.35);border-radius:2px;padding:1px 5px;margin-left:8px;
 }
 .stub{opacity:.62}
 .stub .name:after{content:" — report not generated";color:var(--fg-3);font-weight:400;font-size:13px}
-.genfail{border-left:2px solid var(--likely);padding:10px 0 10px 13px;margin-top:16px;font-size:13px;color:var(--fg-2)}
+.genfail{border-left:2px solid var(--warn);padding:10px 0 10px 13px;margin-top:16px;font-size:13px;color:var(--fg-2)}
 .genfail b{display:block;color:var(--fg);margin-bottom:3px}
 
 /* component scoping */
@@ -598,7 +615,6 @@ footer .frow{display:flex;gap:26px;flex-wrap:wrap}
   .body{grid-template-columns:1fr;gap:26px}
   .rail{position:static}
   .row{grid-template-columns:1fr 96px}
-  .row .cbarcell{grid-column:1/-1}
   .legend{grid-template-columns:1fr;gap:14px}
   .dcols,.build,.rsum{grid-template-columns:1fr}
   .preview{position:static}
@@ -614,7 +630,6 @@ footer .frow{display:flex;gap:26px;flex-wrap:wrap}
 <header>
   <div class="wrap hbar">
     <div class="logo">Sub<span>strate</span></div>
-    <div class="hsearch"><input id="hq" type="search" placeholder="Search a product, brand, or model number" aria-label="Search products"></div>
     <nav class="hnav">
       <button onclick="goHome()">Products</button>
       <button onclick="openGen('')">Request</button>
@@ -1212,7 +1227,7 @@ verifyAll();   // the embedded corpus goes through the same gate as anything bui
 /* ============================ STATE ============================ */
 let S = {
   q:"", klass:new Set(), mode:new Set(), skillT:new Set(), sites:new Set(),
-  floor:0, sort:"cov", view:"list", cur:null, tab:"quick", pivot:"attr", dpiv:"attr",
+  floor:0, sort:"name", view:"list", cur:null, tab:"quick", pivot:"attr", dpiv:"attr",
   cmp:new Set(), genq:"", gen:null
 };
 
@@ -1303,28 +1318,28 @@ function renderRail(){
      onchange="toggle('${set}','${val}')"><span>${label}</span><span class="n">${n}</span></label>`;
 
   document.getElementById("rail").innerHTML =
-   box("klass","Functional class",
+   box("klass","Category",
       catLeaves().filter(k=>P.some(p=>p.klass===k))
         .sort((a,b)=>CATS[a].n.localeCompare(CATS[b].n))
         .map(k=>cb("klass",k,CATS[k].n,countIf(p=>p.klass===k))).join(""))
-  +box("mode","Construction method",
+  +box("mode","How it&rsquo;s made",
       ["Factory","Both"].map(m=>cb("mode",m,m==="Both"?"Factory + hand":m,countIf(p=>(p.construction?.mode||"").startsWith(m)))).join(""))
   +box("skillT","Skill required",
       [["trained","Trained worker"],["skilled","Skilled tradesman"],["craftsman","Craftsman"]]
         .map(([v,l])=>cb("skillT",v,l,countIf(p=>(p.skill?.tier||"").toLowerCase().includes(v)))).join(""))
-  +box("sites","Assembly sites",
+  +box("sites","Where it&rsquo;s made",
       [["Single","Single site"],["Multiple","Multiple sites"],["Unknown","Unknown"]]
         .map(([v,l])=>cb("sites",v,l,countIf(p=>(p.assembly?.count||"").startsWith(v)))).join(""))
-  +`<div class="fgroup"><span class="eyebrow">Certainty floor</span>
+  +`<div class="fgroup"><span class="eyebrow">Citation coverage</span>
       <input class="slider" type="range" min="0" max="90" step="10" value="${S.floor}"
-        oninput="S.floor=+this.value;render()" aria-label="Minimum percent confirmed">
-      <div class="sliderval">${S.floor}% confirmed or better</div></div>`
+        oninput="S.floor=+this.value;render()" aria-label="Minimum percent of claims cited">
+      <div class="sliderval">${S.floor?S.floor+"% of claims cited or better":"Any"}</div></div>`
   +`<button class="clearall" onclick="clearAll()">Clear all filters</button>`;
 }
 function toggle(set,val){ S[set].has(val)?S[set].delete(val):S[set].add(val); render(); }
 function clearAll(){ S.klass.clear();S.mode.clear();S.skillT.clear();S.sites.clear();S.floor=0;S.q="";
-  document.getElementById("hq").value="";document.getElementById("bq").value="";render(); }
-function setQ(v){ S.q=v; document.getElementById("bq").value=v; document.getElementById("hq").value=v; S.view="list"; render(); }
+  document.getElementById("bq").value="";render(); }
+function setQ(v){ S.q=v; const b=document.getElementById("bq"); if(b) b.value=v; S.view="list"; render(); }
 
 /* ============================ LIST ============================ */
 function renderList(){
@@ -1342,10 +1357,7 @@ function renderList(){
           p.construction?.mode||"how it's made not cited"} · <em>${
           p.assembly?.sites?.[0]?.l||"where it's made not cited"}</em></div>
       </div>
-      <div class="cbarcell">${covbar(p)}
-        <div class="cmeta"><span><b>${c.cited}</b> cited</span><span>${c.uncited} in prose</span></div></div>
-      <div class="scorecell"><div class="score">${c.pct}<span class="pcnt">%</span></div>
-        <div class="scorelab">${stale(p)?"Due for review":"Cited"}</div></div>
+      ${stale(p)?`<div class="staleflag">Due for review</div>`:""}
       </button>
       <button class="cmpbtn ${on?"on":""}" onclick="tcmp('${p.id}')"
         aria-pressed="${on}" title="${on?"Remove from comparison":"Add to comparison"}"
@@ -1403,7 +1415,7 @@ function renderList(){
 const TABL = {quick:"Quick report", full:"Full report", peers:"Peer deltas",
               gaps:"Not cited"};
 
-function open_(id){ S.cur=id; S.view="report"; S.tab="quick"; render(); window.scrollTo({top:260}); }
+function open_(id){ S.cur=id; S.view="report"; S.tab="quick"; render(); window.scrollTo({top:0}); }
 function goHome(){ S.view="list"; render(); }
 function setTab(t){ S.tab=t; render(); }
 
@@ -1422,9 +1434,11 @@ function renderReport(){
       <h2>${p.model}</h2>
       <div class="cls"><span class="crumb">${catCrumb(p.klass)}</span></div>
       <div class="rsum">
-        <div class="bigscore"><b>${c.pct}<span class="pcnt">%</span></b><span>of this report's claims resolve to a source</span></div>
-        <div>${covbar(p,true)}
-          <div class="cmeta"><span><b>${c.cited}</b> cited</span><span>${c.uncited} written as prose</span></div></div>
+        <div class="covline">
+          <span><b>${c.cited}</b> of ${c.total} claims resolve to a source${
+            c.uncited?`, ${c.uncited} written as prose`:""}</span>
+          ${covbar(p)}
+        </div>
       </div>
       ${vpanel(p)}
     </div>
@@ -2311,7 +2325,7 @@ async function loadCorpus(){
    exported as JSON and fed to the build script.
    ================================================================== */
 let REQS=[];
-function openGen(q){ S.view="gen"; S.genq=q||S.q||""; render(); window.scrollTo({top:260}); }
+function openGen(q){ S.view="gen"; S.genq=q||S.q||""; render(); window.scrollTo({top:0}); }
 function addReq(){
   const q=(S.genq||"").trim(); if(!q) return;
   if(!REQS.some(r=>norm(r.q)===norm(q))) REQS.push({q, at:new Date().toISOString()});
@@ -2376,7 +2390,7 @@ function vpanel(p){
    page documenting a rule the code stopped following is worse than no
    page at all.
    ================================================================== */
-function openMethod(){ S.view="method"; render(); window.scrollTo({top:260}); }
+function openMethod(){ S.view="method"; render(); window.scrollTo({top:0}); }
 
 function renderMethod(){
   const check = (c,e)=>`<tr><td class="k">${c}</td><td class="v">${e}</td></tr>`;
@@ -2460,6 +2474,8 @@ function renderMethod(){
 
 /* ============================ RENDER ============================ */
 function render(){
+  /* the hero belongs to the list view; everything else is reading */
+  if(document.body) document.body.className = S.view==="list" ? "" : "reading";
   renderRail();
   if(S.view==="gen"){ document.getElementById("main").innerHTML=renderGen();
     const el=document.getElementById("gq"); if(el){el.focus();el.setSelectionRange(el.value.length,el.value.length);} }
@@ -2468,8 +2484,7 @@ function render(){
   else if(S.view==="report"&&S.cur) renderReport(); else renderList();
   renderTray();
 }
-document.getElementById("hq").addEventListener("input",e=>{S.q=e.target.value;S.view="list";document.getElementById("bq").value=e.target.value;render()});
-document.getElementById("bq").addEventListener("input",e=>{S.q=e.target.value;S.view="list";document.getElementById("hq").value=e.target.value;render()});
+document.getElementById("bq").addEventListener("input",e=>{S.q=e.target.value;S.view="list";render()});
 function stampMeta(){ const el=document.getElementById("metaline");
   if(el) el.textContent="Corpus built "+META.built+" · schema v"+META.schema+" · "+META.source
     +(META.advisories?" · advisories "+META.advisories:""); }
