@@ -102,8 +102,9 @@ header{
 .leg i{width:3px;height:38px;border-radius:2px;flex:none;margin-top:2px}
 .leg b{display:block;font-family:var(--mono);font-size:11px;letter-spacing:.16em;font-weight:600}
 .leg small{display:block;color:var(--fg-3);font-size:12px;line-height:1.4;margin-top:3px}
+.leg b{font-size:10px}
 .leg-e i{background:var(--exact)} .leg-e b{color:var(--exact)}
-.leg-l i{background:var(--likely)} .leg-l b{color:var(--likely)}
+.leg-l i{background:var(--fg-3)} .leg-l b{color:var(--fg-2)}
 .leg-u i{background:var(--unknown)} .leg-u b{color:var(--unknown)}
 
 /* ---------- body layout ---------- */
@@ -151,7 +152,7 @@ header{
 
 /* The row is a <button>, so the compare toggle cannot live inside it — it sits
    beside it in a wrapper. Both stay keyboard-reachable that way. Selected state
-   is carried by brightness and a tick, not by hue: teal still means EXACT. */
+   is carried by brightness and a tick, not by hue: teal still means cited. */
 .rowwrap{display:flex;align-items:stretch;gap:8px;margin-bottom:9px}
 .rowwrap .row{margin-bottom:0;flex:1;min-width:0}
 .cmpbtn{
@@ -478,10 +479,10 @@ header{
 .cdsub{display:block;color:var(--fg-3);font-size:12px;margin-top:2px}
 @media(max-width:720px){ .cdrow{grid-template-columns:1fr} .cdp{flex-direction:column;gap:1px} }
 
-/* ---------- gap report ---------- */
-/* No new accent colour: the only saturated thing here is the UNKNOWN slate,
-   which is exactly what this view is about. Class-wide versus product-specific
-   is carried by the border style and the words, not by hue. */
+/* ---------- the not-cited tab ---------- */
+/* No accent colour here at all. This view is about what has no source behind
+   it, and teal means cited — using it would say the opposite of the section.
+   Class-wide versus report-specific is carried by the border and the words. */
 .gblock{
   border:1px solid var(--line);border-left:2px solid var(--unknown);
   border-radius:var(--r);background:var(--bg-2);padding:16px 18px;margin-bottom:12px;
@@ -626,21 +627,21 @@ footer .frow{display:flex;gap:26px;flex-wrap:wrap}
   <div class="wrap">
     <div class="eyebrow">Product composition reports</div>
     <h1>What is it actually made of?</h1>
-    <p>Materials, forming process, origin, and the parts that carry the load — for any consumer product. Every value is marked confirmed, inferred, or missing. Nothing is filled in to look complete.</p>
+    <p>What each part is made of, where it was made, and how — with the source for every line. Nothing here is rated, scored, or ranked. Nothing is filled in to look complete.</p>
     <div class="bigsearch"><input id="bq" type="search" placeholder="e.g. chef's knife, cast iron skillet, Wüsthof Classic" aria-label="Search products"></div>
     <div class="tries">
       <span class="eyebrow">Try</span>
-      <button class="try" onclick="setQ('chef')">chef's knife</button>
-      <button class="try" onclick="setQ('skillet')">cast iron skillet</button>
-      <button class="try" onclick="setQ('forged')">forged</button>
-      <button class="try" onclick="setQ('freeze')">freeze-dried</button>
-      <button class="try" onclick="setQ('coffee')">instant coffee</button>
+      <button class="try" onclick="setQ('kitchen knife')">kitchen knife</button>
+      <button class="try" onclick="setQ('camping knife')">camping knife</button>
+      <button class="try" onclick="setQ('frying pan')">frying pan</button>
+      <button class="try" onclick="setQ('coffee')">coffee</button>
+      <button class="try" onclick="setQ('solingen')">solingen</button>
     </div>
 
     <div class="legend">
-      <div class="leg leg-e"><i></i><div><b>EXACT</b><small>Manufacturer literature, spec sheet, teardown, or filing. Cited and dated.</small></div></div>
-      <div class="leg leg-l"><i></i><div><b>LIKELY</b><small>Inferred from class norms, price tier, or material analysis. Inference chain shown.</small></div></div>
-      <div class="leg leg-u"><i></i><div><b>UNKNOWN</b><small>No basis to state a value. Left as a visible gap, never estimated.</small></div></div>
+      <div class="leg leg-e"><i></i><div><b>CITED</b><small>Stated by a source you can open and read. Every table row carries one, or it is not a table row.</small></div></div>
+      <div class="leg leg-l"><i></i><div><b>RECORDED, NOT YET CITED</b><small>Known, and written out in full as prose, until the source behind it can be shown.</small></div></div>
+      <div class="leg leg-u"><i></i><div><b>NO DATA FOR NOW</b><small>Nothing recorded here yet. That is a fact about this catalogue, not about the product.</small></div></div>
     </div>
   </div>
 </section>
@@ -655,7 +656,7 @@ footer .frow{display:flex;gap:26px;flex-wrap:wrap}
 <footer>
   <div class="wrap">
     <div class="frow">
-      <span>Reports are AI-assembled from published sources. Certainty tags show what is confirmed and what is not.</span>
+      <span>Reports are AI-assembled from published sources, then checked so that every claim in a table carries one you can open.</span>
       <span id="metaline"></span>
       <a href="#" onclick="return false">Evidence registry</a>
       <a href="#" onclick="return false">Submit a correction</a>
@@ -1307,13 +1308,13 @@ function renderRail(){
         .sort((a,b)=>CATS[a].n.localeCompare(CATS[b].n))
         .map(k=>cb("klass",k,CATS[k].n,countIf(p=>p.klass===k))).join(""))
   +box("mode","Construction method",
-      ["Factory","Both"].map(m=>cb("mode",m,m==="Both"?"Factory + hand":m,countIf(p=>p.construction.mode.startsWith(m)))).join(""))
+      ["Factory","Both"].map(m=>cb("mode",m,m==="Both"?"Factory + hand":m,countIf(p=>(p.construction?.mode||"").startsWith(m)))).join(""))
   +box("skillT","Skill required",
       [["trained","Trained worker"],["skilled","Skilled tradesman"],["craftsman","Craftsman"]]
-        .map(([v,l])=>cb("skillT",v,l,countIf(p=>(p.skill.tier||"").toLowerCase().includes(v)))).join(""))
+        .map(([v,l])=>cb("skillT",v,l,countIf(p=>(p.skill?.tier||"").toLowerCase().includes(v)))).join(""))
   +box("sites","Assembly sites",
       [["Single","Single site"],["Multiple","Multiple sites"],["Unknown","Unknown"]]
-        .map(([v,l])=>cb("sites",v,l,countIf(p=>p.assembly.count.startsWith(v)))).join(""))
+        .map(([v,l])=>cb("sites",v,l,countIf(p=>(p.assembly?.count||"").startsWith(v)))).join(""))
   +`<div class="fgroup"><span class="eyebrow">Certainty floor</span>
       <input class="slider" type="range" min="0" max="90" step="10" value="${S.floor}"
         oninput="S.floor=+this.value;render()" aria-label="Minimum percent confirmed">

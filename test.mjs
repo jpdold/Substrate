@@ -66,6 +66,109 @@ const TABS = p => [
 ];
 const strays = out => (out.match(/.{0,60}(undefined|NaN|\[object Object\]).{0,60}/s) || [])[0];
 
+/* ------------------------------------------------- 0. the page actually boots */
+/* This suite used to load the script block MINUS its DOM-bound tail, so
+   render(), renderRail(), renderTray() and every inline onclick= the page
+   relies on were never executed by anything. Fifty-two checks passed green
+   while the deployed page was dead on arrival: renderRail() counted facets
+   with p.construction.mode, which became null the moment a claim could be
+   uncited, and the exception took the whole boot down before a single
+   handler bound.
+
+   So this runs the WHOLE block, in a vm context rather than an ES module,
+   because a classic <script> puts its function declarations on the global
+   object and an import does not — and the inline handlers in the static HTML
+   can only find them if they are global. It runs first, because a page that
+   does not boot makes every other assertion here meaningless. */
+console.log("\nboot");
+{
+  const vm = await import("node:vm");
+  const whole = html.split("<script>")[1].split("</script>")[0];
+
+  const els = {};
+  const mk = id => (els[id] ||= { id, innerHTML:"", value:"", style:{},
+    classList:{add(){},remove(){},toggle(){}}, focus(){}, setSelectionRange(){},
+    addEventListener(){}, querySelectorAll:()=>[] });
+
+  const box = {
+    console: { log(){}, warn(){}, error(){} },
+    document: { getElementById: mk, createElement: () => ({click(){},style:{},setAttribute(){}}),
+                addEventListener(){}, querySelectorAll:()=>[], body:{appendChild(){}} },
+    window: { scrollTo(){}, addEventListener(){}, matchMedia:()=>({matches:false,addEventListener(){}}) },
+    fetch: async () => { throw new Error("offline in tests"); },
+    URL: { createObjectURL:()=>"blob:", revokeObjectURL(){} },
+    Blob: class {}, setTimeout, clearTimeout, Date, Math, JSON, Set, Map, Intl,
+  };
+  box.globalThis = box;
+  vm.createContext(box);
+
+  let booted = true;
+  try { vm.runInContext(whole, box, { filename: "index.html<script>" }); }
+  catch (e) { booted = false; fail(`the page throws on load: ${e.message}`); }
+
+  if (booted) {
+    const out = id => els[id]?.innerHTML || "";
+    if (!out("main").length) fail("#main is empty after load — the page renders nothing");
+    if (!out("rail").length) fail("#rail is empty after load — the facets render nothing");
+
+    /* Every function an inline handler names has to exist. Guessing at the
+       list is how "toggleFacet" got tested instead of "toggle"; this reads
+       the attributes off the real markup instead. */
+    const RESERVED = new Set(["return","if","typeof","new","function","void","delete","this"]);
+    const handlers = new Set();
+    const scan = src => {
+      for (const m of src.matchAll(/\bon(?:click|change|input|submit|keydown)\s*=\s*"([^"]*)"/g))
+        for (const c of m[1].matchAll(/\b([A-Za-z_$][\w$]*)\s*\(/g))
+          if (!RESERVED.has(c[1])) handlers.add(c[1]);
+    };
+    scan(html.split("<script>")[0]);            // the static shell
+    ["main","rail","trayin"].forEach(id => scan(out(id)));
+    box.open_(P[0].id); scan(out("main"));      // a report, and its tabs
+    for (const t of Object.keys(TABL)) { box.setTab(t); scan(out("main")); }
+    box.goHome(); box.openMethod(); scan(out("main"));
+    box.openGen(""); scan(out("main"));
+
+    const missing = [...handlers].filter(f => typeof box[f] !== "function");
+    if (missing.length) fail(`inline handler(s) not defined: ${missing.join(", ")}`);
+
+    /* And the flows themselves, driven the way a reader drives them. */
+    box.goHome();
+    box.setQ("kitchen knife");
+    if (!/Victorinox/.test(out("main"))) fail('setQ("kitchen knife") rendered no knives');
+    box.setQ("camping knife");
+    if (!/Nothing filed here yet/.test(out("main"))) fail('setQ("camping knife") did not report the empty category');
+    box.setQ("");
+
+    box.open_("wusthof");
+    if (!/Materials/.test(out("main"))) fail('open_("wusthof") rendered no report');
+    for (const t of Object.keys(TABL)) {
+      box.setTab(t);
+      if (!out("main").length) fail(`tab "${t}" rendered nothing`);
+      if (/undefined|\[object Object\]/.test(out("main"))) fail(`tab "${t}" printed a stray value`);
+    }
+
+    box.goHome();
+    box.tcmp("wusthof"); box.tcmp("victorinox");
+    if (!out("trayin").length) fail("the compare tray renders nothing when filled");
+    box.openCompare();
+    if (!/Specifications/.test(out("main"))) fail("openCompare() rendered no spec sheet");
+    box.clearCmp();
+
+    box.openMethod();
+    if (!/citation/i.test(out("main"))) fail("openMethod() rendered no method page");
+
+    ok(`boots clean, ${handlers.size} inline handlers all defined, every view drives`);
+  }
+
+  /* The hero, the legend and the footer are static HTML outside the <script>
+     block, so every edit that removed the tiers went straight past them. They
+     described EXACT/LIKELY/UNKNOWN on the live site for four commits. */
+  for (const dead of ["EXACT","LIKELY","UNKNOWN","Certainty tags","confirmed, inferred, or missing"]) {
+    if (html.includes(dead)) fail(`the page still says "${dead}" — probably in the static shell, which no renderer touches`);
+  }
+  ok("no static copy still describes the certainty tiers");
+}
+
 /* ---------------------------------------------------------- 1. integrity */
 console.log("\nstructural integrity");
 for (const p of P) {
