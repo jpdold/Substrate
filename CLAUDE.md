@@ -179,29 +179,49 @@ looking perfectly fine on the page.
 
 ## Adding an item
 
-The `+` in the header opens `renderAdd()`. It records what an item **is** —
-manufacturer, name, type, category, description, identifier, origin, image.
-Composition comes after and is not in this form.
+The `+` in the header opens `renderAdd()`. It records what an item **is**;
+composition comes after and is not in this form.
 
-**`ITEM_TYPES` is not `CATS`, and they must not be merged.** `CATS` answers
-"what does a reader search for" — kitchen knives, not camping knives.
-`ITEM_TYPES` answers "what kind of thing is this at all", which is a question
-about trade. They do not nest: recycled aluminium and a chef's knife are both
-real entries and share no branch.
+**Item type is asked first, and the rest of the form follows from it.** Nothing
+below step 1 renders until it is answered, because too much depends on it:
 
-**Two conditional fields.** Choosing a type reveals that type's category list,
-and swaps the identifier list — raw materials are identified by what the
-substance *is* (CAS, UNS, HS code), everything else by the trade item (SKU,
-GTIN, UPC…). `Unknown` is appended to both and is a legitimate answer: an
-unmarked object is a real object.
+| decided by type | how |
+|---|---|
+| category list | `ITEM_TYPES[k].cats` |
+| identifier schemes | `identList(k)` — chemical for raw, trade for everything else |
+| default party role | `TYPE_PARTY[k]` |
+| whether a party is required at all | `PARTY_OPTIONAL` |
+| origin wording | "sourced" for raw, "made or sourced" otherwise |
+
+**"Manufacturer" is wrong for most of the catalogue.** Ore has a producer,
+scrap has a processor, and a licensed brand on a box is a licensor rather than
+the maker. So the party is a role from `PARTIES` plus a name, the role defaults
+from the type, and the name field relabels to match.
+
+**A raw material often has no named party at all**, so `PARTY_OPTIONAL` covers
+`raw` and `secondary`. Demanding one there produces an invented answer, which
+is the failure this whole project is arranged against.
+
+**Identifiers are a list, not a field.** One object routinely carries a GTIN on
+the box and an SKU in a retailer's system. Written as `ids:[{scheme,value}]` —
+the same shape products use — so a draft is searchable by barcode the moment it
+becomes a record.
+
+**`Unknown` is a scheme, not an absence**, and the distinction is the ethos of
+the site in miniature: an empty list means *nobody has looked*, while a row
+reading `Unknown` means *somebody looked and nothing is marked*. It saves as
+`identifierNote` rather than as a fake identifier.
+
+**Changing type prunes identifiers the new type cannot use** — an ISBN cannot
+survive a switch to raw materials — but keeps the ones still valid. It clears
+the category outright, since no category is shared between types.
 
 **Only the type change re-renders.** Every other field writes straight through
 with `setF()`. Re-rendering on a keystroke moves the caret to the end of the
 box, which makes the form unusable and is easy to reintroduce.
 
 **Drafts live in memory and leave as a JSON download** — invariant 4, the same
-route the request queue uses. There is no backend and adding one would cost
-invariant 3. The image rides along as a data URI, which is why there is a
+route the request queue uses. The image rides along as a data URI, hence the
 600KB ceiling with a real error rather than a silent truncation.
 
 **`titleCase()` normalises cities on blur, not on keystroke**, so it never

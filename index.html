@@ -454,7 +454,31 @@ select.fin{
   padding:14px 16px;margin-bottom:18px;
 }
 .formerr ul{margin:8px 0 0;padding-left:18px;font-size:13px;color:var(--fg-2);line-height:1.7}
-@media(max-width:720px){ .frow2{grid-template-columns:1fr} }
+.fstep{
+  display:flex;align-items:center;gap:10px;margin-top:10px;
+  font-family:var(--mono);font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;
+  color:var(--fg-2);border-top:1px solid var(--line-soft);padding-top:20px;
+}
+.fform > .fstep:first-child{border-top:none;padding-top:0;margin-top:0}
+.fnum{
+  width:19px;height:19px;border-radius:50%;background:var(--exact);color:var(--bg-3);
+  display:inline-flex;align-items:center;justify-content:center;font-size:10px;flex:none;
+}
+.fwait{
+  border:1px dashed var(--line);border-radius:var(--r);padding:11px 12px;
+  font-size:12.5px;color:var(--fg-3);
+}
+.idrows{display:flex;flex-direction:column;gap:10px}
+.idrow{
+  display:grid;grid-template-columns:1fr 1fr auto;gap:10px;align-items:center;
+}
+.idrow .idhelp{grid-column:1/-1;margin-top:0}
+.fact .btn.ghost{width:auto;padding:8px 16px}
+@media(max-width:720px){
+  .frow2{grid-template-columns:1fr}
+  .idrow{grid-template-columns:1fr auto}
+  .idrow .fin:nth-of-type(2){grid-column:1/-1}
+}
 
 /* ---------- the flat spec sheet ----------
    Products are rows, so the table grows downward rather than running out
@@ -1943,25 +1967,55 @@ const COUNTRIES = ("Afghanistan|Albania|Algeria|Andorra|Angola|Antigua and Barbu
    This records what an item IS. Composition — the component roster
    and its rows — is the next step and is not in this form.
    ================================================================== */
+/* Who the named party actually is. "Manufacturer" is wrong for most of the
+   catalogue: ore has a producer, scrap has a processor, and a licensed brand
+   name on a box is a licensor rather than the maker. The default follows the
+   item type, because that is the answer most of the time, and the field stays
+   editable because it is only most of the time. */
+const PARTIES = ["Manufacturer","Producer","Processor","Licensor","Distributor",
+  "Wholesaler","Dealer","Supplier","Trader","Broker","Importer","Exporter","Stockist"];
+
+/* Item type decides the default party AND whether a party is required at all.
+   Iron ore and glass cullet frequently have no named party — the material is
+   the material — and demanding one produces invented answers. */
+const TYPE_PARTY = {
+  consumer:"Manufacturer", raw:"Producer", intermediate:"Manufacturer",
+  capital:"Manufacturer", professional:"Manufacturer", packaging:"Manufacturer",
+  secondary:"Processor", specialized:"Manufacturer"
+};
+const PARTY_OPTIONAL = new Set(["raw","secondary"]);
+
 const DRAFTS = [];
 const blankForm = () => ({
-  img:null, imgName:"", mfr:"", name:"", type:"", cat:"", desc:"",
-  identType:"", identValue:"", country:"", city:""
+  type:"", cat:"", party:"", partyName:"", name:"",
+  img:null, imgName:"", desc:"", ids:[], country:"", city:""
 });
 
 function openAdd(){ S.view="add"; S.form=S.form||blankForm(); S.formErr=[]; render(); window.scrollTo({top:0}); }
 
-/* Only the type change re-renders, because it reveals a different sub-list and
-   a different identifier list. Every other field writes straight through:
-   re-rendering on a keystroke would move the caret to the end of the box. */
+/* Only the type change re-renders, because it reveals a different category
+   list, a different identifier list and a different default party. Every other
+   field writes straight through: re-rendering on a keystroke would move the
+   caret to the end of the box. */
 function setF(k,v){ S.form[k]=v; }
-function setItemType(v){ S.form.type=v; S.form.cat=""; S.form.identType=""; render(); }
+function setItemType(v){
+  S.form.type=v; S.form.cat="";
+  S.form.party = v ? TYPE_PARTY[v] : "";
+  /* an identifier scheme that does not exist on the new list cannot stay */
+  const ok=new Set(identList(v).map(x=>x[0]));
+  S.form.ids = S.form.ids.filter(r=>ok.has(r.scheme));
+  render();
+}
 
-/* Cities are typed a dozen ways. This normalises on blur rather than on every
-   keystroke, so it never fights the person typing. Interior particles stay
-   lowercase, but never as the first word — "Den Haag", not "den Haag" — and
-   both hyphens and apostrophes start a new word, which is what makes
-   Stratford-upon-Avon and O'Fallon come out right. */
+/* Identifiers are a list, because one object routinely carries several — a
+   GTIN on the box, an SKU in the retailer's system, a CAS number for what it
+   is made of. "Unknown" is a scheme rather than an absence: it records that
+   somebody looked and found nothing marked, which is not the same as nobody
+   having looked, and that distinction is the whole ethos of the site. */
+function addId(){ S.form.ids.push({scheme:"", value:""}); render(); }
+function setId(i,k,v){ S.form.ids[i][k]=v; if(k==="scheme") render(); }
+function dropId(i){ S.form.ids.splice(i,1); render(); }
+
 const LOWER = new Set(["of","the","and","de","del","da","di","du","la","le","les","las","los",
   "van","von","der","den","het","ter","ten","el","al","bin","ibn","upon","on","in","am","au","aux",
   "sur","zu","zum","y","e","en","et","op","a"]);
@@ -1988,8 +2042,7 @@ function titleCase(s){
 function setCity(v){ S.form.city=titleCase(v); render(); }
 
 /* No backend, so the image rides along as a data URI. That is the only way a
-   picture survives the JSON download, and it is also why there is a size
-   ceiling: a few hundred KB of base64 per item is tolerable, a few MB is not. */
+   picture survives the JSON download, and it is also why there is a ceiling. */
 const IMG_MAX = 600*1024;
 function readImg(input){
   const f=input.files&&input.files[0];
@@ -2009,26 +2062,31 @@ function dropImg(){ S.form.img=null; S.form.imgName=""; render(); }
 
 function saveDraft(){
   const f=S.form, err=[];
-  if(!f.mfr.trim())  err.push("Manufacturer is required.");
-  if(!f.name.trim()) err.push("Title or name is required.");
-  if(!f.type)        err.push("Pick an item type.");
+  if(!f.type)          err.push("Pick an item type — the rest of the form follows from it.");
   if(f.type && !f.cat) err.push("Pick a category.");
-  if(f.identType && f.identType!=="Unknown" && !f.identValue.trim())
-    err.push("You picked "+f.identType+" — give its value, or set the identifier to Unknown.");
+  if(!f.name.trim())   err.push("Title or name is required.");
+  if(f.type && !PARTY_OPTIONAL.has(f.type) && !f.partyName.trim())
+    err.push((f.party||"A responsible party")+" is required for "+(ITEM_TYPES[f.type]?.n||"this type")+".");
+  if(f.partyName.trim() && !f.party) err.push("Say what that party is to the item.");
+  f.ids.forEach((r,i)=>{
+    if(!r.scheme) err.push("Identifier "+(i+1)+" has no scheme.");
+    else if(r.scheme!=="Unknown" && !r.value.trim())
+      err.push("Identifier "+(i+1)+" is a "+r.scheme+" with no value.");
+  });
   S.formErr=err;
   if(err.length){ render(); window.scrollTo({top:0}); return; }
 
+  const marked = f.ids.filter(r=>r.scheme!=="Unknown" && r.value.trim());
   DRAFTS.push({
     recorded:new Date().toISOString().slice(0,10),
-    manufacturer:f.mfr.trim(), name:f.name.trim(),
     type:f.type, typeLabel:ITEM_TYPES[f.type].n, category:f.cat,
+    party: f.partyName.trim() ? {role:f.party, name:f.partyName.trim()} : null,
+    name:f.name.trim(),
     description:f.desc.trim()||null,
-    /* an array, matching the product model, so a draft is searchable by
-       identifier the moment it becomes a record — one object can carry a UPC
-       and an SKU, even though this form collects one at a time */
-    ids: f.identType && f.identType!=="Unknown" && f.identValue.trim()
-      ? [{scheme:f.identType, value:f.identValue.trim()}] : [],
-    identifierNote: f.identType==="Unknown" ? "No identifier marked on the item" : null,
+    /* same shape the products use, so a draft is searchable by identifier the
+       moment it becomes a record */
+    ids: marked.map(r=>({scheme:r.scheme, value:r.value.trim()})),
+    identifierNote: f.ids.some(r=>r.scheme==="Unknown") ? "Checked — no identifier marked on the item" : null,
     origin: (f.country||f.city) ? {country:f.country||null, city:f.city||null} : null,
     image: f.img ? {name:f.imgName, dataUri:f.img} : null,
     composition:null   // the component roster comes next, and is not in this form
@@ -2039,20 +2097,21 @@ function dropDraft(i){ DRAFTS.splice(i,1); render(); }
 function exportDrafts(){
   if(!DRAFTS.length) return;
   download("substrate-items.json","application/json",
-    JSON.stringify({recorded:new Date().toISOString(), schema:"items/1", items:DRAFTS}, null, 2));
+    JSON.stringify({recorded:new Date().toISOString(), schema:"items/2", items:DRAFTS}, null, 2));
 }
 
 function renderAdd(){
   const f=S.form, T=ITEM_TYPES[f.type];
-  const opt=(v,l,sel)=>`<option value="${String(v).replace(/"/g,"&quot;")}"${sel?" selected":""}>${l}</option>`;
-
+  const esc=v=>String(v==null?"":v).replace(/"/g,"&quot;");
+  const opt=(v,l,sel)=>`<option value="${esc(v)}"${sel?" selected":""}>${l}</option>`;
   const idents = f.type ? identList(f.type) : [];
+  const partyReq = f.type && !PARTY_OPTIONAL.has(f.type);
 
   return `
   <button class="back" onclick="goHome()">← Back to results</button>
   <div class="genwrap">
     <h3>Add an item</h3>
-    <p>What the thing is, who made it, and where. Composition — what it is made of, part by part — comes after this.</p>
+    <p>Start with what kind of thing it is — the rest of the form follows from that. Composition, what it is made of part by part, comes after this.</p>
   </div>
 
   ${S.formErr&&S.formErr.length?`<div class="formerr">
@@ -2061,48 +2120,64 @@ function renderAdd(){
 
   <div class="sec"><div class="fform">
 
+    <div class="fstep"><span class="fnum">1</span> What kind of thing is it</div>
+
     <div class="frow2">
+      <label class="fld">
+        <span class="flab">Item type <span class="req">required</span></span>
+        <select class="fin" onchange="setItemType(this.value)">
+          ${opt("","Choose…",!f.type)}
+          ${Object.entries(ITEM_TYPES).map(([k,v])=>opt(k,v.n,f.type===k)).join("")}
+        </select>
+      </label>
+      ${T?`<label class="fld reveal">
+        <span class="flab">Category <span class="req">required</span></span>
+        <select class="fin" onchange="setF('cat',this.value)">
+          ${opt("","Choose…",!f.cat)}
+          ${T.cats.map(c=>opt(c,c,f.cat===c)).join("")}
+        </select>
+      </label>`:`<div class="fld"><span class="flab">Category</span>
+        <div class="fwait">Pick an item type first</div></div>`}
+    </div>
+
+    ${T?`<div class="reveal">
+
+    <div class="fstep"><span class="fnum">2</span> What it is called, and who stands behind it</div>
+
+    <div class="frow2">
+      <label class="fld">
+        <span class="flab">Title or name <span class="req">required</span></span>
+        <input class="fin" value="${esc(f.name)}" oninput="setF('name',this.value)"
+          placeholder="${f.type==="raw"?"The material, as it is traded":"The maker's own name for it"}">
+      </label>
       <label class="fld">
         <span class="flab">Image <span class="opt2">optional · .png or .jpeg</span></span>
         ${f.img
-          ? `<div class="imgbox has"><img src="${f.img}" alt="${f.imgName}">
+          ? `<div class="imgbox has"><img src="${f.img}" alt="${esc(f.imgName)}">
                <div class="imgmeta"><span>${f.imgName}</span>
                <button class="linkish" onclick="dropImg()">remove</button></div></div>`
           : `<div class="imgbox">
                <input type="file" accept="image/png,image/jpeg" onchange="readImg(this)" aria-label="Item image">
                <span class="imghint">PNG or JPEG, under ${Math.round(IMG_MAX/1024)}KB</span></div>`}
       </label>
-
-      <div>
-        <label class="fld">
-          <span class="flab">Manufacturer <span class="req">required</span></span>
-          <input class="fin" value="${(f.mfr||"").replace(/"/g,"&quot;")}"
-            oninput="setF('mfr',this.value)" placeholder="The name on the object, as it is written">
-        </label>
-        <label class="fld">
-          <span class="flab">Title or name <span class="req">required</span></span>
-          <input class="fin" value="${(f.name||"").replace(/"/g,"&quot;")}"
-            oninput="setF('name',this.value)" placeholder="The maker's own name for it">
-        </label>
-      </div>
     </div>
 
-    <label class="fld">
-      <span class="flab">Item type <span class="req">required</span></span>
-      <select class="fin" onchange="setItemType(this.value)">
-        ${opt("","Choose…",!f.type)}
-        ${Object.entries(ITEM_TYPES).map(([k,v])=>opt(k,v.n,f.type===k)).join("")}
-      </select>
-    </label>
-
-    ${T?`<label class="fld reveal">
-      <span class="flab">Category <span class="req">required</span>
-        <span class="opt2">within ${T.n}</span></span>
-      <select class="fin" onchange="setF('cat',this.value)">
-        ${opt("","Choose…",!f.cat)}
-        ${T.cats.map(c=>opt(c,c,f.cat===c)).join("")}
-      </select>
-    </label>`:""}
+    <div class="frow2">
+      <label class="fld">
+        <span class="flab">Party <span class="opt2">what they are to the item</span></span>
+        <select class="fin" onchange="setF('party',this.value);render()">
+          ${opt("","Choose…",!f.party)}
+          ${PARTIES.map(p=>opt(p,p,f.party===p)).join("")}
+        </select>
+      </label>
+      <label class="fld">
+        <span class="flab">${f.party||"Party"} name
+          ${partyReq?`<span class="req">required</span>`
+                    :`<span class="opt2">optional — a material often has no named party</span>`}</span>
+        <input class="fin" value="${esc(f.partyName)}" oninput="setF('partyName',this.value)"
+          placeholder="${f.party==="Producer"?"Who produced it":"The name on the object, as it is written"}">
+      </label>
+    </div>
 
     <label class="fld">
       <span class="flab">Description and purpose <span class="opt2">optional</span></span>
@@ -2110,27 +2185,28 @@ function renderAdd(){
         placeholder="What it is for, in the maker's own terms where you have them">${f.desc||""}</textarea>
     </label>
 
-    <div class="frow2">
-      <label class="fld">
-        <span class="flab">Identifier <span class="opt2">${f.type?"":"pick an item type first"}</span></span>
-        <select class="fin" onchange="setF('identType',this.value);render()" ${f.type?"":"disabled"}>
-          ${opt("","Choose…",!f.identType)}
-          ${idents.map(([k])=>opt(k,k,f.identType===k)).join("")}
+    <div class="fstep"><span class="fnum">3</span> How it is identified, and where it comes from</div>
+
+    <div class="idrows">
+      ${f.ids.length?f.ids.map((r,i)=>`<div class="idrow">
+        <select class="fin" onchange="setId(${i},'scheme',this.value)" aria-label="Identifier scheme">
+          ${opt("","Choose a scheme…",!r.scheme)}
+          ${idents.map(([k])=>opt(k,k,r.scheme===k)).join("")}
         </select>
-        ${f.identType?`<span class="fhelp">${(idents.find(x=>x[0]===f.identType)||[])[1]||""}</span>`:""}
-      </label>
-      <label class="fld">
-        <span class="flab">Identifier value</span>
-        <input class="fin" value="${(f.identValue||"").replace(/"/g,"&quot;")}"
-          oninput="setF('identValue',this.value)"
-          ${f.identType&&f.identType!=="Unknown"?"":"disabled"}
-          placeholder="${f.identType==="Unknown"?"Not applicable":"The code itself"}">
-      </label>
+        <input class="fin" value="${esc(r.value)}" oninput="setId(${i},'value',this.value)"
+          ${r.scheme&&r.scheme!=="Unknown"?"":"disabled"}
+          placeholder="${r.scheme==="Unknown"?"Nothing marked on the item":"The code itself"}"
+          aria-label="Identifier value">
+        <button class="linkish" onclick="dropId(${i})" aria-label="Remove identifier">remove</button>
+        ${r.scheme?`<span class="fhelp idhelp">${(idents.find(x=>x[0]===r.scheme)||[])[1]||""}</span>`:""}
+      </div>`).join(""):`<div class="fwait">No identifier recorded. Add one if you know it — or record it as Unknown to say you looked.</div>`}
     </div>
+    <div class="fact"><button class="btn ghost" onclick="addId()">
+      ${f.ids.length?"Add another identifier":"Add an identifier"}</button></div>
 
     <div class="frow2">
       <label class="fld">
-        <span class="flab">Country made or sourced <span class="opt2">optional</span></span>
+        <span class="flab">Country ${f.type==="raw"?"sourced":"made or sourced"} <span class="opt2">optional</span></span>
         <select class="fin" onchange="setF('country',this.value)">
           ${opt("","Choose…",!f.country)}
           ${COUNTRIES.map(c=>opt(c,c,f.country===c)).join("")}
@@ -2138,9 +2214,8 @@ function renderAdd(){
       </label>
       <label class="fld">
         <span class="flab">City <span class="opt2">capitalised on leaving the box</span></span>
-        <input class="fin" value="${(f.city||"").replace(/"/g,"&quot;")}"
-          oninput="setF('city',this.value)" onblur="setCity(this.value)"
-          placeholder="Solingen">
+        <input class="fin" value="${esc(f.city)}" oninput="setF('city',this.value)"
+          onblur="setCity(this.value)" placeholder="Solingen">
       </label>
     </div>
 
@@ -2148,17 +2223,20 @@ function renderAdd(){
       <button class="genbtn" onclick="saveDraft()">Add item</button>
       <span class="fhelp">Drafts are held in this tab only. Export before you close it.</span>
     </div>
+    </div>`:""}
   </div></div>
 
   ${DRAFTS.length?`<div class="sec">
     <div class="sechead"><h3>Items added this session</h3>
       <span class="note">${DRAFTS.length} held in memory. Nothing is saved anywhere until you export.</span></div>
     <table class="dt">
-      <tr><th>Item</th><th>Type</th><th>Identifier</th><th>Origin</th><th></th></tr>
+      <tr><th>Item</th><th>Type</th><th>Identifiers</th><th>Origin</th><th></th></tr>
       ${DRAFTS.map((d,i)=>`<tr>
-        <td class="k">${d.manufacturer}<span class="sub">${d.name}</span></td>
+        <td class="k">${d.name}${d.party?`<span class="sub">${d.party.role}: ${d.party.name}</span>`:""}</td>
         <td class="v">${d.category}<span class="sub">${d.typeLabel}</span></td>
-        <td class="v">${d.identifier?`${d.identifier.scheme}${d.identifier.value?`<span class="sub">${d.identifier.value}</span>`:""}`:gap()}</td>
+        <td class="v">${d.ids.length
+          ? d.ids.map(x=>`${x.scheme} <span class="sub">${x.value}</span>`).join(" ")
+          : (d.identifierNote?`<span class="sub">${d.identifierNote}</span>`:gap())}</td>
         <td class="v">${d.origin?[d.origin.city,d.origin.country].filter(Boolean).join(", "):gap()}</td>
         <td class="v" style="text-align:right"><button class="linkish" onclick="dropDraft(${i})">remove</button></td>
       </tr>`).join("")}

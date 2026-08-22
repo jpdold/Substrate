@@ -39,7 +39,8 @@ const mod = await import(
     "quickView, fullView, vpanel, matches, results, stale, ageDays, " +
     "norm, addReq, REQS, renderGen, renderMethod, TABL, " +
     "exportPayload, exportRows, loadCorpus, META, " +
-    "ITEM_TYPES, IDENTIFIERS, identList, COUNTRIES, titleCase, DRAFTS, renderAdd, blankForm, saveDraft };"
+    "ITEM_TYPES, IDENTIFIERS, identList, COUNTRIES, titleCase, DRAFTS, renderAdd, blankForm, saveDraft, " +
+    "PARTIES, TYPE_PARTY, PARTY_OPTIONAL, setItemType, addId, setId, dropId };"
   )
 );
 
@@ -48,7 +49,8 @@ const {
   resultGroups, emptyMatches, verify, verifyAll, ingest, scoreOf, idNorm, idsOf,
   quickView, fullView, vpanel, results, stale, norm,
   renderMethod, TABL, exportPayload, exportRows, loadCorpus, META,
-  ITEM_TYPES, IDENTIFIERS, identList, COUNTRIES, titleCase, DRAFTS, renderAdd, blankForm, saveDraft
+  ITEM_TYPES, IDENTIFIERS, identList, COUNTRIES, titleCase, DRAFTS, renderAdd, blankForm, saveDraft,
+  PARTIES, TYPE_PARTY, PARTY_OPTIONAL, setItemType, addId, setId, dropId
 } = mod;
 
 const TABS = p => [["quick", () => quickView(p)], ["full", () => fullView(p)]];
@@ -670,77 +672,122 @@ console.log("\nadd item");
     ok(`${cases.length} city forms normalise, particles stay down, and it is idempotent`);
   }
 
-  /* ---- the form renders for every type, and reveals the right sub-list ---- */
+  /* ---- the form is type-first, because the rest of it differs by type ---- */
   {
     S.form = blankForm(); S.formErr = [];
-    let out = renderAdd();
-    if (strays(out)) fail(`add form: stray value — …${strays(out).replace(/\s+/g, " ")}…`);
-    if (/<select[^>]*>[\s\S]*?Apparel/.test(out)) fail("the category list showed before a type was chosen");
+    const bare = renderAdd();
+    if (/Title or name/.test(bare)) fail("the form showed its later fields before a type was chosen");
+    if (!/Pick an item type first/.test(bare)) fail("the form does not say what to do first");
+    setItemType("consumer");
+    if (!/Title or name/.test(renderAdd())) fail("choosing a type did not reveal the rest of the form");
+    ok("the form starts at item type and reveals the rest only once it is answered");
+  }
 
-    for (const [k, t] of types) {
-      S.form = blankForm(); S.form.type = k;
-      out = renderAdd();
-      if (strays(out)) fail(`add form/${k}: stray value`);
-      for (const c of t.cats)
-        if (!out.includes(c)) fail(`add form/${k}: category "${c}" is missing from the rendered list`);
-      const wrong = types.find(([o]) => o !== k && !ITEM_TYPES[o].cats.every(c => t.cats.includes(c))
-        && ITEM_TYPES[o].cats.some(c => !t.cats.includes(c) && out.includes(">" + c + "<")));
-      if (wrong) fail(`add form/${k}: leaked a category from "${wrong[0]}"`);
+  /* ---- who the named party is depends on what the thing is ---- */
+  {
+    if (new Set(PARTIES).size !== PARTIES.length) fail("the party list repeats a role");
+    if (PARTIES[0] !== "Manufacturer") fail("Manufacturer is not the first party role");
+    for (const k of Object.keys(ITEM_TYPES)) {
+      const def = TYPE_PARTY[k];
+      if (!def) fail('item type "' + k + '" has no default party role');
+      if (!PARTIES.includes(def)) fail('item type "' + k + '" defaults to "' + def + '", which is not a party role');
+      S.form = blankForm(); setItemType(k);
+      if (S.form.party !== def) fail('choosing "' + k + '" did not default the party to ' + def);
     }
-    ok("the form renders for all 8 types and reveals only that type's categories");
+    if (TYPE_PARTY.raw !== "Producer") fail("raw materials do not default to Producer");
+    if (TYPE_PARTY.secondary !== "Processor") fail("scrap does not default to Processor");
+    if (TYPE_PARTY.consumer !== "Manufacturer") fail("a consumer product does not default to Manufacturer");
+    ok(PARTIES.length + " party roles, each type defaulting to the right one");
   }
 
-  /* ---- validation refuses to record a nameless thing ---- */
+  /* ---- a material often has no named party, and demanding one invents it ---- */
   {
     const before = DRAFTS.length;
-    S.form = blankForm(); S.formErr = [];
+    S.form = blankForm(); setItemType("raw");
+    Object.assign(S.form, { cat: "Metals & Alloys", name: "Hot-rolled coil, S235JR" });
     saveDraft();
-    if (DRAFTS.length !== before) fail("an empty form was saved");
-    if (S.formErr.length < 3) fail(`expected errors for manufacturer, name and type, got ${S.formErr.length}`);
+    if (DRAFTS.length !== before + 1) fail("a raw material was refused for having no producer: " + S.formErr.join(" "));
+    if (DRAFTS.at(-1).party !== null) fail("an unnamed party recorded as something other than null");
 
-    S.form = blankForm();
-    Object.assign(S.form, { mfr: "Wüsthof", name: "Classic 8in", type: "consumer" });
+    S.form = blankForm(); setItemType("consumer");
+    Object.assign(S.form, { cat: "Electronics", name: "Type 75 Desk Lamp" });
     saveDraft();
-    if (DRAFTS.length !== before) fail("a form with no category was saved");
-    if (!S.formErr.some(e => /category/i.test(e))) fail("the missing category was not reported");
+    if (DRAFTS.length !== before + 1) fail("a consumer product saved with no manufacturer");
+    if (!S.formErr.some(e => /Manufacturer is required/.test(e)))
+      fail("the missing manufacturer was not reported by its role name");
+    S.form.partyName = "Anglepoise";
+    saveDraft();
+    if (DRAFTS.length !== before + 2) fail("a complete consumer product was refused");
+    if (DRAFTS.at(-1).party.role !== "Manufacturer") fail("the party role was not recorded");
+    DRAFTS.length = before;
+    ok("a party is required where it exists and optional where it does not");
+  }
 
-    /* an identifier scheme with no value is a half-answer; Unknown is a whole one */
-    S.form.cat = "Home & Garden"; S.form.identType = "UPC";
+  /* ---- identifiers are a list: one object routinely carries several ---- */
+  {
+    const before = DRAFTS.length;
+    S.form = blankForm(); setItemType("consumer");
+    Object.assign(S.form, { cat: "Electronics", name: "Lamp", party: "Manufacturer", partyName: "Anglepoise" });
+    if (!/No identifier recorded/.test(renderAdd())) fail("an empty identifier list does not say so");
+
+    addId(); addId();
+    if (S.form.ids.length !== 2) fail("adding a second identifier did not extend the list");
+    setId(0, "scheme", "GTIN"); setId(0, "value", "5012345678900");
+    setId(1, "scheme", "SKU");
     saveDraft();
-    if (DRAFTS.length !== before) fail("an identifier scheme with no value was saved");
-    S.form.identType = "Unknown";
+    if (DRAFTS.length !== before) fail("an identifier with a scheme and no value was saved");
+    if (!S.formErr.some(e => /Identifier 2 is a SKU with no value/.test(e)))
+      fail("the half-filled identifier was not named by its position and scheme");
+    setId(1, "value", "AP-75-BLK");
     saveDraft();
-    if (DRAFTS.length !== before + 1) fail("a valid item was not saved");
+    if (DRAFTS.length !== before + 1) fail("two complete identifiers were refused");
 
     const d = DRAFTS.at(-1);
-    if (d.manufacturer !== "Wüsthof" || d.name !== "Classic 8in") fail("the saved item lost its name");
-    if (d.typeLabel !== ITEM_TYPES.consumer.n) fail("the saved item lost its type label");
+    if (d.ids.length !== 2) fail("the saved item lost an identifier");
+    if (d.ids[0].scheme !== "GTIN" || d.ids[1].value !== "AP-75-BLK") fail("an identifier was garbled on save");
+    if (d.identifierNote) fail("a marked item recorded an Unknown note");
+    DRAFTS.length = before;
+    ok("identifiers are a repeatable list, and a half-filled row is refused by name");
+  }
+
+  /* ---- Unknown is a finding, not an absence ---- */
+  {
+    const before = DRAFTS.length;
+    S.form = blankForm(); setItemType("consumer");
+    Object.assign(S.form, { cat: "Furniture", name: "Stool", party: "Manufacturer", partyName: "Local" });
+    addId(); setId(0, "scheme", "Unknown");
+    saveDraft();
+    const d = DRAFTS.at(-1);
     if (d.ids.length) fail("an Unknown identifier recorded a value anyway");
-    if (!/No identifier marked/.test(d.identifierNote || ""))
-      fail("an Unknown identifier did not record why it is absent");
-    if (!("composition" in d)) fail("the record has no slot for composition, which is the next step");
-    if (S.form.mfr) fail("the form did not clear after a successful save");
+    if (!/no identifier marked/i.test(d.identifierNote || ""))
+      fail("Unknown did not record that somebody looked");
+
+    /* nobody having looked and somebody finding nothing are different states */
+    S.form = blankForm(); setItemType("consumer");
+    Object.assign(S.form, { cat: "Furniture", name: "Chair", party: "Manufacturer", partyName: "Local" });
+    saveDraft();
+    if (DRAFTS.at(-1).identifierNote !== null) fail("an unchecked item claimed somebody had looked");
     DRAFTS.length = before;
-    ok("validation blocks a nameless, typeless or half-identified item and clears on success");
+    ok("Unknown records that somebody looked; an empty list records that nobody did");
   }
 
-  /* ---- origin is optional, and absent means absent ---- */
+  /* ---- switching type must not strand an identifier from the old list ---- */
   {
-    const before = DRAFTS.length;
-    S.form = blankForm();
-    Object.assign(S.form, { mfr: "M", name: "N", type: "raw", cat: "Metals & Alloys" });
-    saveDraft();
-    const d = DRAFTS.at(-1);
-    if (d.origin !== null) fail("an item with no country or city recorded an origin anyway");
-    if (d.ids.length) fail("an item with no identifier recorded one anyway");
-    if (d.image !== null) fail("an item with no image recorded one anyway");
-    DRAFTS.length = before;
-    ok("an unanswered field records as null rather than as an empty string");
+    S.form = blankForm(); setItemType("consumer");
+    addId(); setId(0, "scheme", "ISBN");
+    setItemType("raw");
+    if (S.form.ids.some(r => r.scheme === "ISBN"))
+      fail("a book number survived the switch to raw materials, where it is not on the list");
+    S.form = blankForm(); setItemType("consumer");
+    addId(); setId(0, "scheme", "GTIN"); setId(0, "value", "5012345678900");
+    setItemType("packaging");
+    if (!S.form.ids.some(r => r.scheme === "GTIN")) fail("a still-valid identifier was dropped on a type change");
+    if (S.form.cat) fail("the category survived a type change and now belongs to the wrong list");
+    ok("changing type clears the category and drops only identifiers the new type cannot use");
   }
 
   S.form = null; S.formErr = [];
 }
-
 /* ----------------------------------------------------------------- done */
 console.log("");
 if (fails.length) {
