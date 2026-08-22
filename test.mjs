@@ -38,7 +38,8 @@ const mod = await import(
     "resultGroups, emptyMatches, peers, verify, verifyAll, ingest, " +
     "quickView, fullView, vpanel, matches, results, stale, ageDays, " +
     "norm, addReq, REQS, renderGen, renderMethod, TABL, " +
-    "exportPayload, exportRows, loadCorpus, META };"
+    "exportPayload, exportRows, loadCorpus, META, " +
+    "ITEM_TYPES, IDENTIFIERS, identList, COUNTRIES, titleCase, DRAFTS, renderAdd, blankForm, saveDraft };"
   )
 );
 
@@ -46,7 +47,8 @@ const {
   P, S, CATS, catPath, catCrumb, catMatch, catSubtree, catLeaves,
   resultGroups, emptyMatches, verify, verifyAll, ingest,
   quickView, fullView, vpanel, results, stale, norm,
-  renderMethod, TABL, exportPayload, exportRows, loadCorpus, META
+  renderMethod, TABL, exportPayload, exportRows, loadCorpus, META,
+  ITEM_TYPES, IDENTIFIERS, identList, COUNTRIES, titleCase, DRAFTS, renderAdd, blankForm, saveDraft
 } = mod;
 
 const TABS = p => [["quick", () => quickView(p)], ["full", () => fullView(p)]];
@@ -518,6 +520,148 @@ console.log("\ncorpus loading");
   P.length = 0; P.push(...beforeP);
   delete CATS.newklass;
   ok(`corpus.json merges: ${beforeP.length} embedded kept, 1 added, 1 overridden by id`);
+}
+
+/* ------------------------------------------------------- 12. add an item */
+/* The first path into the catalogue that does not cost money. What matters
+   here is the data underneath the form: a broken category list or a silently
+   dropped field is invisible on screen and permanent in whatever gets typed. */
+console.log("\nadd item");
+{
+  /* ---- the taxonomy the form offers ---- */
+  const types = Object.entries(ITEM_TYPES);
+  if (types.length !== 8) fail(`expected 8 item types, found ${types.length}`);
+  for (const [k, t] of types) {
+    if (!t.n) fail(`item type "${k}" has no label`);
+    if (!Array.isArray(t.cats) || t.cats.length < 8)
+      fail(`item type "${k}" has ${t.cats?.length ?? 0} categories — too few to be complete`);
+    if (new Set(t.cats).size !== t.cats.length)
+      fail(`item type "${k}" repeats a category`);
+    if (t.cats.some(c => !c || !c.trim())) fail(`item type "${k}" has a blank category`);
+  }
+  const allCats = types.flatMap(([, t]) => t.cats);
+  ok(`${types.length} item types, ${allCats.length} categories, none blank or repeated within a type`);
+
+  /* ---- the identifier list swaps on type, and Unknown is always reachable ---- */
+  {
+    const raw = identList("raw"), trade = identList("consumer");
+    if (raw[0][0] !== "CAS Registry Number") fail("raw materials do not lead with CAS");
+    if (trade[0][0] !== "SKU") fail("trade items do not lead with SKU");
+    if (raw.at(-1)[0] !== "Unknown" || trade.at(-1)[0] !== "Unknown")
+      fail("Unknown is not the last identifier option on both lists");
+    if (raw.some(r => r[0] === "ISBN")) fail("a raw material was offered a book number");
+    if (trade.some(r => r[0] === "CAS Registry Number")) fail("a trade item was offered a CAS number");
+    for (const [k, d] of [...raw, ...trade])
+      if (!k || !d) fail(`identifier "${k}" has no description — the help text renders blank`);
+    /* every non-raw type gets the trade list */
+    for (const [k] of types) {
+      if (k === "raw") continue;
+      if (identList(k)[0][0] !== "SKU") fail(`item type "${k}" did not get the trade identifier list`);
+    }
+    ok(`identifiers swap on type: ${raw.length} for raw materials, ${trade.length} otherwise, Unknown last on both`);
+  }
+
+  /* ---- countries ---- */
+  {
+    if (COUNTRIES.length < 190) fail(`only ${COUNTRIES.length} countries — the list is incomplete`);
+    if (new Set(COUNTRIES).size !== COUNTRIES.length) fail("the country list repeats an entry");
+    const sorted = [...COUNTRIES].sort((a, b) => a.localeCompare(b));
+    if (JSON.stringify(COUNTRIES) !== JSON.stringify(sorted)) fail("the country list is not alphabetical");
+    if (COUNTRIES.some(c => !c.trim())) fail("the country list has a blank entry");
+    ok(`${COUNTRIES.length} countries, alphabetical, no duplicates`);
+  }
+
+  /* ---- city capitalisation ----
+     Free-text cities produce "solingen", "SOLINGEN" and "Solingen" in one
+     afternoon. The particles are the part that is easy to get wrong, and
+     wrong in a way nobody notices until the catalogue is full of it. */
+  {
+    const cases = [
+      ["solingen", "Solingen"], ["SHEFFIELD", "Sheffield"], ["mAnChEsTeR", "Manchester"],
+      ["  toluca  ", "Toluca"], ["new york", "New York"], ["ho chi minh city", "Ho Chi Minh City"],
+      ["rio de janeiro", "Rio de Janeiro"], ["la paz", "La Paz"], ["the hague", "The Hague"],
+      ["stratford-upon-avon", "Stratford-upon-Avon"], ["port-au-prince", "Port-au-Prince"],
+      ["aix-en-provence", "Aix-en-Provence"], ["o'fallon", "O'Fallon"],
+      ["'s-hertogenbosch", "'s-Hertogenbosch"], ["frankfurt am main", "Frankfurt am Main"],
+      ["san josé", "San José"], ["", ""],
+    ];
+    for (const [inp, exp] of cases) {
+      const got = titleCase(inp);
+      if (got !== exp) fail(`titleCase(${JSON.stringify(inp)}) gave "${got}", expected "${exp}"`);
+    }
+    if (titleCase(titleCase("port-au-prince")) !== "Port-au-Prince")
+      fail("titleCase is not idempotent — it fights itself on a second blur");
+    ok(`${cases.length} city forms normalise, particles stay down, and it is idempotent`);
+  }
+
+  /* ---- the form renders for every type, and reveals the right sub-list ---- */
+  {
+    S.form = blankForm(); S.formErr = [];
+    let out = renderAdd();
+    if (strays(out)) fail(`add form: stray value — …${strays(out).replace(/\s+/g, " ")}…`);
+    if (/<select[^>]*>[\s\S]*?Apparel/.test(out)) fail("the category list showed before a type was chosen");
+
+    for (const [k, t] of types) {
+      S.form = blankForm(); S.form.type = k;
+      out = renderAdd();
+      if (strays(out)) fail(`add form/${k}: stray value`);
+      for (const c of t.cats)
+        if (!out.includes(c)) fail(`add form/${k}: category "${c}" is missing from the rendered list`);
+      const wrong = types.find(([o]) => o !== k && !ITEM_TYPES[o].cats.every(c => t.cats.includes(c))
+        && ITEM_TYPES[o].cats.some(c => !t.cats.includes(c) && out.includes(">" + c + "<")));
+      if (wrong) fail(`add form/${k}: leaked a category from "${wrong[0]}"`);
+    }
+    ok("the form renders for all 8 types and reveals only that type's categories");
+  }
+
+  /* ---- validation refuses to record a nameless thing ---- */
+  {
+    const before = DRAFTS.length;
+    S.form = blankForm(); S.formErr = [];
+    saveDraft();
+    if (DRAFTS.length !== before) fail("an empty form was saved");
+    if (S.formErr.length < 3) fail(`expected errors for manufacturer, name and type, got ${S.formErr.length}`);
+
+    S.form = blankForm();
+    Object.assign(S.form, { mfr: "Wüsthof", name: "Classic 8in", type: "consumer" });
+    saveDraft();
+    if (DRAFTS.length !== before) fail("a form with no category was saved");
+    if (!S.formErr.some(e => /category/i.test(e))) fail("the missing category was not reported");
+
+    /* an identifier scheme with no value is a half-answer; Unknown is a whole one */
+    S.form.cat = "Home & Garden"; S.form.identType = "UPC";
+    saveDraft();
+    if (DRAFTS.length !== before) fail("an identifier scheme with no value was saved");
+    S.form.identType = "Unknown";
+    saveDraft();
+    if (DRAFTS.length !== before + 1) fail("a valid item was not saved");
+
+    const d = DRAFTS.at(-1);
+    if (d.manufacturer !== "Wüsthof" || d.name !== "Classic 8in") fail("the saved item lost its name");
+    if (d.typeLabel !== ITEM_TYPES.consumer.n) fail("the saved item lost its type label");
+    if (d.identifier.scheme !== "Unknown" || d.identifier.value !== null)
+      fail("an Unknown identifier did not record as scheme-with-no-value");
+    if (!("composition" in d)) fail("the record has no slot for composition, which is the next step");
+    if (S.form.mfr) fail("the form did not clear after a successful save");
+    DRAFTS.length = before;
+    ok("validation blocks a nameless, typeless or half-identified item and clears on success");
+  }
+
+  /* ---- origin is optional, and absent means absent ---- */
+  {
+    const before = DRAFTS.length;
+    S.form = blankForm();
+    Object.assign(S.form, { mfr: "M", name: "N", type: "raw", cat: "Metals & Alloys" });
+    saveDraft();
+    const d = DRAFTS.at(-1);
+    if (d.origin !== null) fail("an item with no country or city recorded an origin anyway");
+    if (d.identifier !== null) fail("an item with no identifier recorded one anyway");
+    if (d.image !== null) fail("an item with no image recorded one anyway");
+    DRAFTS.length = before;
+    ok("an unanswered field records as null rather than as an empty string");
+  }
+
+  S.form = null; S.formErr = [];
 }
 
 /* ----------------------------------------------------------------- done */

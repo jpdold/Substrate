@@ -94,6 +94,9 @@ header{
 /* the results column sits on the ground too — no panel behind it */
 .wrap.body{background:transparent}
 body.reading .hero{display:none}
+/* a task view gets the whole width: filters cannot act on a form */
+body.focused .rail{display:none}
+body.focused .wrap.body{grid-template-columns:1fr}
 .hero p{
   margin-top:20px;max-width:56ch;color:var(--fg-2);font-size:16px;
 }
@@ -397,6 +400,55 @@ body.reading .hero{display:none}
 .genbtn.sm{padding:5px 12px;font-size:11.5px}
 .cls .crumb{font-size:11.5px}
 
+/* ---------- add-item form ---------- */
+.addbtn{
+  width:27px;height:27px;border:1px solid var(--line);border-radius:var(--r);
+  color:var(--exact);font-size:17px;line-height:1;margin-left:10px;
+  display:inline-flex;align-items:center;justify-content:center;
+}
+.addbtn:hover{background:var(--exact);color:var(--bg-3);border-color:var(--exact)}
+.fform{display:flex;flex-direction:column;gap:20px}
+.frow2{display:grid;grid-template-columns:1fr 1fr;gap:20px;align-items:start}
+.fld{display:block}
+.flab{
+  display:block;font-family:var(--mono);font-size:10px;letter-spacing:.14em;
+  text-transform:uppercase;color:var(--fg-3);margin-bottom:7px;
+}
+.req{color:var(--exact);letter-spacing:.1em}
+.opt2{color:var(--fg-3);text-transform:none;letter-spacing:.02em;font-size:10.5px}
+.fin{
+  width:100%;background:var(--bg-3);border:1px solid var(--line);border-radius:var(--r);
+  color:var(--fg);font-family:var(--sans);font-size:14px;padding:10px 12px;
+}
+.fin:focus{outline:none;border-color:var(--exact)}
+.fin:disabled{opacity:.45}
+.ftext{resize:vertical;line-height:1.5}
+select.fin{
+  appearance:none;cursor:pointer;padding-right:34px;
+  background-image:url("data:image/svg+xml;utf8,<svg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 12 8%27><path d=%27M1 1l5 5 5-5%27 fill=%27none%27 stroke=%27%2357736B%27 stroke-width=%271.6%27/></svg>");
+  background-repeat:no-repeat;background-position:right 12px center;background-size:11px;
+}
+.fhelp{display:block;font-size:11.5px;color:var(--fg-3);margin-top:6px;line-height:1.5}
+.reveal{animation:reveal .18s ease-out}
+@keyframes reveal{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
+.imgbox{
+  border:1px dashed var(--line);border-radius:var(--r);background:var(--bg-3);
+  padding:18px 14px;text-align:center;min-height:132px;
+  display:flex;flex-direction:column;justify-content:center;gap:9px;
+}
+.imgbox.has{padding:10px;text-align:left}
+.imgbox img{max-width:100%;max-height:190px;border-radius:2px;object-fit:contain}
+.imghint{font-size:11.5px;color:var(--fg-3)}
+.imgmeta{display:flex;gap:10px;align-items:baseline;font-size:11.5px;color:var(--fg-3);margin-top:8px}
+.imgmeta span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.fact{display:flex;align-items:center;gap:16px;flex-wrap:wrap;margin-top:4px}
+.formerr{
+  border:1px solid var(--warn);border-left:2px solid var(--warn);border-radius:var(--r);
+  padding:14px 16px;margin-bottom:18px;
+}
+.formerr ul{margin:8px 0 0;padding-left:18px;font-size:13px;color:var(--fg-2);line-height:1.7}
+@media(max-width:720px){ .frow2{grid-template-columns:1fr} }
+
 /* ---------- the flat spec sheet ----------
    Products are rows, so the table grows downward rather than running out
    of horizontal room at the fourth selection. */
@@ -558,6 +610,7 @@ footer .frow{display:flex;gap:26px;flex-wrap:wrap}
       <button onclick="goHome()">Products</button>
       <button onclick="openGen('')">Request</button>
       <button onclick="openMethod()">Method</button>
+      <button class="addbtn" onclick="openAdd()" title="Add an item" aria-label="Add an item">+</button>
     </nav>
   </div>
 </header>
@@ -1080,7 +1133,7 @@ verifyAll();   // the embedded corpus goes through the same gate as anything bui
 /* ============================ STATE ============================ */
 let S = {
   q:"", klass:new Set(), mode:new Set(), skillT:new Set(), sites:new Set(),
-  sort:"name", view:"list", cur:null, tab:"quick", pivot:"attr", dpiv:"attr",
+  sort:"name", view:"list", form:null, formErr:[], cur:null, tab:"quick", pivot:"attr", dpiv:"attr",
   genq:"", gen:null
 };
 
@@ -1659,6 +1712,371 @@ function vpanel(p){
 }
 
 /* ==================================================================
+   ITEM TYPES
+   ------------------------------------------------------------------
+   The entry form's own taxonomy, and deliberately NOT the same tree as
+   CATS. CATS answers "what does a reader search for" — kitchen knives,
+   not camping knives. This answers "what kind of thing is this at
+   all", which is a question about trade rather than about shopping,
+   and the two do not nest inside one another: recycled aluminium and
+   a chef's knife are both real entries here and share no branch.
+
+   Keeping them separate means a product can be filed for search and
+   classified for trade without either decision constraining the
+   other. Do not merge them.
+   ================================================================== */
+const ITEM_TYPES = {
+  consumer: {n:"Consumer product", cats:[
+    "Apparel & Accessories","Electronics","Home & Garden","Health & Beauty",
+    "Food & Beverages","Furniture","Toys & Games","Sports & Outdoors",
+    "Baby & Toddler","Pet Supplies","Automotive & Vehicles","Books & Media",
+    "Jewelry & Watches","Art & Collectibles","Office Supplies","Luggage & Bags",
+    "Digital Goods"]},
+
+  raw: {n:"Raw materials", cats:[
+    "Metals & Alloys","Plastics & Polymers","Textiles & Fibers",
+    "Chemicals & Compounds","Wood & Timber","Minerals & Ores",
+    "Agricultural / Plant-based","Animal-based (e.g. leather, wool)",
+    "Glass & Ceramics","Paper & Pulp","Rubber & Elastomers",
+    "Oils & Lubricants","Composites","Recycled / Secondary Materials"]},
+
+  intermediate: {n:"Intermediate goods / Components / Semi-finished products", cats:[
+    "Electronic components","Automotive parts & sub-assemblies",
+    "Metal fabrications & stampings","Plastic & rubber components",
+    "Textile intermediates (yarns, fabrics)","Chemical intermediates",
+    "Printed circuit boards & assemblies","Machined parts",
+    "Fasteners & hardware","Industrial valves & fittings",
+    "Semi-finished metals (sheets, coils, bars)","Other intermediate goods"]},
+
+  capital: {n:"Capital goods / Industrial equipment", cats:[
+    "Manufacturing machinery","Construction equipment","Material handling equipment",
+    "Industrial robots & automation","Power generation & distribution equipment",
+    "Agricultural machinery","Mining equipment","HVAC & process equipment",
+    "Machine tools","Commercial vehicles & heavy trucks",
+    "Laboratory & testing equipment","Other capital goods"]},
+
+  professional: {n:"Professional / Institutional products", cats:[
+    "Medical & laboratory equipment (professional use)",
+    "Office & commercial furniture systems",
+    "Commercial kitchen & foodservice equipment",
+    "Educational & institutional equipment","Security & surveillance systems",
+    "Professional tools & instruments","Hospitality equipment",
+    "Government & municipal equipment","Scientific instruments",
+    "Other professional products"]},
+
+  packaging: {n:"Packaging materials & industrial supplies", cats:[
+    "Primary packaging (bottles, cans, pouches)","Secondary packaging (cartons, trays)",
+    "Protective packaging (foam, bubble, edge protectors)",
+    "Labels & labeling materials","Adhesives & sealants",
+    "Industrial lubricants & greases","Cleaning & maintenance chemicals",
+    "Filters & consumables","Strapping & banding","Pallets & containers",
+    "Other industrial supplies"]},
+
+  secondary: {n:"Secondary / Recycled materials & scrap", cats:[
+    "Recycled plastics","Recycled metals & alloys","Recycled paper & pulp",
+    "Recycled textiles & fibers","Scrap metals","Electronic scrap (e-waste)",
+    "Construction & demolition waste","Organic / biomass waste","Rubber scrap",
+    "Glass cullet","Other secondary materials"]},
+
+  specialized: {n:"Specialized or regulated items", cats:[
+    "Medical devices (regulated)","Aerospace & defense components",
+    "Pharmaceutical intermediates & APIs","Hazardous materials",
+    "Live animals & livestock","Nuclear / radioactive materials",
+    "Controlled chemicals","Military equipment","Custom engineered products",
+    "Other specialized / regulated items"]}
+};
+
+/* Identifier schemes. Raw materials are identified by what the substance IS —
+   a CAS number names a compound regardless of who packaged it — while
+   everything else is identified by the trade item. The two lists barely
+   overlap, so the field swaps rather than growing. "Unknown" is appended to
+   both and is a legitimate answer: an unmarked object is a real object. */
+const IDENTIFIERS = {
+  trade: [
+    ["SKU","Internal stock-keeping unit assigned by a business for its own inventory tracking"],
+    ["GTIN","Global Trade Item Number (umbrella GS1 standard covering UPC, EAN, etc.)"],
+    ["UPC","12-digit Universal Product Code used mainly in North American retail"],
+    ["EAN","13-digit European Article Number used internationally and in Europe"],
+    ["ISBN","International Standard Book Number for books and book-like publications"],
+    ["ISMN","International Standard Music Number for sheet music and musical scores"],
+    ["ISSN","International Standard Serial Number for magazines, journals, and newspapers"],
+    ["ASIN","Amazon Standard Identification Number (Amazon's unique catalog identifier)"],
+    ["OOAK","One-Of-A-Kind unique physical item (no mass production)"],
+    ["Artisan","Handmade / craft item, typically limited or unique, usually without commercial barcode"],
+    ["Digital","Digital asset (e.g., NFT identified by On-Chain ID / Blockchain URN)"]
+  ],
+  raw: [
+    ["CAS Registry Number","Primary global identifier for chemicals and compounds"],
+    ["UNS","Unified Numbering System — standardized coding for metals and alloys"],
+    ["HS Code","Harmonized System — international trade and customs classification"],
+    ["GTIN (UPC/EAN)","Used when raw materials are sold as discrete packaged trade items"],
+    ["Commodity code / Grade / Lot number","Common for agricultural and bulk products"],
+    ["EC Number","European chemical substance identifier"],
+    ["UN Number","United Nations identifier for dangerous goods transport"],
+    ["Industry-specific code","Various sector-based identifiers depending on the material"]
+  ]
+};
+function identList(type){
+  return [...(type==="raw" ? IDENTIFIERS.raw : IDENTIFIERS.trade),
+          ["Unknown","No identifier is marked on the item or known to us"]];
+}
+
+/* ISO 3166-1 short names, alphabetical. A country is where a thing was made or
+   pulled out of the ground, which is a fact worth constraining to a list —
+   free text produces "USA", "U.S.A.", "United States" and "America" in the
+   same catalogue within a week. */
+const COUNTRIES = ("Afghanistan|Albania|Algeria|Andorra|Angola|Antigua and Barbuda|Argentina|Armenia|Australia|Austria|"
++"Azerbaijan|Bahamas|Bahrain|Bangladesh|Barbados|Belarus|Belgium|Belize|Benin|Bhutan|Bolivia|Bosnia and Herzegovina|"
++"Botswana|Brazil|Brunei|Bulgaria|Burkina Faso|Burundi|Cabo Verde|Cambodia|Cameroon|Canada|Central African Republic|"
++"Chad|Chile|China|Colombia|Comoros|Congo|Congo (DRC)|Costa Rica|Côte d'Ivoire|Croatia|Cuba|Cyprus|Czechia|Denmark|"
++"Djibouti|Dominica|Dominican Republic|Ecuador|Egypt|El Salvador|Equatorial Guinea|Eritrea|Estonia|Eswatini|Ethiopia|"
++"Fiji|Finland|France|Gabon|Gambia|Georgia|Germany|Ghana|Greece|Grenada|Guatemala|Guinea|Guinea-Bissau|Guyana|Haiti|"
++"Honduras|Hong Kong|Hungary|Iceland|India|Indonesia|Iran|Iraq|Ireland|Israel|Italy|Jamaica|Japan|Jordan|Kazakhstan|"
++"Kenya|Kiribati|Kosovo|Kuwait|Kyrgyzstan|Laos|Latvia|Lebanon|Lesotho|Liberia|Libya|Liechtenstein|Lithuania|Luxembourg|"
++"Macao|Madagascar|Malawi|Malaysia|Maldives|Mali|Malta|Marshall Islands|Mauritania|Mauritius|Mexico|Micronesia|Moldova|"
++"Monaco|Mongolia|Montenegro|Morocco|Mozambique|Myanmar|Namibia|Nauru|Nepal|Netherlands|New Zealand|Nicaragua|Niger|"
++"Nigeria|North Korea|North Macedonia|Norway|Oman|Pakistan|Palau|Palestine|Panama|Papua New Guinea|Paraguay|Peru|"
++"Philippines|Poland|Portugal|Qatar|Romania|Russia|Rwanda|Saint Kitts and Nevis|Saint Lucia|"
++"Saint Vincent and the Grenadines|Samoa|San Marino|Sao Tome and Principe|Saudi Arabia|Senegal|Serbia|Seychelles|"
++"Sierra Leone|Singapore|Slovakia|Slovenia|Solomon Islands|Somalia|South Africa|South Korea|South Sudan|Spain|"
++"Sri Lanka|Sudan|Suriname|Sweden|Switzerland|Syria|Taiwan|Tajikistan|Tanzania|Thailand|Timor-Leste|Togo|Tonga|"
++"Trinidad and Tobago|Tunisia|Türkiye|Turkmenistan|Tuvalu|Uganda|Ukraine|United Arab Emirates|United Kingdom|"
++"United States|Uruguay|Uzbekistan|Vanuatu|Vatican City|Venezuela|Vietnam|Yemen|Zambia|Zimbabwe").split("|");
+
+/* ==================================================================
+   ADD ITEM
+   ------------------------------------------------------------------
+   Data entry, and the first path into the catalogue that does not
+   cost money. build-corpus.mjs calls a paid model; this is a person
+   typing what they know.
+
+   Drafts live in memory and leave as a JSON download — invariant 4,
+   the same route the request queue already uses. There is no backend
+   to save to and adding one would cost invariant 3.
+
+   This records what an item IS. Composition — the component roster
+   and its rows — is the next step and is not in this form.
+   ================================================================== */
+const DRAFTS = [];
+const blankForm = () => ({
+  img:null, imgName:"", mfr:"", name:"", type:"", cat:"", desc:"",
+  identType:"", identValue:"", country:"", city:""
+});
+
+function openAdd(){ S.view="add"; S.form=S.form||blankForm(); S.formErr=[]; render(); window.scrollTo({top:0}); }
+
+/* Only the type change re-renders, because it reveals a different sub-list and
+   a different identifier list. Every other field writes straight through:
+   re-rendering on a keystroke would move the caret to the end of the box. */
+function setF(k,v){ S.form[k]=v; }
+function setItemType(v){ S.form.type=v; S.form.cat=""; S.form.identType=""; render(); }
+
+/* Cities are typed a dozen ways. This normalises on blur rather than on every
+   keystroke, so it never fights the person typing. Interior particles stay
+   lowercase, but never as the first word — "Den Haag", not "den Haag" — and
+   both hyphens and apostrophes start a new word, which is what makes
+   Stratford-upon-Avon and O'Fallon come out right. */
+const LOWER = new Set(["of","the","and","de","del","da","di","du","la","le","les","las","los",
+  "van","von","der","den","het","ter","ten","el","al","bin","ibn","upon","on","in","am","au","aux",
+  "sur","zu","zum","y","e","en","et","op","a"]);
+function titleCase(s){
+  const cap = w => w.charAt(0).toUpperCase()+w.slice(1);
+  return String(s||"").trim().toLowerCase().split(/(\s+)/).map((word,wi)=>{
+    if(/^\s+$/.test(word)) return word;
+    const segs = word.split(/([-'])/);
+    let opensWord = true;
+    return segs.map((seg,j)=>{
+      if(seg===""||seg==="-"||seg==="'") return seg;
+      const first = opensWord; opensWord = false;
+      const prev = segs[j-1], before = segs[j-2];
+      /* a leading apostrophe belongs to the syllable after it: 's-Hertogenbosch */
+      if(prev==="'" && before==="") return seg;
+      /* O'Fallon, D'Angelo — and Côte d'Ivoire, which caps for the same reason */
+      if(prev==="'") return cap(seg);
+      /* particles stay down unless they open the whole name: La Paz, Port-au-Prince */
+      if(!(wi===0 && first) && LOWER.has(seg)) return seg;
+      return cap(seg);
+    }).join("");
+  }).join("");
+}
+function setCity(v){ S.form.city=titleCase(v); render(); }
+
+/* No backend, so the image rides along as a data URI. That is the only way a
+   picture survives the JSON download, and it is also why there is a size
+   ceiling: a few hundred KB of base64 per item is tolerable, a few MB is not. */
+const IMG_MAX = 600*1024;
+function readImg(input){
+  const f=input.files&&input.files[0];
+  if(!f) return;
+  if(!/^image\/(png|jpeg)$/.test(f.type)){
+    S.formErr=["That file is a "+(f.type||"unknown type")+". Use a .png or .jpeg."]; render(); return;
+  }
+  if(f.size>IMG_MAX){
+    S.formErr=["That image is "+Math.round(f.size/1024)+"KB. Keep it under "+Math.round(IMG_MAX/1024)+"KB — it travels inside the JSON."];
+    render(); return;
+  }
+  const r=new FileReader();
+  r.onload=()=>{ S.form.img=r.result; S.form.imgName=f.name; S.formErr=[]; render(); };
+  r.readAsDataURL(f);
+}
+function dropImg(){ S.form.img=null; S.form.imgName=""; render(); }
+
+function saveDraft(){
+  const f=S.form, err=[];
+  if(!f.mfr.trim())  err.push("Manufacturer is required.");
+  if(!f.name.trim()) err.push("Title or name is required.");
+  if(!f.type)        err.push("Pick an item type.");
+  if(f.type && !f.cat) err.push("Pick a category.");
+  if(f.identType && f.identType!=="Unknown" && !f.identValue.trim())
+    err.push("You picked "+f.identType+" — give its value, or set the identifier to Unknown.");
+  S.formErr=err;
+  if(err.length){ render(); window.scrollTo({top:0}); return; }
+
+  DRAFTS.push({
+    recorded:new Date().toISOString().slice(0,10),
+    manufacturer:f.mfr.trim(), name:f.name.trim(),
+    type:f.type, typeLabel:ITEM_TYPES[f.type].n, category:f.cat,
+    description:f.desc.trim()||null,
+    identifier: f.identType ? {scheme:f.identType, value:f.identType==="Unknown"?null:f.identValue.trim()} : null,
+    origin: (f.country||f.city) ? {country:f.country||null, city:f.city||null} : null,
+    image: f.img ? {name:f.imgName, dataUri:f.img} : null,
+    composition:null   // the component roster comes next, and is not in this form
+  });
+  S.form=blankForm(); S.formErr=[]; render(); window.scrollTo({top:0});
+}
+function dropDraft(i){ DRAFTS.splice(i,1); render(); }
+function exportDrafts(){
+  if(!DRAFTS.length) return;
+  download("substrate-items.json","application/json",
+    JSON.stringify({recorded:new Date().toISOString(), schema:"items/1", items:DRAFTS}, null, 2));
+}
+
+function renderAdd(){
+  const f=S.form, T=ITEM_TYPES[f.type];
+  const opt=(v,l,sel)=>`<option value="${String(v).replace(/"/g,"&quot;")}"${sel?" selected":""}>${l}</option>`;
+
+  const idents = f.type ? identList(f.type) : [];
+
+  return `
+  <button class="back" onclick="goHome()">← Back to results</button>
+  <div class="genwrap">
+    <h3>Add an item</h3>
+    <p>What the thing is, who made it, and where. Composition — what it is made of, part by part — comes after this.</p>
+  </div>
+
+  ${S.formErr&&S.formErr.length?`<div class="formerr">
+    <span class="eyebrow">Not saved</span>
+    <ul>${S.formErr.map(e=>`<li>${e}</li>`).join("")}</ul></div>`:""}
+
+  <div class="sec"><div class="fform">
+
+    <div class="frow2">
+      <label class="fld">
+        <span class="flab">Image <span class="opt2">optional · .png or .jpeg</span></span>
+        ${f.img
+          ? `<div class="imgbox has"><img src="${f.img}" alt="${f.imgName}">
+               <div class="imgmeta"><span>${f.imgName}</span>
+               <button class="linkish" onclick="dropImg()">remove</button></div></div>`
+          : `<div class="imgbox">
+               <input type="file" accept="image/png,image/jpeg" onchange="readImg(this)" aria-label="Item image">
+               <span class="imghint">PNG or JPEG, under ${Math.round(IMG_MAX/1024)}KB</span></div>`}
+      </label>
+
+      <div>
+        <label class="fld">
+          <span class="flab">Manufacturer <span class="req">required</span></span>
+          <input class="fin" value="${(f.mfr||"").replace(/"/g,"&quot;")}"
+            oninput="setF('mfr',this.value)" placeholder="The name on the object, as it is written">
+        </label>
+        <label class="fld">
+          <span class="flab">Title or name <span class="req">required</span></span>
+          <input class="fin" value="${(f.name||"").replace(/"/g,"&quot;")}"
+            oninput="setF('name',this.value)" placeholder="The maker's own name for it">
+        </label>
+      </div>
+    </div>
+
+    <label class="fld">
+      <span class="flab">Item type <span class="req">required</span></span>
+      <select class="fin" onchange="setItemType(this.value)">
+        ${opt("","Choose…",!f.type)}
+        ${Object.entries(ITEM_TYPES).map(([k,v])=>opt(k,v.n,f.type===k)).join("")}
+      </select>
+    </label>
+
+    ${T?`<label class="fld reveal">
+      <span class="flab">Category <span class="req">required</span>
+        <span class="opt2">within ${T.n}</span></span>
+      <select class="fin" onchange="setF('cat',this.value)">
+        ${opt("","Choose…",!f.cat)}
+        ${T.cats.map(c=>opt(c,c,f.cat===c)).join("")}
+      </select>
+    </label>`:""}
+
+    <label class="fld">
+      <span class="flab">Description and purpose <span class="opt2">optional</span></span>
+      <textarea class="fin ftext" rows="3" oninput="setF('desc',this.value)"
+        placeholder="What it is for, in the maker's own terms where you have them">${f.desc||""}</textarea>
+    </label>
+
+    <div class="frow2">
+      <label class="fld">
+        <span class="flab">Identifier <span class="opt2">${f.type?"":"pick an item type first"}</span></span>
+        <select class="fin" onchange="setF('identType',this.value);render()" ${f.type?"":"disabled"}>
+          ${opt("","Choose…",!f.identType)}
+          ${idents.map(([k])=>opt(k,k,f.identType===k)).join("")}
+        </select>
+        ${f.identType?`<span class="fhelp">${(idents.find(x=>x[0]===f.identType)||[])[1]||""}</span>`:""}
+      </label>
+      <label class="fld">
+        <span class="flab">Identifier value</span>
+        <input class="fin" value="${(f.identValue||"").replace(/"/g,"&quot;")}"
+          oninput="setF('identValue',this.value)"
+          ${f.identType&&f.identType!=="Unknown"?"":"disabled"}
+          placeholder="${f.identType==="Unknown"?"Not applicable":"The code itself"}">
+      </label>
+    </div>
+
+    <div class="frow2">
+      <label class="fld">
+        <span class="flab">Country made or sourced <span class="opt2">optional</span></span>
+        <select class="fin" onchange="setF('country',this.value)">
+          ${opt("","Choose…",!f.country)}
+          ${COUNTRIES.map(c=>opt(c,c,f.country===c)).join("")}
+        </select>
+      </label>
+      <label class="fld">
+        <span class="flab">City <span class="opt2">capitalised on leaving the box</span></span>
+        <input class="fin" value="${(f.city||"").replace(/"/g,"&quot;")}"
+          oninput="setF('city',this.value)" onblur="setCity(this.value)"
+          placeholder="Solingen">
+      </label>
+    </div>
+
+    <div class="fact">
+      <button class="genbtn" onclick="saveDraft()">Add item</button>
+      <span class="fhelp">Drafts are held in this tab only. Export before you close it.</span>
+    </div>
+  </div></div>
+
+  ${DRAFTS.length?`<div class="sec">
+    <div class="sechead"><h3>Items added this session</h3>
+      <span class="note">${DRAFTS.length} held in memory. Nothing is saved anywhere until you export.</span></div>
+    <table class="dt">
+      <tr><th>Item</th><th>Type</th><th>Identifier</th><th>Origin</th><th></th></tr>
+      ${DRAFTS.map((d,i)=>`<tr>
+        <td class="k">${d.manufacturer}<span class="sub">${d.name}</span></td>
+        <td class="v">${d.category}<span class="sub">${d.typeLabel}</span></td>
+        <td class="v">${d.identifier?`${d.identifier.scheme}${d.identifier.value?`<span class="sub">${d.identifier.value}</span>`:""}`:gap()}</td>
+        <td class="v">${d.origin?[d.origin.city,d.origin.country].filter(Boolean).join(", "):gap()}</td>
+        <td class="v" style="text-align:right"><button class="linkish" onclick="dropDraft(${i})">remove</button></td>
+      </tr>`).join("")}
+    </table>
+    <div class="fact"><button class="btn ghost" onclick="exportDrafts()">Export ${DRAFTS.length} item${DRAFTS.length===1?"":"s"} as JSON</button></div>
+  </div>`:""}`;
+}
+
+/* ==================================================================
    METHOD
    ------------------------------------------------------------------
    The rule this page describes is one line of code — a row renders if
@@ -1732,11 +2150,13 @@ function renderMethod(){
 /* ============================ RENDER ============================ */
 function render(){
   /* the hero belongs to the list view; everything else is reading */
-  if(document.body) document.body.className = S.view==="list" ? "" : "reading";
+  if(document.body) document.body.className =
+    S.view==="list" ? "" : (S.view==="add"||S.view==="gen") ? "reading focused" : "reading";
   renderRail();
   if(S.view==="gen"){ document.getElementById("main").innerHTML=renderGen();
     const el=document.getElementById("gq"); if(el){el.focus();el.setSelectionRange(el.value.length,el.value.length);} }
   else if(S.view==="method"){ document.getElementById("main").innerHTML=renderMethod(); }
+  else if(S.view==="add"){ document.getElementById("main").innerHTML=renderAdd(); }
   else if(S.view==="report"&&S.cur) renderReport(); else renderList();
 }
 document.getElementById("bq").addEventListener("input",e=>{S.q=e.target.value;S.view="list";render()});

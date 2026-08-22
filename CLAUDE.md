@@ -140,6 +140,42 @@ unreachable by search while looking perfectly fine on the page.
 
 ---
 
+## Adding an item
+
+The `+` in the header opens `renderAdd()`. It records what an item **is** —
+manufacturer, name, type, category, description, identifier, origin, image.
+Composition comes after and is not in this form.
+
+**`ITEM_TYPES` is not `CATS`, and they must not be merged.** `CATS` answers
+"what does a reader search for" — kitchen knives, not camping knives.
+`ITEM_TYPES` answers "what kind of thing is this at all", which is a question
+about trade. They do not nest: recycled aluminium and a chef's knife are both
+real entries and share no branch.
+
+**Two conditional fields.** Choosing a type reveals that type's category list,
+and swaps the identifier list — raw materials are identified by what the
+substance *is* (CAS, UNS, HS code), everything else by the trade item (SKU,
+GTIN, UPC…). `Unknown` is appended to both and is a legitimate answer: an
+unmarked object is a real object.
+
+**Only the type change re-renders.** Every other field writes straight through
+with `setF()`. Re-rendering on a keystroke moves the caret to the end of the
+box, which makes the form unusable and is easy to reintroduce.
+
+**Drafts live in memory and leave as a JSON download** — invariant 4, the same
+route the request queue uses. There is no backend and adding one would cost
+invariant 3. The image rides along as a data URI, which is why there is a
+600KB ceiling with a real error rather than a silent truncation.
+
+**`titleCase()` normalises cities on blur, not on keystroke**, so it never
+fights the person typing. The particles are the fiddly part — the first
+implementation got three wrong — and seventeen forms are asserted in
+`test.mjs`: `Port-au-Prince`, `Stratford-upon-Avon`, `O'Fallon`,
+`'s-Hertogenbosch`, `Aix-en-Provence`, `Frankfurt am Main`. It is idempotent,
+because blur fires again every time the field is revisited.
+
+---
+
 ## Data model
 
 A product is a component roster plus rows bound to those components.
