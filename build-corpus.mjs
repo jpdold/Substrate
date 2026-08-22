@@ -71,43 +71,33 @@ const SCHEMA_NOTE = `Return ONE json object, no prose, no markdown fences:
 {"klassLabel":"<functional class: what it DOES, not the brand>",
  "target":{"brand":"","model":"","year":"",
    "comps":[{"id":"","n":"","role":"Critical|Structural|Functional|Cosmetic"}],
-   "materials":[{"c":"<comp id>","n":"","share":0,"spec":"","src":0}],
-   "sourcing":[{"c":"","m":"","o":"","s":"","src":0,"note":""}],
-   "construction":{"mode":"Factory|Hand-made|Both|Unknown","auto":"","tol":"","src":0,
+   "materials":[{"c":"<comp id>","n":"","share":0,"spec":""}],
+   "sourcing":[{"c":"","m":"","o":"","s":"","note":""}],
+   "construction":{"mode":"Factory|Hand-made|Both|Unknown","auto":"","tol":"",
      "steps":[{"c":"","p":""}]},
-   "assembly":{"sites":[{"l":"","o":""}],"label":"","count":"Single site|Multiple sites|Unknown","src":0},
-   "skill":{"tier":"","basis":"","src":0,"ops":[["<comp id>","operation","skill applied"]]},
-   "parts":[{"c":"","n":"","m":"","crit":"","fail":"","src":0}],
-   "issues":[]},
- "peers":[{"brand":"","model":"","why":"one line on how it differs"}],
- "sources":[{"t":"page title","u":"https://..."}]}
+   "assembly":{"sites":[{"l":"","o":""}],"label":"","count":"Single site|Multiple sites|Unknown"},
+   "skill":{"tier":"","basis":"","ops":[["<comp id>","operation","skill applied"]]},
+   "parts":[{"c":"","n":"","m":"","crit":"","fail":""}],
+   "issues":[]}}
 
 RULES — these decide whether the report is usable:
-- src is an index into sources[] of a page that STATES that specific claim. It
-  is the only thing that puts a row in a table. A row without a resolving src
-  is moved out of the table and written as prose, so leaving one off does not
-  soften a claim — it relocates it.
-- Do not omit a claim you found but could not source. Write it anyway, with no
-  src. It will render as prose, which is where the interesting findings live:
-  "the manufacturer does not state the resin supplier" is a real finding.
-- Say what each source is a fact ABOUT. A patent says what a company patented,
-  a label says what is declared, a spec sheet says what is specified, a
-  teardown says what was found in one unit. None of them says what the product
-  is in the abstract. Write "cold-forging method patented by the maker", not
-  "this blade is cold-forged", when a patent is all you have.
-- Never attach a source to a claim it does not state. A well-cited wrong claim
-  is the one failure nothing downstream can catch.
+- Report only what you actually found. Omit a field rather than guessing at it;
+  an absent field renders as "No Data For Now", which is the correct output and
+  is never read as a claim about the product.
+- Say what each fact is a fact ABOUT. A patent says what a company patented, a
+  label says what is declared, a spec sheet says what is specified, a teardown
+  says what was found in one unit. None of them says what the product is in the
+  abstract. Write "cold-forging method patented by the maker", not "this blade
+  is cold-forged", when a patent is all you have.
 - share is percent BY MASS OF THE WHOLE OBJECT, not of its component. All
   material shares together must total 100 or less. If you cannot apportion by
   mass, omit share rather than guessing — a set summing to several hundred
   percent tells the reader nothing.
-- Do NOT guess a value to fill a field. Omit it. There are no quality scores,
-  no ratings and no confidence levels in this schema, by design: every one of
-  them turned out to be the model agreeing with itself in the shape of an
-  assessment.
+- There are no quality scores, no ratings and no confidence levels in this
+  schema, by design: every one of them turned out to be the model agreeing
+  with itself in the shape of an assessment.
 - Every c must match a comps[].id. Max 5 comps, 6 materials, 4 sourcing, 5 steps, 4 parts.
 - Components are physical parts of the object (blade, handle, jar, seal), not qualities.
-- Exactly 2 peers: same function, different brand.
 - Every string under 160 chars. Terse.`;
 
 /* -------------------------------------------------------------- transport */
@@ -201,46 +191,6 @@ export async function callModel(query) {
   return obj;
 }
 
-/* ----------------------------------------------------------- link liveness */
-/* verify() can only regex a URL: it runs in the browser too, and a page cannot
-   fetch cross-origin to see whether a citation resolves. So a row citing a 404
-   passes it — which it did on the first real build. Node can fetch, so
-   liveness is checked here, once, at build time.
-
-   Only 404 and 410 count as broken. A 403 is a site blocking automated
-   fetches, not a dead page — Bladeforums returns one for a thread a reader can
-   open perfectly well, and downgrading on that would be its own false claim.
-   Anything else is recorded as unverified and left alone.
-
-   A broken source has its `u` blanked (kept as `deadUrl`) so the ordinary
-   verifier does the demotion and logs it, rather than duplicating that logic
-   here and drifting from index.html. */
-const GONE = new Set([404, 410]);
-
-export async function checkSources(o, fetchImpl = fetch) {
-  const log = [];
-  for (const [i, s] of (o.sources || []).entries()) {
-    if (!s || !/^https?:\/\//.test(s.u || "")) continue;
-    let status;
-    try {
-      const r = await fetchImpl(s.u, { redirect: "follow", signal: AbortSignal.timeout(20000) });
-      status = r.status;
-    } catch { status = "unreachable"; }
-
-    /* Name the source, never its index. Indices shift whenever a source is
-       added or removed, and a log line pointing at a slot that no longer
-       exists is worse than no log line. */
-    if (GONE.has(status)) {
-      s.deadUrl = s.u; s.u = ""; s.httpStatus = status;
-      log.push(`Source “${s.t}” returned ${status} — anything citing it moves to prose`);
-    } else if (status !== 200) {
-      s.httpStatus = status;
-      log.push(`Source “${s.t}” answered ${status} — left in place; a block or a timeout is not a dead page`);
-    }
-  }
-  return log;
-}
-
 /* --------------------------------------------------------------- verifier */
 /* Byte-for-byte the same logic and the same log wording as the copy in
    index.html — invariant 1. The site re-runs this on load, so a divergence
@@ -250,20 +200,8 @@ export async function checkSources(o, fetchImpl = fetch) {
 
 export function verify(o){
   const log=[], t=o.target;
-  const srcOK=i=>Number.isInteger(i)&&o.sources&&o.sources[i]&&
-                  /^https?:\/\//.test(o.sources[i].u||"");
 
-  /* A source with no URL can never admit a row. Say so once, here, rather
-     than leaving every row that cites it to fail for no visible reason. */
-  (o.sources||[]).forEach((s,i)=>{
-    if(!/^https?:\/\//.test(s.u||""))
-      log.push("Source ["+i+"] “"+(s.t||"untitled")+"” has no resolvable URL — no row can cite it");
-  });
-
-  /* orphan guard, first: a row bound to a component that was never declared
-     is unreadable wherever it lands, so it must go before anything is moved
-     to prose rather than after. Pruning second let an orphan ride into the
-     prose inside a demoted parent. */
+  /* a row bound to a component nobody declared is unreadable */
   const ids=new Set((t.comps||[]).map(c=>c.id));
   const prune=(arr,f,lbl)=>{
     const before=(arr||[]).length;
@@ -278,48 +216,11 @@ export function verify(o){
   if(t.construction) t.construction.steps=prune(t.construction.steps,x=>x.c,"process");
   if(t.skill)        t.skill.ops        =prune(t.skill.ops,        x=>x[0],"skill");
 
-  /* uncited rows keep their content and gain a reason. `sec` tells the
-     prose renderer which heading to write them under. */
-  t.uncited = t.uncited || [];
-  const demote=(row,sec,label)=>{
-    t.uncited.push({sec, label, row, why: row.src==null||row.src===undefined
-      ? "no source cited"
-      : "cited source ["+row.src+"] does not resolve"});
-    log.push(label+" is not cited — moved to prose");
-  };
-
-  /* list sections: partition in place */
-  const sift=(arr,sec,name)=>{
-    const kept=[];
-    (arr||[]).forEach(r=>{ if(srcOK(r.src)) kept.push(r); else demote(r,sec,name(r)); });
-    return kept;
-  };
-  t.materials = sift(t.materials, "materials", r=>"Material “"+r.n+"”");
-  t.sourcing  = sift(t.sourcing,  "sourcing",  r=>"Sourcing of “"+(r.m||"unnamed")+"”");
-  t.parts     = sift(t.parts,     "parts",     r=>"Component “"+r.n+"”");
-
-  /* singleton sections: null the slot so no renderer can read an
-     unsourced object as if it had passed */
-  const single=(key,sec,label)=>{
-    const v=t[key];
-    if(v && !srcOK(v.src)){ demote(v,sec,label); t[key]=null; }
-  };
-  single("construction","construction","Construction method");
-  single("assembly","assembly","Assembly location");
-  single("skill","skill","Skill tier");
-
-  /* mass share sanity — only the cited rows are left to sum, so a total
-     well under 100 now means uncited mass, not missing mass */
-  const sum=t.materials.reduce((a,m)=>a+(+m.share||0),0);
-  if(sum>105) log.push("Cited material shares summed to "+Math.round(sum)+
+  /* mass share sanity */
+  const sum=(t.materials||[]).reduce((a,m)=>a+(+m.share||0),0);
+  if(sum>105) log.push("Material shares summed to "+Math.round(sum)+
     "% — treat mass figures as approximate");
 
-  /* citation coverage: the one number that replaces the certainty bar */
-  const cited=t.materials.length+t.sourcing.length+t.parts.length+
-    (t.construction?1:0)+(t.assembly?1:0)+(t.skill?1:0);
-  const total=cited+t.uncited.length;
-  t.coverage={cited, total};
-  if(cited===0) log.push("No claim in this report resolves to a source — the whole report is prose");
   return log;
 }
 
@@ -343,18 +244,12 @@ export function toProducts(o, pin = {}) {
     comps: t.comps, materials: t.materials, sourcing: t.sourcing,
     construction: t.construction, assembly: t.assembly, skill: t.skill,
     parts: t.parts, issues: t.issues || [],
-    gen: today, rev: false, sources: o.sources || [], vlog: o._vlog || []
+    gen: today, rev: false, vlog: o._vlog || []
   };
-  /* A pinned class already has real peers. Attaching generated stubs to it
-     would put unresearched placeholders next to researched products and drag
-     the class-silence reduction toward "nobody cites this". */
-  const peers = pin.klass ? [] : (o.peers || []).slice(0, 2).map((p, i) => ({
-    id: `${id}-peer${i}`, brand: p.brand, model: p.model, klass: kid, year: "unspecified",
-    comps: [], materials: [], sourcing: [],
-    construction: null, assembly: null, skill: null,
-    note: p.why || "Comparison reference; no report built.",
-    parts: [], issues: [], stub: true, gen: today, rev: false, sources: [], vlog: []
-  }));
+  /* Generated peer stubs existed to give the comparison view something to
+     line up against. There is no comparison view, so a stub is now a product
+     with no data pretending to be a product. */
+  const peers = [];
   const products = [target, ...peers];
   return { kid, klassLabel: o.klassLabel, products };
 }
@@ -444,8 +339,7 @@ for (const r of take) {
     const o = await callModel(r.q);
     /* Liveness first: a dead source has its URL blanked, so the verifier that
        follows downgrades everything citing it through its normal cascade. */
-    const linkLog = await checkSources(o);
-    o._vlog = [...linkLog, ...verify(o)];
+    o._vlog = verify(o);
     adjusted += o._vlog.length;
     const { kid, klassLabel, products } = toProducts(o, { id: r.id, klass: r.klass });
     /* Only name a class we are creating. Overwriting a pinned class's label
@@ -457,7 +351,7 @@ for (const r of take) {
     }
     console.log(`ok  (${o._searches} search result set(s)` +
       `${o._searchErrors ? `, ${o._searchErrors} search(es) FAILED` : ""}` +
-      `, ${o._vlog.length} claim(s) adjusted)`);
+      `, ${o._vlog.length} row(s) adjusted)`);
     o._vlog.forEach(l => console.log(`         ↓ ${l}`));
 
     /* The pass judges a sourcing score; the rows decide it. Where those
@@ -503,8 +397,8 @@ ${corpus.products.length} products across ${Object.keys(corpus.classes).length} 
 ${unreviewed} report(s) await human review before publication.
 ${overdue} report(s) are past the ${TTL_DAYS}-day cycle — rerun with --stale.
 
-Set rev:true on a product once a person has checked it against its
-sources. The site shows unreviewed reports as machine-built.
+Set rev:true on a product once a person has checked it. The site shows
+unreviewed reports as such in their provenance panel.
 ─────────────────────────────────────────────`);
 }
 
