@@ -35,7 +35,7 @@ globalThis.fetch = async () => { throw new Error("network disabled in tests"); }
 const mod = await import(
   "data:text/javascript," + encodeURIComponent(
     stub + src + "\nexport { P, S, CATS, catPath, catCrumb, catLabel, catMatch, catSubtree, catLeaves, " +
-    "resultGroups, emptyMatches, peers, verify, verifyAll, ingest, " +
+    "resultGroups, emptyMatches, peers, verify, verifyAll, ingest, scoreOf, idNorm, idsOf, " +
     "quickView, fullView, vpanel, matches, results, stale, ageDays, " +
     "norm, addReq, REQS, renderGen, renderMethod, TABL, " +
     "exportPayload, exportRows, loadCorpus, META, " +
@@ -45,7 +45,7 @@ const mod = await import(
 
 const {
   P, S, CATS, catPath, catCrumb, catMatch, catSubtree, catLeaves,
-  resultGroups, emptyMatches, verify, verifyAll, ingest,
+  resultGroups, emptyMatches, verify, verifyAll, ingest, scoreOf, idNorm, idsOf,
   quickView, fullView, vpanel, results, stale, norm,
   renderMethod, TABL, exportPayload, exportRows, loadCorpus, META,
   ITEM_TYPES, IDENTIFIERS, identList, COUNTRIES, titleCase, DRAFTS, renderAdd, blankForm, saveDraft
@@ -225,38 +225,26 @@ console.log("\ncategories");
   ok(`${Object.keys(CATS).length} categories, ${catLeaves().length} leaves, every parent resolves`);
 
   const hit = q => catMatch(q).flatMap(catSubtree);
-  const kk = hit("kitchen knife");
-  if (!kk.includes("knife8")) fail('"kitchen knife" does not reach the chef\'s knife category');
-  if (kk.includes("fixed") || kk.includes("pocket")) fail('"kitchen knife" reached an outdoor knife category');
-  const ck = hit("camping knife");
-  if (!ck.includes("fixed")) fail('"camping knife" does not reach the fixed-blade category');
-  if (ck.includes("knife8")) fail('"camping knife" reached the kitchen knife category');
-  ok('"kitchen knife" and "camping knife" resolve to opposite branches');
-
-  const bare = hit("knife");
-  if (!bare.includes("knife8") || !bare.includes("fixed"))
-    fail('"knife" alone should reach both branches rather than picking one');
-  ok('"knife" alone returns both branches for the reader to choose');
-
+  if (!hit("kitchen knife").includes("knife8")) fail('"kitchen knife" does not reach the chef knife category');
+  if (!hit("camping knife").includes("fixed")) fail('"camping knife" does not reach the fixed-blade category');
   if (!hit("cookware").includes("skillet")) fail("a parent-only term did not reach its leaf");
   if (hit("kitchen").includes("instant")) fail('"kitchen" reached a food category');
-  ok("ancestor terms reach their leaves and nothing else");
-
   if (catMatch("wusthof").length) fail('"wusthof" was treated as a category');
+  ok("the tree still resolves a query to the categories it names");
+
   S.q = "wusthof";
-  if (!results().some(p => /W/.test(p.brand))) fail("brand search stopped working under the tree");
+  if (!results().some(p => /W/.test(p.brand))) fail("brand search stopped working");
   S.q = "solingen";
   if (!results().length) fail("a term that lives only in a report's body stopped resolving");
   S.q = "";
-  ok("non-category queries fall through to product text");
+  ok("brand and body-text queries still resolve");
 
   S.q = "camping knife";
   if (!emptyMatches().includes("fixed")) fail('"camping knife" did not report its empty category');
-  if (resultGroups().length) fail('"camping knife" returned products');
   S.q = "kitchen knife";
   if (emptyMatches().includes("knife8")) fail("a populated category was reported as empty");
   S.q = "";
-  ok("a named-but-empty category is reported rather than returning nothing");
+  ok("a named-but-empty category is still reported alongside whatever matched");
 
   S.q = "knife";
   const g = resultGroups();
@@ -267,6 +255,94 @@ console.log("\ncategories");
   ok("results group under their category with a breadcrumb");
 }
 
+
+/* ------------------------------------------------------- 3c. relevance */
+/* The tree used to GATE: naming a category returned that subtree and nothing
+   else, so "kitchen knife" could not reach a camping knife however useful
+   that might be. It ranks now. These assertions are the inverse of the ones
+   they replaced, and the direction is the whole point — inclusive but
+   correctly ordered, not inclusive and arbitrary. */
+console.log("\nrelevance");
+{
+  /* two outdoor knives, so a kitchen query has something to out-rank rather
+     than merely exclude */
+  const extra = [
+    { id:"t-mora", brand:"Morakniv", model:"Companion Heavy Duty", klass:"fixed", year:"current",
+      comps:[{id:"blade",n:"Blade",role:"Critical"}],
+      materials:[{c:"blade",n:"Carbon steel",spec:"3.2mm"}], sourcing:[], parts:[],
+      construction:{mode:"Factory",steps:[{c:"blade",p:"Stamped and ground"}]},
+      assembly:{sites:[{l:"Mora, Sweden"}],label:"Made in Sweden",count:"Single site"},
+      skill:null, issues:[],
+      ids:[{scheme:"EAN",value:"7391846013150"},{scheme:"SKU",value:"M-12494"}] },
+    { id:"t-opinel", brand:"Opinel", model:"No.8 Carbon", klass:"pocket", year:"current",
+      comps:[{id:"blade",n:"Blade",role:"Critical"}],
+      materials:[{c:"blade",n:"Carbon steel",spec:"XC90"}], sourcing:[], parts:[],
+      construction:{mode:"Factory",steps:[{c:"blade",p:"Stamped"}]},
+      assembly:{sites:[{l:"Chambery, France"}],label:"Made in France",count:"Single site"},
+      skill:null, issues:[], ids:[{scheme:"UPC",value:"3123840002083"}] },
+  ];
+  P.push(...extra);
+  const rank = q => { S.q = q; const r = results(); S.q = ""; return r.map(p => p.id); };
+  const sc = (id, q) => scoreOf(P.find(p => p.id === id), q);
+
+  /* inclusive: the outdoor knives are returned, not filtered away */
+  {
+    const r = rank("kitchen knife");
+    if (!r.includes("t-mora") || !r.includes("t-opinel"))
+      fail('"kitchen knife" still excludes outdoor knives — the gate is back');
+    if (P.find(p => p.id === r[0]).klass !== "knife8")
+      fail('"kitchen knife" did not lead with a kitchen knife: ' + r[0]);
+    if (sc("wusthof", "kitchen knife") <= sc("t-mora", "kitchen knife"))
+      fail('a camping knife scored at or above a chef knife on "kitchen knife"');
+    ok('"kitchen knife" returns outdoor knives too, and still leads with kitchen ones');
+  }
+
+  /* the reverse, which caught a real bug: "camping" is in no breadcrumb,
+     only on the category's synonyms */
+  {
+    if (sc("t-mora", "camping knife") <= sc("wusthof", "camping knife"))
+      fail('"camping knife" ranked a chef knife at or above a camping knife');
+    if (!sc("t-mora", "bushcraft")) fail("a category synonym does not reach its products");
+    ok('"camping knife" leads with the camping knife, via the category synonyms');
+  }
+
+  /* a term must start a word: "pan" once matched "Com-pan-ion" */
+  {
+    if (sc("t-mora", "frying pan")) fail('"frying pan" matched "Companion" mid-word');
+    if (!sc("lodge", "frying pan")) fail('"frying pan" no longer reaches a skillet');
+    if (!sc("wusthof", "knif")) fail("a prefix a reader types no longer reaches the word");
+    ok("terms match the start of a word — prefixes reach, interiors do not");
+  }
+
+  /* A query of only one-character terms cannot discriminate, so it must not
+     pretend to: everything scores the same rather than something being
+     falsely promoted. This is what incremental typing looks like at the
+     first keystroke. */
+  {
+    const all = P.filter(p => !p.stub).map(p => sc(p.id, "a"));
+    if (new Set(all).size !== 1) fail("a one-character term ranked some products above others");
+    ok("a one-character query does not discriminate");
+  }
+
+  /* identifiers are an identity claim, and win outright */
+  {
+    if (idNorm("7391 8460-13150") !== "7391846013150") fail("idNorm does not strip spacing and hyphens");
+    const probes = [["7391846013150","t-mora"], ["7391 8460 13150","t-mora"],
+                    ["m-12494","t-mora"], ["3123840002083","t-opinel"]];
+    for (const [q, id] of probes) {
+      const r = rank(q);
+      if (r[0] !== id) fail('identifier "' + q + '" returned ' + (r[0] || "nothing") + ', expected ' + id);
+      if (r.length !== 1) fail('identifier "' + q + '" returned ' + r.length + ' products — it should be exact');
+    }
+    if (sc("t-mora", "7391846013150") !== 1000) fail("an exact identifier did not win outright");
+    if (rank("0000000000000").length) fail("an identifier nobody carries returned something");
+    if (idsOf({ ids:[{scheme:"UPC",value:""}] }).length) fail("idsOf kept an identifier with no value");
+    ok("identifiers match exactly, ignore spacing, and return only their own product");
+  }
+
+  P.length = P.length - extra.length;
+  S.q = "";
+}
 /* ----------------------------------------------------------- 4. verifier */
 /* Two checks left, and neither was ever about evidence: a row must name a
    component that exists, and mass shares must not exceed the object. Both
@@ -639,8 +715,9 @@ console.log("\nadd item");
     const d = DRAFTS.at(-1);
     if (d.manufacturer !== "Wüsthof" || d.name !== "Classic 8in") fail("the saved item lost its name");
     if (d.typeLabel !== ITEM_TYPES.consumer.n) fail("the saved item lost its type label");
-    if (d.identifier.scheme !== "Unknown" || d.identifier.value !== null)
-      fail("an Unknown identifier did not record as scheme-with-no-value");
+    if (d.ids.length) fail("an Unknown identifier recorded a value anyway");
+    if (!/No identifier marked/.test(d.identifierNote || ""))
+      fail("an Unknown identifier did not record why it is absent");
     if (!("composition" in d)) fail("the record has no slot for composition, which is the next step");
     if (S.form.mfr) fail("the form did not clear after a successful save");
     DRAFTS.length = before;
@@ -655,7 +732,7 @@ console.log("\nadd item");
     saveDraft();
     const d = DRAFTS.at(-1);
     if (d.origin !== null) fail("an item with no country or city recorded an origin anyway");
-    if (d.identifier !== null) fail("an item with no identifier recorded one anyway");
+    if (d.ids.length) fail("an item with no identifier recorded one anyway");
     if (d.image !== null) fail("an item with no image recorded one anyway");
     DRAFTS.length = before;
     ok("an unanswered field records as null rather than as an empty string");

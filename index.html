@@ -400,6 +400,13 @@ body.focused .wrap.body{grid-template-columns:1fr}
 .genbtn.sm{padding:5px 12px;font-size:11.5px}
 .cls .crumb{font-size:11.5px}
 
+.idline{display:flex;gap:8px;flex-wrap:wrap;margin-top:9px}
+.idchip{
+  font-family:var(--mono);font-size:10.5px;color:var(--fg-2);
+  border:1px solid var(--line-soft);border-radius:2px;padding:2px 7px;
+}
+.idchip b{color:var(--fg-3);font-weight:600;letter-spacing:.1em;margin-right:6px}
+
 /* ---------- add-item form ---------- */
 .addbtn{
   width:27px;height:27px;border:1px solid var(--line);border-radius:var(--r);
@@ -1133,9 +1140,92 @@ verifyAll();   // the embedded corpus goes through the same gate as anything bui
 /* ============================ STATE ============================ */
 let S = {
   q:"", klass:new Set(), mode:new Set(), skillT:new Set(), sites:new Set(),
-  sort:"name", view:"list", form:null, formErr:[], cur:null, tab:"quick", pivot:"attr", dpiv:"attr",
+  sort:"relevance", view:"list", form:null, formErr:[], cur:null, tab:"quick", pivot:"attr", dpiv:"attr",
   genq:"", gen:null
 };
+
+/* ==================================================================
+   SEARCH
+   ------------------------------------------------------------------
+   Relevance, not exclusion. The tree used to gate: a query that named
+   a category returned that subtree and nothing else, so "kitchen
+   knife" could not reach a camping knife however useful that might
+   have been. It now ranks instead — every term a product matches adds
+   weight, and a product matching all of them outranks one matching
+   some — so "kitchen knife" leads with chef's knives and still shows
+   the outdoor ones underneath.
+
+   The tree is still what makes "kitchen" mean anything: the word
+   appears on no knife record, only on the category's ancestors. It
+   contributes weight now rather than a filter.
+
+   Identifiers win outright. A UPC is not a description of a thing, it
+   IS the thing, so an exact one short-circuits ranking entirely.
+   ================================================================== */
+
+/* Identifiers are typed with whatever spacing and hyphens are printed on the
+   object. Compare on the digits alone, or "0 12345 67890 5" never finds
+   "012345678905". */
+function idNorm(v){ return String(v||"").toUpperCase().replace(/[^A-Z0-9]/g,""); }
+
+/* Every identifier a product carries, whatever scheme. */
+function idsOf(p){ return (p.ids||[]).filter(x=>x&&x.value); }
+
+/* Weighted fields, most specific first. A term scores the highest field it
+   lands in, so hitting a brand is worth more than hitting the middle of a
+   process description. */
+function searchFields(p){
+  return [
+    [10, [p.brand, p.model].join(" ")],
+    [6,  (CAT_TEXT[p.klass]||"")+" "+catCrumb(p.klass)+" "+catLabel(p.klass)],
+    [4,  idsOf(p).map(x=>x.scheme+" "+x.value).join(" ")],
+    [3,  (p.comps||[]).map(c=>c.n).join(" ")],
+    [2,  (p.materials||[]).map(m=>m.n+" "+(m.spec||"")).join(" ")],
+    [1,  [
+      (p.construction?.steps||[]).map(x=>x.p).join(" "),
+      (p.assembly?.sites||[]).map(x=>x.l+" "+(x.o||"")).join(" "),
+      p.assembly?.label||"",
+      (p.sourcing||[]).map(x=>x.m+" "+(x.o||"")+" "+(x.s||"")).join(" "),
+      (p.parts||[]).map(x=>x.n+" "+(x.m||"")).join(" "),
+      p.skill?.tier||"", p.construction?.mode||"", p.year||""
+    ].join(" ")]
+  ].map(([w,t])=>[w, norm(t)]);
+}
+
+/* 0 means no match. Anything above it is a hit, and the number orders them. */
+function scoreOf(p, q){
+  const raw=String(q||"").trim();
+  if(!raw) return 1;
+
+  /* an identifier is an identity claim, not a description of one */
+  const nq=idNorm(raw);
+  if(nq.length>=4){
+    for(const x of idsOf(p)){
+      const nv=idNorm(x.value);
+      if(nv===nq) return 1000;
+      if(nv.includes(nq)) return 400;
+    }
+  }
+
+  const terms=norm(raw).replace(/[^a-z0-9]+/g," ").trim().split(/\s+/).filter(t=>t.length>1);
+  if(!terms.length) return raw.length>1 ? 0 : 1;
+  const fields=searchFields(p);
+
+  let total=0, landed=0;
+  for(const t of terms){
+    const at=new RegExp("(^|[^a-z0-9])"+t.replace(/[.*+?^${}()|[\]\\]/g,"\\$&"));
+    let best=0;
+    for(const [w,text] of fields) if(at.test(text)) { best=Math.max(best,w); }
+    if(best){ total+=best; landed++; }
+  }
+  if(!landed) return 0;
+
+  /* matching every term is a different kind of answer from matching one of
+     them, and the gap has to be wide enough that partial hits never
+     interleave with complete ones */
+  if(landed===terms.length && terms.length>1) total*=3;
+  return total;
+}
 
 function matches(p){
   if(S.klass.size && !S.klass.has(p.klass)) return false;
@@ -1147,53 +1237,44 @@ function matches(p){
     if(!hit) return false;
   }
   if(S.sites.size && !S.sites.has((p.assembly?.count||"").split(" ")[0])) return false;
-  if(S.q){
-    /* A query that names a category is answered by the category, not by
-       string-matching product text. "kitchen knife" appears nowhere in a
-       Wüsthof report, and "knife" appears in a camping knife's. */
-    const cats=catMatch(S.q);
-    if(cats.length){
-      const inTree=new Set(cats.flatMap(catSubtree));
-      return inTree.has(p.klass);
-    }
-    const hay=norm([p.brand,p.model,catCrumb(p.klass),catLabel(p.klass),
-      (p.construction?.steps||[]).map(x=>x.p).join(" "),
-      (p.assembly?.sites||[]).map(x=>x.l).join(" "),
-      p.materials.map(m=>m.n+" "+(m.spec||"")).join(" "),
-      p.comps.map(c=>c.n).join(" "),
-      p.parts.map(x=>x.n+" "+(x.m||"")).join(" "),
-      p.sourcing.map(x=>x.m+" "+(x.o||"")).join(" "),
-      p.skill?.tier||""].join(" "));
-    if(!hay.includes(norm(S.q))) return false;
-  }
-  return true;
+  return scoreOf(p, S.q) > 0;
 }
+
 function results(){
   const r=P.filter(matches);
-  r.sort((a,b)=>(a.brand+" "+a.model).localeCompare(b.brand+" "+b.model));
+  if(S.q && S.sort!=="name"){
+    const sc=new Map(r.map(p=>[p.id, scoreOf(p, S.q)]));
+    r.sort((a,b)=> sc.get(b.id)-sc.get(a.id)
+      || (a.brand+" "+a.model).localeCompare(b.brand+" "+b.model));
+  } else {
+    r.sort((a,b)=>(a.brand+" "+a.model).localeCompare(b.brand+" "+b.model));
+  }
   return r;
 }
 
-/* Results grouped under the category each product is filed in, so a query
-   that lands on two branches — "knife" reaches both Cutlery and Outdoor —
-   shows which is which instead of interleaving them silently. */
+/* Grouped under the category each product is filed in, because a query can
+   legitimately reach two branches — "knife" reaches Cutlery and Outdoor — and
+   interleaving them silently hides which is which. Groups order by their best
+   match so the branch the reader probably meant leads. */
 function resultGroups(){
   const r=results(), by=new Map();
   r.forEach(p=>{ if(!by.has(p.klass)) by.set(p.klass,[]); by.get(p.klass).push(p); });
+  const best=items=>Math.max(...items.map(p=>scoreOf(p, S.q)));
   return [...by.entries()]
-    .map(([k,items])=>({k, crumb:catCrumb(k), items}))
-    .sort((a,b)=>a.crumb.localeCompare(b.crumb));
+    .map(([k,items])=>({k, crumb:catCrumb(k), items, score:best(items)}))
+    .sort((a,b)=> (S.q&&S.sort!=="name" ? b.score-a.score : 0) || a.crumb.localeCompare(b.crumb));
 }
 
-/* Categories the query named that hold nothing yet. Reporting these is the
-   whole point of keeping the tree independent of the corpus: "camping knife"
-   should say the category exists and is empty, not return chef's knives and
-   not return nothing at all. */
+/* Categories the query named that hold nothing yet. "camping knife" now
+   returns products as well, but the empty category is still worth saying:
+   it is the difference between "we have none of those" and "there is no such
+   thing". Only reported when nothing in the category matched. */
 function emptyMatches(){
   if(!S.q) return [];
+  const filled=new Set(results().map(p=>p.klass));
   return catMatch(S.q)
     .flatMap(catSubtree)
-    .filter(k=>!catKids(k).length && !P.some(p=>p.klass===k))
+    .filter(k=>!catKids(k).length && !filled.has(k) && !P.some(p=>p.klass===k))
     .sort((a,b)=>CATS[a].n.localeCompare(CATS[b].n));
 }
 
@@ -1222,7 +1303,8 @@ function renderRail(){
 function toggle(set,val){ S[set].has(val)?S[set].delete(val):S[set].add(val); render(); }
 function clearAll(){ S.klass.clear();S.mode.clear();S.skillT.clear();S.sites.clear();S.q="";
   document.getElementById("bq").value="";render(); }
-function setQ(v){ S.q=v; const b=document.getElementById("bq"); if(b) b.value=v; S.view="list"; render(); }
+function setQ(v){ S.q=v; const b=document.getElementById("bq"); if(b) b.value=v;
+  if(!v) S.sort="relevance"; S.view="list"; render(); }
 
 /* ============================ LIST ============================ */
 function renderList(){
@@ -1282,7 +1364,8 @@ function renderList(){
       <span class="count">${total} of ${P.length}</span>
       <div class="sortbox"><span class="eyebrow">Sort</span>
         <select onchange="S.sort=this.value;render()">
-          <option value="name" selected>Name</option>
+          ${S.q?`<option value="relevance" ${S.sort!=="name"?"selected":""}>Relevance</option>`:""}
+          <option value="name" ${S.sort==="name"||!S.q?"selected":""}>Name</option>
         </select></div>
     </div>${body}${emptyBlock}${nothing}`;
 }
@@ -1307,6 +1390,8 @@ function renderReport(){
       <div class="eyebrow">${p.brand} · ${p.year}${p.live?`<span class="livemark">LIVE — GENERATED</span>`:""}</div>
       <h2>${p.model}</h2>
       <div class="cls"><span class="crumb">${catCrumb(p.klass)}</span></div>
+      ${idsOf(p).length?`<div class="idline">${idsOf(p).map(x=>
+        `<span class="idchip"><b>${x.scheme}</b>${x.value}</span>`).join("")}</div>`:""}
       ${vpanel(p)}
     </div>
     <div class="tabs">
@@ -1490,6 +1575,7 @@ function exportRows(list){
     category:catPath(p.klass).map(x=>CATS[x].n), klass:catLabel(p.klass), year:p.year,
     stub: !!p.stub,
     reviewed: !!p.rev,
+    identifiers:(p.ids||[]).map(x=>({scheme:x.scheme, value:x.value})),
     components:(p.comps||[]).map(c=>({id:c.id, name:c.n, role:c.role})),
     materials:(p.materials||[]).map(m=>({component:m.c, name:m.n, spec:m.spec||null, share:m.share??null})),
     sourcing:(p.sourcing||[]).map(s=>({component:s.c, material:s.m, origin:s.o||null, supplier:s.s||null})),
@@ -1937,7 +2023,12 @@ function saveDraft(){
     manufacturer:f.mfr.trim(), name:f.name.trim(),
     type:f.type, typeLabel:ITEM_TYPES[f.type].n, category:f.cat,
     description:f.desc.trim()||null,
-    identifier: f.identType ? {scheme:f.identType, value:f.identType==="Unknown"?null:f.identValue.trim()} : null,
+    /* an array, matching the product model, so a draft is searchable by
+       identifier the moment it becomes a record — one object can carry a UPC
+       and an SKU, even though this form collects one at a time */
+    ids: f.identType && f.identType!=="Unknown" && f.identValue.trim()
+      ? [{scheme:f.identType, value:f.identValue.trim()}] : [],
+    identifierNote: f.identType==="Unknown" ? "No identifier marked on the item" : null,
     origin: (f.country||f.city) ? {country:f.country||null, city:f.city||null} : null,
     image: f.img ? {name:f.imgName, dataUri:f.img} : null,
     composition:null   // the component roster comes next, and is not in this form

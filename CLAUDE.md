@@ -96,47 +96,84 @@ it that way. It must run opened directly off disk.
 
 ---
 
+## Search
+
+**Relevance, not exclusion.** The tree used to gate: a query naming a category
+returned that subtree and nothing else, so "kitchen knife" could not reach a
+camping knife however useful that might be. That rule was dropped on request
+2026-08-22. Every term a product matches now adds weight, and a product
+matching *all* the terms outranks one matching some — so "kitchen knife" leads
+with chef's knives and still shows the outdoor ones underneath.
+
+`scoreOf(p, q)` returns 0 for no match, and the number orders everything else.
+Weighted fields, most specific first:
+
+| weight | field |
+|---|---|
+| 1000 / 400 | identifier, exact / contained |
+| 10 | brand and model |
+| 6 | category text, **including its synonyms and ancestors** |
+| 4 | identifier scheme and value as text |
+| 3 | component names |
+| 2 | materials and specs |
+| 1 | everything else on the report |
+
+Matching every term multiplies by 3, which is what keeps a complete match from
+interleaving with partial ones.
+
+**The category field must use `CAT_TEXT`, not `catCrumb`.** `CAT_TEXT` carries
+the node's synonyms and its ancestors' names; the breadcrumb carries neither.
+"camping" appears in no breadcrumb — it is a synonym on `fixed` — so a camping
+knife scored *below* a chef's knife on "camping knife" until this was fixed,
+purely because "Knife" is in the chef's knife's model name.
+
+**A term must start a word.** Bare substring matching found "pan" inside
+"Com-pan-ion", so a camp knife ranked against "frying pan". A prefix somebody
+types still reaches ("knif" → "knife"); the middle of an unrelated word does
+not.
+
+**Terms of one character are dropped**, because a single letter lands in
+nearly any body of text. A query made only of them scores every product
+equally rather than blanking the page — that is what the first keystroke of
+incremental typing should do.
+
+**Identifiers win outright.** A UPC is not a description of a thing, it *is*
+the thing, so an exact match short-circuits ranking entirely at 1000 and
+returns that product alone. `idNorm()` strips everything but letters and
+digits, or "0 12345 67890 5" never finds "012345678905". Identifiers live on
+`p.ids = [{scheme, value}]`.
+
+**No product in the corpus carries an identifier yet.** The nine embedded
+records have none and inventing one would be fabricating the most checkable
+field on the page. They arrive with hand-entered items — the add-item form
+writes `ids` in the same shape.
+
+---
+
 ## Categories
 
 `CATS` is a flat adjacency list — `id: {n, p, syn, d}` — and **a leaf id is a
 product's `klass`**, so a product's class *is* its category. One concept, not
 two kept in step by hand.
 
-The problem it solves: *"kitchen knife" must return kitchen knives and not
-camping knives.* Substring search over product text cannot do that, because
-every one of them contains the word "knife" — and "kitchen knife" appears in
-none of them. So a query resolves against the tree first, and the products come
-from the matching node's subtree.
+The tree no longer filters, but it is still what makes a query mean anything:
+"kitchen" appears on no knife record, only on the category's ancestors, and
+"camping" only on a synonym. It contributes weight now rather than a gate.
 
-**One matching rule:** a node matches when *every word of the query* appears in
-its own name, its synonyms, or the names of its ancestors. That is the whole
-algorithm, and it is enough:
+**A broken `p` pointer silently truncates every path below it** and every
+search term derived from one, which is why `test.mjs` walks every parent
+before anything else.
 
-| query | reaches | because |
-|---|---|---|
-| `kitchen knife` | `knife8`, `paring`, `bread` | chain is Kitchen › Cutlery › … |
-| `camping knife` | `fixed` | `syn` carries "camping"; chain is Outdoor › Knives |
-| `knife` | both branches | genuinely ambiguous — grouped, not guessed |
-| `wusthof` | nothing | falls through to product-text search |
-
-The ancestors are what make a query specific. The word "kitchen" appears on no
-knife node; it is inherited. **So a broken `p` pointer silently truncates every
-path below it and every search term derived from one** — which is why
-`test.mjs` walks every parent before anything else.
-
-A node whose own descendant also matched is dropped, or one query reports the
-same answer at two depths.
-
-**Categories exist independently of the corpus, and an empty one is a feature.**
-`emptyMatches()` reports a category the query named that holds nothing, and the
-list renders it as *Nothing filed here yet* with a Request button. That is the
-right answer to "camping knife" — the category is real, we have nothing in it —
-and it is better than silence, and far better than returning chef's knives.
-Don't "clean up" the unpopulated categories.
+**Categories exist independently of the corpus, and an empty one is a
+feature.** `emptyMatches()` reports a category the query named that holds
+nothing, and the list renders it as *Nothing filed here yet*. "camping knife"
+now returns products too, but the empty category is still worth saying: it is
+the difference between "we have none of those" and "there is no such thing".
+Don't tidy the unpopulated categories away.
 
 `CAT_TEXT` is a built index, rebuilt by `reindexCats()`. Anything that adds a
-category — `ingest()`, `loadCorpus()` — must call it, or the new category is
-unreachable by search while looking perfectly fine on the page.
+category must call it, or the new category is unreachable by search while
+looking perfectly fine on the page.
 
 ---
 
@@ -191,6 +228,7 @@ A product is a component roster plus rows bound to those components.
   assembly:     {sites:[{l, o}], label, count} | null,
   skill:        {tier, basis, ops:[[c, operation, skill]]} | null,
   parts:        [{c, n, m, crit, fail}],
+  ids:          [{scheme, value}],                  // UPC, EAN, CAS, SKU…
   gen, rev, vlog
 }
 ```
@@ -263,9 +301,9 @@ how much damage they cause:
    ("solingen") working. Remove the fallback and every query that is not a
    category name returns zero results.
 
-   The index reads the product's own rows — materials, specs, processes, sites,
-   components. Any new field a reader might search on has to be added there or
-   it is invisible.
+   The index is `searchFields()`. Any new field a reader might search on has
+   to be added there with a weight, or it is invisible — and the weight is the
+   whole design, so read *Search* above before adding one.
 
 6. **The Method page never transcribes a number or a category.** It counts
    products out of the live corpus and prints the category table straight from
