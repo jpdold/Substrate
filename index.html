@@ -18,10 +18,11 @@
   --line-soft:#C3D8D1;
   --fg:#0E2320;
   --fg-2:#365049;
-  --fg-3:#57736B;
+  --fg-3:#3E5850;   /* 6.3:1 on --bg. Was #57736B at 4.18:1, which failed AA
+                        and carried most of the small text on the page. */
   --exact:#0A6B63;
   --warn:#8A5A00;
-  --unknown:#78948C;
+  --unknown:#506962;  /* 4.8:1 — the gap marker has to be readable, not suggested */
   /* drafting-paper dots — visible on the milky ground, gone under any card */
   --grid:rgba(14,35,32,.14);
   /* Segoe UI Variable is the Win11 system face and renders noticeably
@@ -57,6 +58,7 @@ input{font:inherit;color:inherit}
 
 /* ---------- eyebrow / utility type ---------- */
 .eyebrow{
+  font-weight:600;
   font-family:var(--mono);font-size:10.5px;text-transform:uppercase;
   letter-spacing:.2em;color:var(--fg-3);
 }
@@ -110,7 +112,8 @@ body.focused .wrap.body{grid-template-columns:1fr}
 .rail{position:sticky;top:78px}
 .fgroup{border-top:1px solid var(--line-soft);padding:14px 0}
 .fgroup:first-child{border-top:none;padding-top:0}
-.fgroup > .eyebrow{display:block;margin-bottom:9px}
+.fgroup > .eyebrow{
+  font-weight:600;display:block;margin-bottom:9px}
 .opt{display:flex;align-items:center;gap:8px;padding:3px 0;cursor:pointer;font-size:13px;color:var(--fg-2)}
 .opt:hover{color:var(--fg)}
 .opt input{accent-color:var(--exact);width:13px;height:13px;flex:none;cursor:pointer}
@@ -136,12 +139,12 @@ body.focused .wrap.body{grid-template-columns:1fr}
   transition:border-color .14s,background .14s,transform .14s;
 }
 .row:hover{border-color:var(--line);background:var(--bg-3);transform:translateX(2px)}
-.row .brand{font-family:var(--mono);font-size:10.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--fg-3)}
+.row .brand{font-family:var(--mono);font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--fg-3)}
 .row .name{font-size:15.5px;font-weight:600;letter-spacing:-.01em;margin-top:2px}
 .row .facts{margin-top:6px;font-size:12.5px;color:var(--fg-2)}
 .row .facts em{font-style:normal;color:var(--fg-3)}
 .staleflag{
-  font-family:var(--mono);font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;
+  font-family:var(--mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;
   color:var(--fg-3);border:1px solid var(--line);border-radius:2px;padding:2px 7px;white-space:nowrap;
 }
 
@@ -155,7 +158,7 @@ body.focused .wrap.body{grid-template-columns:1fr}
 /* ---------- compare workspace ---------- */
 .cmxwrap{overflow-x:auto;margin-top:4px}
 .cmx th{
-  text-align:left;font-family:var(--mono);font-size:10px;letter-spacing:.14em;
+  text-align:left;font-family:var(--mono);font-size:11px;letter-spacing:.14em;
   text-transform:uppercase;color:var(--fg-3);font-weight:400;
   padding:0 14px 9px 0;border-bottom:1px solid var(--line);vertical-align:bottom;
 }
@@ -233,7 +236,7 @@ body.focused .wrap.body{grid-template-columns:1fr}
 /* data table */
 .dt{width:100%;border-collapse:collapse}
 .dt th{
-  text-align:left;font-family:var(--mono);font-size:10px;letter-spacing:.16em;
+  text-align:left;font-family:var(--mono);font-size:11px;letter-spacing:.16em;
   text-transform:uppercase;color:var(--fg-3);font-weight:400;
   padding:0 14px 8px 0;border-bottom:1px solid var(--line-soft);
 }
@@ -247,7 +250,7 @@ body.focused .wrap.body{grid-template-columns:1fr}
    Sits where the tier chip used to. Small, monospaced, and a real
    link — the whole point of the row is that you can follow it. */
 .cite{
-  font-family:var(--mono);font-size:10px;color:var(--exact);text-decoration:none;
+  font-family:var(--mono);font-size:11px;color:var(--exact);text-decoration:none;
   border:1px solid rgba(63,208,201,.3);border-radius:3px;padding:1px 4px;
   vertical-align:super;line-height:1;white-space:nowrap;
 }
@@ -278,7 +281,7 @@ body.focused .wrap.body{grid-template-columns:1fr}
 /* superstructure cards */
 .parts{display:grid;grid-template-columns:repeat(auto-fill,minmax(232px,1fr));gap:10px}
 .part{background:var(--bg-2);border:1px solid var(--line-soft);border-radius:var(--r);padding:13px 14px}
-.part .pcrit{font-family:var(--mono);font-size:9.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--fg-3)}
+.part .pcrit{font-family:var(--mono);font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--fg-3)}
 .part .pname{font-size:14px;font-weight:600;margin:4px 0 5px;letter-spacing:-.01em}
 .part .pspec{font-size:12.5px;color:var(--fg-2)}
 .part .pfail{font-size:11.5px;color:var(--fg-3);margin-top:8px;padding-top:8px;border-top:1px solid var(--line-soft)}
@@ -297,7 +300,7 @@ body.focused .wrap.body{grid-template-columns:1fr}
 .d.neg .dmag{color:var(--warn)}
 .d .dwho{font-size:12.5px;color:var(--fg-2);margin-top:4px}
 .d .dwho b{color:var(--fg);font-weight:600}
-.d .dsev{font-family:var(--mono);font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--fg-3);margin-top:5px;display:block}
+.d .dsev{font-family:var(--mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--fg-3);margin-top:5px;display:block}
 
 /* peer matrix */
 .mx{width:100%;border-collapse:collapse;font-size:13px}
@@ -308,7 +311,8 @@ body.focused .wrap.body{grid-template-columns:1fr}
 
 /* custom builder */
 .build{display:grid;grid-template-columns:1fr 300px;gap:34px;align-items:start}
-.bgroup > .eyebrow{display:block;margin-bottom:10px}
+.bgroup > .eyebrow{
+  font-weight:600;display:block;margin-bottom:10px}
 .preview h4{font-size:14px;font-weight:600;margin-bottom:4px}
 .preview ul{list-style:none;margin-top:16px;padding-top:14px;border-top:1px solid var(--line-soft)}
 .preview li{font-size:12.5px;color:var(--fg-2);padding:3px 0;display:flex;gap:8px}
@@ -326,7 +330,8 @@ body.focused .wrap.body{grid-template-columns:1fr}
 .qcard{background:var(--bg-2);border:1px solid var(--line);border-radius:var(--r);padding:26px}
 .qgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:1px;background:var(--line-soft);border:1px solid var(--line-soft);border-radius:var(--r);overflow:hidden;margin-top:22px}
 .q{background:var(--bg-2);padding:15px 16px}
-.q .eyebrow{display:block;margin-bottom:7px}
+.q .eyebrow{
+  font-weight:600;display:block;margin-bottom:7px}
 .q .qv{font-size:14px;font-weight:600;letter-spacing:-.01em}
 .q .qs{font-size:12px;color:var(--fg-3);margin-top:3px}
 
@@ -393,7 +398,7 @@ body.focused .wrap.body{grid-template-columns:1fr}
 .frow2{display:grid;grid-template-columns:1fr 1fr;gap:20px;align-items:start}
 .fld{display:block}
 .flab{
-  display:block;font-family:var(--mono);font-size:10px;letter-spacing:.14em;
+  display:block;font-family:var(--mono);font-size:11px;letter-spacing:.14em;
   text-transform:uppercase;color:var(--fg-3);margin-bottom:7px;
 }
 .req{color:var(--exact);letter-spacing:.1em}
@@ -439,13 +444,13 @@ select.fin{
 .rimg img{max-width:280px;max-height:220px;border:1px solid var(--line-soft);border-radius:var(--r);object-fit:contain;background:var(--bg-3)}
 .fstep{
   display:flex;align-items:center;gap:10px;margin-top:10px;
-  font-family:var(--mono);font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;
+  font-family:var(--mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;
   color:var(--fg-2);border-top:1px solid var(--line-soft);padding-top:20px;
 }
 .fform > .fstep:first-child{border-top:none;padding-top:0;margin-top:0}
 .fnum{
   width:19px;height:19px;border-radius:50%;background:var(--exact);color:var(--bg-3);
-  display:inline-flex;align-items:center;justify-content:center;font-size:10px;flex:none;
+  display:inline-flex;align-items:center;justify-content:center;font-size:11px;flex:none;
 }
 .fwait{
   border:1px dashed var(--line);border-radius:var(--r);padding:11px 12px;
@@ -490,7 +495,7 @@ select.fin{
   .spec tr{border-bottom:1px solid var(--line);padding-bottom:10px;margin-bottom:10px}
   .spec .pcell{border-right:none;border-radius:var(--r)}
   .spec .scell::before{
-    content:attr(data-l);display:block;font-family:var(--mono);font-size:9.5px;
+    content:attr(data-l);display:block;font-family:var(--mono);font-size:10.5px;
     letter-spacing:.14em;text-transform:uppercase;color:var(--fg-3);margin-bottom:6px;
   }
 }
@@ -538,7 +543,8 @@ select.fin{
   border:1px solid var(--line);border-left:2px solid var(--warn);border-radius:var(--r);
   background:var(--bg-2);padding:16px 18px;margin-top:18px;
 }
-.vpanel .eyebrow{display:block;margin-bottom:9px}
+.vpanel .eyebrow{
+  font-weight:600;display:block;margin-bottom:9px}
 .vpanel ul{list-style:none}
 .vpanel li{font-size:12.5px;color:var(--fg-2);padding:4px 0;display:flex;gap:9px;line-height:1.45}
 .vpanel li:before{content:"↓";color:var(--warn);font-family:var(--mono);font-size:11px;flex:none;margin-top:2px}
@@ -546,7 +552,7 @@ select.fin{
 .vpanel.fresh{border-left-color:var(--exact)}
 .src:hover{border-color:var(--exact);color:var(--fg)}
 .livemark{
-  font-family:var(--mono);font-size:9px;letter-spacing:.15em;color:var(--warn);
+  font-family:var(--mono);font-size:11px;letter-spacing:.15em;color:var(--warn);
   border:1px solid rgba(138,90,0,.35);border-radius:2px;padding:1px 5px;margin-left:8px;
 }
 .stub{opacity:.62}
@@ -555,7 +561,7 @@ select.fin{
 
 /* component scoping */
 .cchip{
-  font-family:var(--mono);font-size:9.5px;letter-spacing:.13em;text-transform:uppercase;
+  font-family:var(--mono);font-size:11px;letter-spacing:.13em;text-transform:uppercase;
   color:var(--fg-2);background:var(--bg-3);border:1px solid var(--line);
   border-radius:2px;padding:2px 6px;white-space:nowrap;display:inline-block;
 }
@@ -570,16 +576,16 @@ select.fin{
 .cpanel{background:var(--bg-2);border:1px solid var(--line-soft);border-radius:var(--r);margin-bottom:12px;overflow:hidden}
 .cpanel.crit{border-left:2px solid var(--exact)}
 .chead{padding:14px 18px;border-bottom:1px solid var(--line-soft);background:var(--bg-3)}
-.chead .crole{font-family:var(--mono);font-size:9.5px;letter-spacing:.18em;text-transform:uppercase;color:var(--fg-3)}
+.chead .crole{font-family:var(--mono);font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:var(--fg-3)}
 .chead h4{font-size:16px;font-weight:600;letter-spacing:-.015em;margin-top:3px}
 .cbody{padding:4px 18px 14px}
 .crow{display:grid;grid-template-columns:120px 1fr;gap:18px;padding:12px 0;border-bottom:1px solid var(--line-soft);align-items:start}
 .crow:last-child{border-bottom:none}
-.ck{font-family:var(--mono);font-size:10px;letter-spacing:.15em;text-transform:uppercase;color:var(--fg-3);padding-top:3px}
+.ck{font-family:var(--mono);font-size:11px;letter-spacing:.15em;text-transform:uppercase;color:var(--fg-3);padding-top:3px}
 .cv{font-size:13.5px;color:var(--fg)}
 .cv .sub{display:block;color:var(--fg-3);font-size:12px;margin-top:3px}
 .hr{border:none;border-top:1px solid var(--line-soft);margin:9px 0}
-.part .pscope{font-family:var(--mono);font-size:10px;letter-spacing:.13em;text-transform:uppercase;color:var(--fg-3);margin-bottom:6px}
+.part .pscope{font-family:var(--mono);font-size:11px;letter-spacing:.13em;text-transform:uppercase;color:var(--fg-3);margin-bottom:6px}
 @media (max-width:640px){.crow{grid-template-columns:1fr;gap:5px}}
 
 /* compare tray */
@@ -1280,12 +1286,12 @@ function renderRail(){
       catLeaves().filter(k=>P.some(p=>p.klass===k))
         .sort((a,b)=>CATS[a].n.localeCompare(CATS[b].n))
         .map(k=>cb("klass",k,CATS[k].n,countIf(p=>p.klass===k))).join(""))
-  +box("mode","How it&rsquo;s made",
+  +box("mode","Production method",
       ["Factory","Both"].map(m=>cb("mode",m,m==="Both"?"Factory + hand":m,countIf(p=>(p.construction?.mode||"").startsWith(m)))).join(""))
-  +box("skillT","Skill required",
+  +box("skillT","Production approach",
       [["trained","Trained worker"],["skilled","Skilled tradesman"],["craftsman","Craftsman"]]
         .map(([v,l])=>cb("skillT",v,l,countIf(p=>(p.skill?.tier||"").toLowerCase().includes(v)))).join(""))
-  +box("sites","Where it&rsquo;s made",
+  +box("sites","Production footprint",
       [["Single","Single site"],["Multiple","Multiple sites"],["Unknown","Unknown"]]
         .map(([v,l])=>cb("sites",v,l,countIf(p=>(p.assembly?.count||"").startsWith(v)))).join(""))
   +`<button class="clearall" onclick="clearAll()">Clear all filters</button>`;
@@ -1308,8 +1314,8 @@ function renderList(){
         <div class="brand">${p.brand}${p.live?`<span class="livemark">LIVE</span>`:""}</div>
         <div class="name">${p.model}</div>
         <div class="facts">${p.materials.length?p.materials[0].n+" · ":""}${
-          p.construction?.mode||"how it's made not recorded"} · <em>${
-          p.assembly?.sites?.[0]?.l||"where it's made not recorded"}</em></div>
+          p.construction?.mode||"production method not recorded"} · <em>${
+          p.assembly?.sites?.[0]?.l||"production footprint not recorded"}</em></div>
       </div>
       ${stale(p)?`<div class="staleflag">Due for review</div>`:""}
       </button>
@@ -1405,16 +1411,15 @@ function quickView(p){
 
   const top=p.materials.slice(0,3).map(m=>m.n).join(", ");
   return `<div class="sec"><div class="qcard">
-    <div class="sechead"><h3>Quick report</h3>
-      <span class="note">The three that decide most of what an object is. Everything else is under Full report.</span></div>
+    <div class="sechead"><h3>Quick report</h3></div>
     <div class="qgrid rocks">
       ${rock("Materials",top,p.materials.length>3?`and ${p.materials.length-3} more`:"")}
-      ${rock("How it's made",p.construction?.mode,p.construction?.steps?.[0]?.p||"")}
-      ${rock("Where it's made",p.assembly?.sites?.[0]?.l,p.assembly?.count||"")}
+      ${rock("Production method",p.construction?.mode,p.construction?.steps?.[0]?.p||"")}
+      ${rock("Production footprint",p.assembly?.sites?.[0]?.l,p.assembly?.count||"")}
     </div>
     <p class="nodatanote">${NODATA_NOTE}</p>
     <div class="qgrid" style="margin-top:20px">
-      ${rock("Skill required",p.skill?.tier,p.skill?.basis||"")}
+      ${rock("Production approach",p.skill?.tier,p.skill?.basis||"")}
       ${rock("Components",p.comps?.length?p.comps.map(c=>c.n).join(", "):"", "")}
     </div>
   </div></div>`;
@@ -1494,7 +1499,7 @@ function srcSec(p){
 }
 function conSec(p){
   const k=p.construction;
-  return `<div class="sec"><div class="sechead"><h3>Construction method</h3>
+  return `<div class="sec"><div class="sechead"><h3>Production method</h3>
     <span class="note">How each part was formed. Forming usually matters more than what the material is.</span></div>
     ${k?`<table class="dt"><tr><th>Component</th><th>Process applied</th></tr>
       ${(k.steps||[]).map(x=>`<tr><td class="k">${cchip(p,x.c)}</td>
@@ -1506,7 +1511,7 @@ function conSec(p){
 }
 function asmSec(p){
   const a=p.assembly;
-  return `<div class="sec"><div class="sechead"><h3>Assembly location</h3>
+  return `<div class="sec"><div class="sechead"><h3>Production footprint</h3>
     <span class="note">The country on the label is a legal claim about final assembly, not about where the parts came from.</span></div>
     ${a?`<table class="dt"><tr><th>Site</th><th>Operation performed</th></tr>
     ${(a.sites||[]).map(x=>`<tr><td class="k">${x.l||gap()}</td>
@@ -1516,7 +1521,7 @@ function asmSec(p){
 }
 function skillSec(p){
   const k=p.skill;
-  return `<div class="sec"><div class="sechead"><h3>Human skill required</h3>
+  return `<div class="sec"><div class="sechead"><h3>Production approach</h3>
     <span class="note">What the process demands of the people running it, where a source states it.</span></div>
     ${!k?`<p class="mprose">Nothing recorded about the skill this object demands. <span class="gap">No Data For Now</span></p>`:`<table class="dt">
       <tr><td class="k">Tier, whole object</td><td class="v">${k.tier||gap()}</td></tr>
@@ -2373,9 +2378,9 @@ function renderMethod(){
         <span class="sub">Not qualities and not categories. If you cannot point at it on the object, it is not a component.</span>`)}
       ${check("Materials", `What each part is made of, with the grade or formulation where it is known, and its share by mass of the whole object.`)}
       ${check("Sourcing", `Where the material itself came from, which is not the same as where the part was formed.`)}
-      ${check("How it is made", `How each part was formed — forged, cast, stamped, extruded — and how much of that is automated.`)}
-      ${check("Where it is made", `The sites work actually happened at, alongside the country on the label. A country-of-origin label is a legal claim about final assembly, not about where the parts came from.`)}
-      ${check("Skill", `How much human judgment the process demands, and at what tier of training.`)}
+      ${check("Production method", `How each part was formed — forged, cast, stamped, extruded — and how much of that is automated.`)}
+      ${check("Production footprint", `The sites work actually happened at, alongside the country on the label. A country-of-origin label is a legal claim about final assembly, not about where the parts came from.`)}
+      ${check("Production approach", `How much human judgment the process demands, and at what tier of training.`)}
       ${check("Load-bearing parts", `The parts that carry load or define the function, and what happens when each fails.`)}
     </table>
   </div>

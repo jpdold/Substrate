@@ -255,7 +255,7 @@ section reads *No Data For Now* and the provenance panel says *Entered by hand
 the form: somebody recorded what the thing is, and nobody has taken it apart.
 
 **Origin maps to `assembly`**, because that is the field the report surfaces as
-"Where it's made". It is the one composition slot an entered item can fill
+"Production footprint". It is the one composition slot an entered item can fill
 honestly.
 
 **`itemId()` is derived from party and name**, so re-importing an export
@@ -546,6 +546,14 @@ regression so far, including two in the migration that produced it.
 ---
 
 ## Conventions
+
+**Text has to clear 4.5:1 on `--bg`, and it is worth measuring rather than
+eyeballing.** `--fg-3` shipped at 4.18:1 and carries nearly all the small type
+on the page — eyebrows, meta lines, sub labels, help text — so the whole site
+read faint without any single element looking wrong. `--unknown` renders the
+`No Data For Now` marker, which is the one thing a reader most needs to be able
+to read, and it was worse. Both were darkened against a computed ratio. The
+smallest type was 9px; nothing below 10.5px survives now.
 
 **Colour is nearly absent, and that is the design.** One saturated colour,
 teal, used for the wordmark, links and the active tab. Nothing on a report is
