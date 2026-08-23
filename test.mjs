@@ -41,7 +41,8 @@ const mod = await import(
     "exportPayload, exportRows, loadCorpus, META, " +
     "ITEM_TYPES, IDENTIFIERS, identList, COUNTRIES, titleCase, DRAFTS, renderAdd, blankForm, saveDraft, " +
     "PARTIES, TYPE_PARTY, PARTY_OPTIONAL, setItemType, addId, setId, dropId, " +
-    "itemToProduct, itemId, itemCatId, adoptItem, dropDraft, exportDrafts };"
+    "itemToProduct, itemId, itemCatId, adoptItem, dropDraft, exportDrafts, " +
+    "openEdit, cancelEdit, formFromProduct };"
   )
 );
 
@@ -52,7 +53,8 @@ const {
   renderMethod, TABL, exportPayload, exportRows, loadCorpus, META,
   ITEM_TYPES, IDENTIFIERS, identList, COUNTRIES, titleCase, DRAFTS, renderAdd, blankForm, saveDraft,
   PARTIES, TYPE_PARTY, PARTY_OPTIONAL, setItemType, addId, setId, dropId,
-  itemToProduct, itemId, itemCatId, adoptItem, dropDraft
+  itemToProduct, itemId, itemCatId, adoptItem, dropDraft,
+  openEdit, cancelEdit, formFromProduct
 } = mod;
 
 const TABS = p => [["quick", () => quickView(p)], ["full", () => fullView(p)]];
@@ -427,6 +429,7 @@ console.log("\nmethod page");
   if (strays(m)) fail(`method page: stray value — …${strays(m).replace(/\s+/g, " ")}…`);
   if (!/What a report records/.test(m)) fail("method page does not say what a report records");
   if (!/Absence is not a finding/.test(m)) fail("method page does not explain the empty state");
+  if (!/Nothing is interpolated/.test(m)) fail("method page no longer says nothing is filled in");
   if (!/Sources are not published/.test(m)) fail("method page does not disclose that sources are missing");
   for (const dead of ["Peer deltas", "composite", "weighting", "Build custom"]) {
     if (m.includes(dead)) fail(`method page still presents "${dead}" as live`);
@@ -454,8 +457,8 @@ console.log("\nempty state");
   if ((q.split("No Data For Now").length - 1) < 4)
     fail("a product with nothing recorded did not say No Data For Now on every field");
   if (strays(q)) fail("the empty product printed a stray value");
-  if (!/not a statement about the product/.test(q))
-    fail("the report does not disclaim what an absent field means");
+  if (/most often nobody has looked/.test(q))
+    fail("the removed No Data For Now disclaimer is back on the report");
   try { fullView(empty); } catch (e) { fail(`fullView on an empty product: ${e.message}`); }
   ok("an empty product renders, says No Data For Now, and carries the disclaimer");
 }
@@ -894,6 +897,97 @@ console.log("\nround trip");
   /* the trade nodes these sections created are test state, not corpus state */
   Object.keys(CATS).filter(k => CATS[k].trade).forEach(k => delete CATS[k]);
   if (P.length !== beforeP) fail("the round-trip section leaked products into the catalogue");
+}
+
+/* --------------------------------------------------- 14. editing an entry */
+/* Editing reads a product back into an item-shaped form. Two things it must
+   not do, and both would be silent: change the id, which would strand the
+   old record and create a second beside it; or touch composition, which this
+   form cannot express and would therefore erase. */
+console.log("\nediting");
+{
+  const beforeP = P.length, beforeD = DRAFTS.length;
+  const item = {
+    recorded: "2026-08-23", type: "consumer", typeLabel: ITEM_TYPES.consumer.n,
+    category: "Electronics", party: { role: "Manufacturer", name: "Anglpoise" },
+    name: "Type 75 Desk Lamp", description: "Sprung-arm task lamp.",
+    ids: [{ scheme: "GTIN", value: "5012345678900" }], identifierNote: null,
+    origin: { country: "United Kingdom", city: "Redditch" }, image: null, composition: null,
+  };
+  DRAFTS.push(item);
+  const original = adoptItem(item);
+  const originalId = original.id;
+
+  /* ---- a product reads back into the form it came from ---- */
+  {
+    openEdit(originalId);
+    const f = S.form;
+    if (f.type !== "consumer") fail("editing did not recover the item type from its trade category");
+    if (f.cat !== "Electronics") fail("editing did not recover the category");
+    if (f.partyName !== "Anglpoise" || f.party !== "Manufacturer") fail("editing did not recover the party");
+    if (f.ids.length !== 1 || f.ids[0].value !== "5012345678900") fail("editing did not recover the identifier");
+    if (f.country !== "United Kingdom" || f.city !== "Redditch") fail("editing did not recover the origin");
+    if (!/Edit entry/.test(renderAdd())) fail("the form does not say it is editing");
+    ok("an entry reads back into the form with every field it was saved with");
+  }
+
+  /* ---- correcting a spelling must not strand the record ---- */
+  {
+    S.form.partyName = "Anglepoise";
+    saveDraft();
+    if (P.filter(x => x.id === originalId).length !== 1) fail("editing duplicated or lost the record");
+    if (P.length !== beforeP + 1) fail("editing changed how many products exist");
+    const p = P.find(x => x.id === originalId);
+    if (p.brand !== "Anglepoise") fail("the correction did not save");
+    if (p.id !== originalId) fail("editing changed the id, stranding every link to it");
+    if (S.editing) fail("the form stayed in edit mode after saving");
+    ok("correcting a name saves in place and keeps the id it was found by");
+  }
+
+  /* ---- and the draft it came from stays in step ---- */
+  {
+    const d = DRAFTS.find(x => x.name === "Type 75 Desk Lamp");
+    if (!d) fail("the draft vanished on edit");
+    else if (d.party.name !== "Anglepoise") fail("the draft still carries the old spelling");
+    ok("the exported draft carries the correction too");
+  }
+
+  /* ---- a curated report keeps its composition and its category ---- */
+  {
+    const w = P.find(x => x.id === "wusthof");
+    const mats = (w.materials || []).length, con = w.construction, klass = w.klass;
+    if (!mats) fail("the curated fixture has no composition to protect");
+    openEdit("wusthof");
+    if (S.form.keepKlass !== klass) fail("a curated product was not shown as already filed");
+    if (S.form.type) fail("a curated product was asked to pick a trade type");
+    if (!/already filed/.test(renderAdd())) fail("the locked category is not explained");
+    S.form.desc = "Edited.";
+    saveDraft();
+    const after = P.find(x => x.id === "wusthof");
+    if ((after.materials || []).length !== mats) fail("editing a curated report destroyed its materials");
+    if (after.construction !== con) fail("editing a curated report destroyed its production method");
+    if (after.klass !== klass) fail("editing a curated report refiled it under a trade category");
+    if (after.desc !== "Edited.") fail("the edit did not save");
+    after.desc = null;
+    ok("editing a curated report changes what it says and leaves its composition alone");
+  }
+
+  /* ---- cancelling leaves nothing behind ---- */
+  {
+    const at = P.length;
+    openEdit(originalId);
+    S.form.name = "Discarded";
+    cancelEdit();
+    if (S.editing) fail("cancel left the form in edit mode");
+    if (P.length !== at) fail("cancel changed the catalogue");
+    if (P.find(x => x.id === originalId).model !== "Type 75 Desk Lamp") fail("cancel saved the change anyway");
+    ok("cancelling an edit discards it");
+  }
+
+  while (DRAFTS.length > beforeD) dropDraft(DRAFTS.length - 1);
+  P.length = beforeP;
+  Object.keys(CATS).filter(k => CATS[k].trade).forEach(k => delete CATS[k]);
+  S.form = null; S.editing = null; S.formErr = [];
 }
 /* ----------------------------------------------------------------- done */
 console.log("");

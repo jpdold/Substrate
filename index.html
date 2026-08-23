@@ -434,6 +434,9 @@ select.fin{
   padding:14px 16px;margin-bottom:18px;
 }
 .formerr ul{margin:8px 0 0;padding-left:18px;font-size:13px;color:var(--fg-2);line-height:1.7}
+.rbar{display:flex;align-items:center;gap:16px;flex-wrap:wrap;margin-bottom:6px}
+.rbar .back{margin-bottom:0}
+.editbtn{width:auto;padding:6px 14px;font-size:12.5px;margin-left:auto}
 .formok{
   border:1px solid var(--exact);border-left:2px solid var(--exact);border-radius:var(--r);
   padding:14px 16px;margin-bottom:18px;
@@ -508,10 +511,6 @@ select.fin{
 .qgrid.rocks .q{padding:17px 16px}
 .qgrid.rocks .q .qv{font-size:15.5px;line-height:1.4}
 .held{color:var(--fg-2);border-bottom:1px dotted var(--fg-3)}
-.nodatanote{
-  font-size:12px;color:var(--fg-3);line-height:1.6;max-width:74ch;margin-top:16px;
-}
-.nodatanote b{color:var(--fg-2);font-weight:600}
 .cdp b{color:var(--fg-3);font-weight:600;min-width:96px;flex:none;font-size:12px;font-family:var(--mono)}
 .cdp.self b{color:var(--fg)}
 @media(max-width:720px){ }
@@ -1123,11 +1122,6 @@ const gap = (t="No Data For Now") => `<span class="gap">${t}</span>`;
    report rather than tucked onto the Method page: a reader who lands on one
    product and leaves must still see it, because the misreading it prevents —
    "they wouldn't say" — happens on the field, not on the methodology. */
-const NODATA_NOTE =
-  `<b>No Data For Now</b> means Substrate has not recorded that field yet. It is
-   not a statement about the product, and not a claim that the manufacturer
-   withholds it — most often nobody has looked.`;
-
 function peers(p){ return P.filter(x=>x.klass===p.klass && x.id!==p.id); }
 
 function verifyAll(){ P.forEach(p=>{ p._vlog=verify({target:p}); }); }
@@ -1136,7 +1130,7 @@ verifyAll();   // the embedded corpus goes through the same gate as anything bui
 /* ============================ STATE ============================ */
 let S = {
   q:"", klass:new Set(), mode:new Set(), skillT:new Set(), sites:new Set(),
-  sort:"relevance", view:"list", form:null, formErr:[], added:null, imported:0, cur:null, tab:"quick", pivot:"attr", dpiv:"attr",
+  sort:"relevance", view:"list", form:null, formErr:[], added:null, imported:0, editing:null, cur:null, tab:"quick", pivot:"attr", dpiv:"attr",
   genq:"", gen:null
 };
 
@@ -1381,7 +1375,10 @@ function renderReport(){
 
   document.getElementById("main").innerHTML=`
   <div class="rep">
-    <button class="back" onclick="goHome()">← Back to results</button>
+    <div class="rbar">
+      <button class="back" onclick="goHome()">← Back to results</button>
+      <button class="btn ghost editbtn" onclick="openEdit('${p.id}')">Edit entry</button>
+    </div>
     <div class="rtop">
       <div class="eyebrow">${p.brand} · ${p.year}${p.live?`<span class="livemark">LIVE — GENERATED</span>`:""}</div>
       <h2>${p.model}</h2>
@@ -1417,7 +1414,6 @@ function quickView(p){
       ${rock("Production method",p.construction?.mode,p.construction?.steps?.[0]?.p||"")}
       ${rock("Production footprint",p.assembly?.sites?.[0]?.l,p.assembly?.count||"")}
     </div>
-    <p class="nodatanote">${NODATA_NOTE}</p>
     <div class="qgrid" style="margin-top:20px">
       ${rock("Production approach",p.skill?.tier,p.skill?.basis||"")}
       ${rock("Components",p.comps?.length?p.comps.map(c=>c.n).join(", "):"", "")}
@@ -2068,7 +2064,58 @@ const blankForm = () => ({
   img:null, imgName:"", desc:"", ids:[], country:"", city:""
 });
 
-function openAdd(){ S.view="add"; S.form=S.form||blankForm(); S.formErr=[]; S.added=null; S.imported=0; render(); window.scrollTo({top:0}); }
+function openAdd(){
+  S.view="add"; S.editing=null; S.form=S.form||blankForm();
+  S.formErr=[]; S.added=null; S.imported=0; render(); window.scrollTo({top:0});
+}
+
+/* ==================================================================
+   EDITING AN EXISTING ENTRY
+   ------------------------------------------------------------------
+   The form is item-shaped and a product is product-shaped, so editing
+   reads one back into the other. Two things it must not do:
+
+   It must not change the id. An id derives from party and name, so
+   correcting a spelling would otherwise strand the old record and
+   create a second one beside it.
+
+   It must not touch composition. A curated report carries a component
+   roster this form cannot express, so a save patches the identity
+   fields onto the existing product and leaves everything else exactly
+   as it was. That is also why a product filed in the use tree keeps
+   its category rather than being asked to pick a trade one — those
+   are different questions and neither answers the other.
+   ================================================================== */
+function formFromProduct(p){
+  const node=CATS[p.klass]||{};
+  const trade=!!node.trade;
+  return {
+    /* a trade node is "it-<type>-<slug>" under "it-<type>", so the type comes
+       back off the parent and the category off the node's own name */
+    type: trade ? String(node.p||"").replace(/^it-/,"") : "",
+    cat:  trade ? node.n : "",
+    keepKlass: trade ? "" : p.klass,
+    party: (p.party&&p.party.role) || (p.brand ? "Manufacturer" : ""),
+    partyName: (p.party&&p.party.name) || p.brand || "",
+    name: p.model || "",
+    img: p.image ? p.image.dataUri : null,
+    imgName: p.image ? p.image.name : "",
+    desc: p.desc || "",
+    ids: (p.ids||[]).map(x=>({scheme:x.scheme, value:x.value})),
+    country: (p.assembly&&p.assembly.sites&&p.assembly.sites[0]
+      ? (p.assembly.sites[0].l.split(", ").pop()||"") : ""),
+    city: (p.assembly&&p.assembly.sites&&p.assembly.sites[0]
+      ? (p.assembly.sites[0].l.split(", ").slice(0,-1).join(", ")||"") : "")
+  };
+}
+function openEdit(id){
+  const p=P.find(x=>x.id===id);
+  if(!p) return;
+  S.editing=id; S.form=formFromProduct(p);
+  S.view="add"; S.formErr=[]; S.added=null; S.imported=0;
+  render(); window.scrollTo({top:0});
+}
+function cancelEdit(){ S.editing=null; S.form=blankForm(); S.formErr=[]; render(); }
 
 /* Only the type change re-renders, because it reveals a different category
    list, a different identifier list and a different default party. Every other
@@ -2139,7 +2186,7 @@ function dropImg(){ S.form.img=null; S.form.imgName=""; render(); }
 
 function saveDraft(){
   const f=S.form, err=[];
-  if(!f.type)          err.push("Pick an item type — the rest of the form follows from it.");
+  if(!f.type && !f.keepKlass) err.push("Pick an item type — the rest of the form follows from it.");
   if(f.type && !f.cat) err.push("Pick a category.");
   if(!f.name.trim())   err.push("Title or name is required.");
   if(f.type && !PARTY_OPTIONAL.has(f.type) && !f.partyName.trim())
@@ -2154,6 +2201,40 @@ function saveDraft(){
   if(err.length){ render(); window.scrollTo({top:0}); return; }
 
   const marked = f.ids.filter(r=>r.scheme!=="Unknown" && r.value.trim());
+  const origin = (f.country||f.city) ? {country:f.country||null, city:f.city||null} : null;
+
+  /* --- editing: patch identity onto the record, keep its id and its
+         composition, and keep the draft it came from in step --- */
+  if(S.editing){
+    const p=P.find(x=>x.id===S.editing);
+    if(p){
+      p.brand=f.partyName.trim();
+      p.model=f.name.trim();
+      p.party=f.partyName.trim() ? {role:f.party, name:f.partyName.trim()} : null;
+      p.desc=f.desc.trim()||null;
+      p.ids=marked.map(r=>({scheme:r.scheme, value:r.value.trim()}));
+      p.identifierNote=f.ids.some(r=>r.scheme==="Unknown") ? "Checked — no identifier marked on the item" : null;
+      p.image=f.img ? {name:f.imgName, dataUri:f.img} : null;
+      if(f.type && f.cat) p.klass=itemCatId(f.type,f.cat);
+      const where=origin && [origin.city,origin.country].filter(Boolean).join(", ");
+      /* only rewrite the site line when this form is the thing that owns it */
+      if(where && (p.entered || !p.assembly)) p.assembly={sites:[{l:where,o:null}],label:null,count:null};
+      const d=DRAFTS.find(x=>itemId(x)===S.editing);
+      if(d){
+        Object.assign(d,{
+          type:f.type||d.type, category:f.cat||d.category,
+          typeLabel:ITEM_TYPES[f.type||d.type]?.n||d.typeLabel,
+          party:p.party, name:p.model, description:p.desc,
+          ids:p.ids, identifierNote:p.identifierNote, origin, image:p.image
+        });
+      }
+      reindexCats(); verify({target:p});
+      S.added=p.model+" — updated";
+    }
+    S.editing=null; S.form=blankForm(); S.formErr=[];
+    render(); window.scrollTo({top:0}); return;
+  }
+
   const item = {
     recorded:new Date().toISOString().slice(0,10),
     type:f.type, typeLabel:ITEM_TYPES[f.type].n, category:f.cat,
@@ -2194,8 +2275,10 @@ function renderAdd(){
   return `
   <button class="back" onclick="goHome()">← Back to results</button>
   <div class="genwrap">
-    <h3>Add an item</h3>
-    <p>Start with what kind of thing it is — the rest of the form follows from that. Composition, what it is made of part by part, comes after this.</p>
+    <h3>${S.editing?"Edit entry":"Add an item"}</h3>
+    <p>${S.editing
+      ? "Changing what this entry says about itself. Its id and anything recorded about what it is made of are left alone."
+      : "Start with what kind of thing it is — the rest of the form follows from that. Composition, what it is made of part by part, comes after this."}</p>
   </div>
 
   ${S.added?`<div class="formok">
@@ -2216,13 +2299,16 @@ function renderAdd(){
 
     <div class="frow2">
       <label class="fld">
-        <span class="flab">Item type <span class="req">required</span></span>
+        <span class="flab">Item type ${f.keepKlass?`<span class="opt2">already filed — leave this alone unless you are reclassifying</span>`:`<span class="req">required</span>`}</span>
         <select class="fin" onchange="setItemType(this.value)">
           ${opt("","Choose…",!f.type)}
           ${Object.entries(ITEM_TYPES).map(([k,v])=>opt(k,v.n,f.type===k)).join("")}
         </select>
       </label>
-      ${T?`<label class="fld reveal">
+      ${f.keepKlass?`<div class="fld">
+        <span class="flab">Category <span class="opt2">already filed</span></span>
+        <div class="fwait">${catCrumb(f.keepKlass)}</div>
+      </div>`:T?`<label class="fld reveal">
         <span class="flab">Category <span class="req">required</span></span>
         <select class="fin" onchange="setF('cat',this.value)">
           ${opt("","Choose…",!f.cat)}
@@ -2232,7 +2318,7 @@ function renderAdd(){
         <div class="fwait">Pick an item type first</div></div>`}
     </div>
 
-    ${T?`<div class="reveal">
+    ${(T||f.keepKlass)?`<div class="reveal">
 
     <div class="fstep"><span class="fnum">2</span> What it is called, and who stands behind it</div>
 
@@ -2265,7 +2351,7 @@ function renderAdd(){
       <label class="fld">
         <span class="flab">${f.party||"Party"} name
           ${partyReq?`<span class="req">required</span>`
-                    :`<span class="opt2">optional — a material often has no named party</span>`}</span>
+                    :`<span class="opt2">optional${PARTY_OPTIONAL.has(f.type)?" — a material often has no named party":""}</span>`}</span>
         <input class="fin" value="${esc(f.partyName)}" oninput="setF('partyName',this.value)"
           placeholder="${f.party==="Producer"?"Who produced it":"The name on the object, as it is written"}">
       </label>
@@ -2312,7 +2398,8 @@ function renderAdd(){
     </div>
 
     <div class="fact">
-      <button class="genbtn" onclick="saveDraft()">Add item</button>
+      <button class="genbtn" onclick="saveDraft()">${S.editing?"Save changes":"Add item"}</button>
+      ${S.editing?`<button class="btn ghost" onclick="cancelEdit()">Cancel</button>`:""}
       <span class="fhelp">Added items are searchable straight away, but live in this tab only. Export before you close it.</span>
     </div>
     </div>`:""}
@@ -2330,7 +2417,8 @@ function renderAdd(){
           ? d.ids.map(x=>`${x.scheme} <span class="sub">${x.value}</span>`).join(" ")
           : (d.identifierNote?`<span class="sub">${d.identifierNote}</span>`:gap())}</td>
         <td class="v">${d.origin?[d.origin.city,d.origin.country].filter(Boolean).join(", "):gap()}</td>
-        <td class="v" style="text-align:right"><button class="linkish" onclick="dropDraft(${i})">remove</button></td>
+        <td class="v" style="text-align:right"><button class="linkish" onclick="openEdit('${itemId(d)}')">edit</button>
+          <button class="linkish" onclick="dropDraft(${i})" style="margin-left:12px">remove</button></td>
       </tr>`).join("")}
     </table>
     <div class="fact"><button class="btn ghost" onclick="exportDrafts()">Export ${DRAFTS.length} item${DRAFTS.length===1?"":"s"} as JSON</button></div>
@@ -2388,7 +2476,6 @@ function renderMethod(){
   <div class="sec">
     <div class="sechead"><h3>Absence is not a finding</h3>
       <span class="note">The one thing a reader must not misread.</span></div>
-    <p class="mprose">${NODATA_NOTE}</p>
     <p class="mprose">Nothing is interpolated from a peer, a class average, or a plausible default to make a report look complete. A report with holes in it is the correct output when the holes are real, and every hole here is ours rather than the manufacturer's until someone has actually looked.</p>
   </div>
 

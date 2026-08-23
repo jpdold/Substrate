@@ -270,6 +270,32 @@ commit and immediately disagreed.
 for a name, a known type and a category, adopts what passes and reports what it
 skipped by name. A file that is not JSON says so rather than failing silently.
 
+## Editing an entry
+
+`openEdit(id)` reads a product back into the item-shaped form via
+`formFromProduct()`, and `saveDraft()` branches on `S.editing`. Two things it
+must not do, and both would fail silently:
+
+**It must not change the id.** An id derives from party and name, so correcting
+a spelling would otherwise strand the old record and create a second beside it.
+The edit branch patches `P` in place and never re-derives.
+
+**It must not touch composition.** A curated report carries a component roster
+this form cannot express, so the edit branch writes only identity fields —
+brand, model, party, description, ids, image — and leaves `materials`,
+`sourcing`, `construction`, `skill` and `parts` exactly as they were.
+
+A product filed in the use tree keeps its category. `formFromProduct()` sets
+`keepKlass` and the form renders it read-only rather than asking for a trade
+type, because those are different questions and neither answers the other. Only
+a trade-filed entry can be reclassified from here.
+
+The site line is only rewritten when this form owns it — an entered item, or a
+product with no assembly at all. Otherwise a curated report loses its assembly
+sites, label and count to a single city string on an unrelated edit.
+
+---
+
 ---
 
 ## Data model
