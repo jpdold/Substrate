@@ -90,44 +90,19 @@ header{
 .hnav button:hover{color:var(--fg)}
 
 /* ---------- hero ---------- */
-.hero{padding:46px 0 42px;border-bottom:1px solid var(--line-soft)}
+.hero{padding:38px 0 34px;border-bottom:1px solid var(--line-soft)}
 /* the results column sits on the ground too — no panel behind it */
 .wrap.body{background:transparent}
 body.reading .hero{display:none}
 /* a task view gets the whole width: filters cannot act on a form */
 body.focused .rail{display:none}
 body.focused .wrap.body{grid-template-columns:1fr}
-.hero p{
-  margin-top:20px;max-width:56ch;color:var(--fg-2);font-size:16px;
-}
-.bigsearch{margin-top:34px;max-width:620px;position:relative}
+.bigsearch{max-width:620px;position:relative}
 .bigsearch input{
   width:100%;background:var(--bg-2);border:1px solid var(--line);
   border-radius:var(--r);padding:15px 16px;font-size:16px;
 }
 .bigsearch input:focus{border-color:var(--exact)}
-.tries{margin-top:12px;display:flex;flex-wrap:wrap;gap:8px;align-items:center}
-.tries .eyebrow{margin-right:4px}
-.try{
-  font-family:var(--mono);font-size:11.5px;color:var(--fg-2);
-  border:1px solid var(--line);border-radius:var(--r);padding:3px 9px;
-}
-.try:hover{border-color:var(--exact);color:var(--fg)}
-
-/* ---------- the three-point legend ---------- */
-.legend{
-  margin-top:46px;border-top:1px solid var(--line-soft);padding-top:22px;
-  display:grid;grid-template-columns:repeat(3,1fr);gap:26px;max-width:840px;
-}
-.leg{display:flex;gap:11px;align-items:flex-start}
-.leg i{width:3px;height:38px;border-radius:2px;flex:none;margin-top:2px}
-.leg b{display:block;font-family:var(--mono);font-size:11px;letter-spacing:.16em;font-weight:600}
-.leg small{display:block;color:var(--fg-3);font-size:12px;line-height:1.4;margin-top:3px}
-.leg b{font-size:10px}
-.leg-e i{background:var(--exact)} .leg-e b{color:var(--exact)}
-.leg-l i{background:var(--fg-3)} .leg-l b{color:var(--fg-2)}
-.leg-u i{background:var(--unknown)} .leg-u b{color:var(--unknown)}
-
 /* ---------- body layout ---------- */
 .body{display:grid;grid-template-columns:212px 1fr;gap:38px;padding:34px 0 120px;align-items:start}
 
@@ -631,7 +606,6 @@ footer .frow{display:flex;gap:26px;flex-wrap:wrap}
   .body{grid-template-columns:1fr;gap:26px}
   .rail{position:static}
   .row{grid-template-columns:1fr 96px}
-  .legend{grid-template-columns:1fr;gap:14px}
   .dcols,.build,.rsum{grid-template-columns:1fr}
   .wrap{padding:0 18px}
 }
@@ -656,23 +630,7 @@ footer .frow{display:flex;gap:26px;flex-wrap:wrap}
 
 <section class="hero">
   <div class="wrap">
-    <div class="eyebrow">Product composition reports</div>
-    <p>What each part is made of, where it was made, and how. Nothing here is rated, scored, or ranked. Nothing is filled in to look complete.</p>
-    <div class="bigsearch"><input id="bq" type="search" placeholder="e.g. chef's knife, cast iron skillet, Wüsthof Classic" aria-label="Search products"></div>
-    <div class="tries">
-      <span class="eyebrow">Try</span>
-      <button class="try" onclick="setQ('kitchen knife')">kitchen knife</button>
-      <button class="try" onclick="setQ('camping knife')">camping knife</button>
-      <button class="try" onclick="setQ('frying pan')">frying pan</button>
-      <button class="try" onclick="setQ('coffee')">coffee</button>
-      <button class="try" onclick="setQ('solingen')">solingen</button>
-    </div>
-
-    <div class="legend">
-      <div class="leg leg-e"><i></i><div><b>PART BY PART</b><small>Every row names the component it describes. Nothing is averaged across the whole object.</small></div></div>
-      <div class="leg leg-l"><i></i><div><b>NOT RATED</b><small>No scores, no rankings, no verdicts. What it is made of, where, and how.</small></div></div>
-      <div class="leg leg-u"><i></i><div><b>NO DATA FOR NOW</b><small>Nothing recorded here yet. That is a fact about this catalogue, not about the product.</small></div></div>
-    </div>
+    <div class="bigsearch"><input id="bq" type="search" aria-label="Search products"></div>
   </div>
 </section>
 
