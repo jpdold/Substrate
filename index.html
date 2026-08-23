@@ -454,6 +454,14 @@ select.fin{
   padding:14px 16px;margin-bottom:18px;
 }
 .formerr ul{margin:8px 0 0;padding-left:18px;font-size:13px;color:var(--fg-2);line-height:1.7}
+.formok{
+  border:1px solid var(--exact);border-left:2px solid var(--exact);border-radius:var(--r);
+  padding:14px 16px;margin-bottom:18px;
+}
+.formok p{font-size:13px;color:var(--fg-2);line-height:1.6;margin-top:7px;max-width:74ch}
+.rdesc{font-size:13.5px;color:var(--fg-2);line-height:1.6;max-width:70ch;margin-top:11px}
+.rimg{margin-top:16px}
+.rimg img{max-width:280px;max-height:220px;border:1px solid var(--line-soft);border-radius:var(--r);object-fit:contain;background:var(--bg-3)}
 .fstep{
   display:flex;align-items:center;gap:10px;margin-top:10px;
   font-family:var(--mono);font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;
@@ -1164,7 +1172,7 @@ verifyAll();   // the embedded corpus goes through the same gate as anything bui
 /* ============================ STATE ============================ */
 let S = {
   q:"", klass:new Set(), mode:new Set(), skillT:new Set(), sites:new Set(),
-  sort:"relevance", view:"list", form:null, formErr:[], cur:null, tab:"quick", pivot:"attr", dpiv:"attr",
+  sort:"relevance", view:"list", form:null, formErr:[], added:null, imported:0, cur:null, tab:"quick", pivot:"attr", dpiv:"attr",
   genq:"", gen:null
 };
 
@@ -1414,8 +1422,10 @@ function renderReport(){
       <div class="eyebrow">${p.brand} · ${p.year}${p.live?`<span class="livemark">LIVE — GENERATED</span>`:""}</div>
       <h2>${p.model}</h2>
       <div class="cls"><span class="crumb">${catCrumb(p.klass)}</span></div>
+      ${p.desc?`<p class="rdesc">${p.desc}</p>`:""}
       ${idsOf(p).length?`<div class="idline">${idsOf(p).map(x=>
         `<span class="idchip"><b>${x.scheme}</b>${x.value}</span>`).join("")}</div>`:""}
+      ${p.image?`<div class="rimg"><img src="${p.image.dataUri}" alt="${(p.image.name||p.model).replace(/"/g,"&quot;")}"></div>`:""}
       ${vpanel(p)}
     </div>
     <div class="tabs">
@@ -1815,6 +1825,8 @@ function vpanel(p){
       <li class="${stale(p)?"":"clean"}">Recorded ${p.gen||"date not recorded"}${age!==null?` · ${age} days ago`:""}${
         stale(p)?` · past the ${META.ttlDays}-day review cycle`:""}</li>
       <li class="${p.rev?"clean":""}">${p.rev?"Reviewed by a person":"Not yet reviewed"}</li>
+      ${p.entered?`<li>Entered by hand — nothing recorded yet about what it is made of</li>`:""}
+      ${p.identifierNote?`<li>${p.identifierNote}</li>`:""}
       <li>Sources are not published yet</li>
       ${p.advisories&&p.advisories.length?p.advisories.map(a=>`<li>${a.date} — ${a.text}</li>`).join(""):""}
     </ul>
@@ -1985,13 +1997,115 @@ const TYPE_PARTY = {
 };
 const PARTY_OPTIONAL = new Set(["raw","secondary"]);
 
+/* ==================================================================
+   ITEMS INTO THE CATALOGUE
+   ------------------------------------------------------------------
+   An entered item and a product are different shapes. The item is
+   classified by trade — what kind of thing it is, who stands behind
+   it — and the product is filed by use, under a CATS leaf, with a
+   component roster. This is the join between them.
+
+   The trade tree lands in CATS as its own branch rather than being
+   folded into the use tree. "Consumer product › Electronics" sits
+   beside "Kitchen › Cutlery › Chef's knife" and neither nests inside
+   the other, which is the honest arrangement: a hand-entered item is
+   classified by what it IS, a curated report is filed by what it is
+   FOR, and forcing either into the other invents a fact.
+
+   An adopted item carries no composition. It renders "No Data For
+   Now" across every section, which is correct — somebody recorded
+   what the thing is, and nobody has taken it apart yet.
+   ================================================================== */
+
+/* Create the trade branch on demand. Prefixed so a trade node can never
+   collide with a curated one, and marked so the two can be told apart. */
+function itemCatId(type, category){
+  const base="it-"+type;
+  if(!CATS[base]) CATS[base]={n:ITEM_TYPES[type]?.n||type, trade:true};
+  const leaf=base+"-"+slug(category);
+  if(!CATS[leaf]) CATS[leaf]={n:category, p:base, trade:true};
+  return leaf;
+}
+
+/* A stable id from what the reader would call the thing, so re-importing the
+   same export updates the record instead of duplicating it. */
+function itemId(it){
+  const bits=[it.party&&it.party.name, it.name].filter(Boolean).join("-");
+  return "item-"+slug(bits||it.name||"untitled");
+}
+
+function itemToProduct(it){
+  const origin=it.origin&&[it.origin.city,it.origin.country].filter(Boolean).join(", ");
+  return {
+    id:itemId(it),
+    brand:(it.party&&it.party.name)||"",
+    model:it.name,
+    klass:itemCatId(it.type,it.category),
+    year:it.recorded||"unspecified",
+    party:it.party||null,
+    desc:it.description||null,
+    image:it.image||null,
+    ids:it.ids||[],
+    identifierNote:it.identifierNote||null,
+    /* nothing has been taken apart yet, and the renderers say so */
+    comps:[], materials:[], sourcing:[], parts:[],
+    construction:null, skill:null,
+    /* the one thing the form does capture that a report renders */
+    assembly: origin ? {sites:[{l:origin, o:null}], label:null, count:null} : null,
+    issues:[], entered:true, gen:it.recorded||null, rev:false, vlog:[]
+  };
+}
+
+/* Upsert by id, so importing the same file twice is idempotent. */
+function adoptItem(it){
+  const p=itemToProduct(it);
+  const i=P.findIndex(x=>x.id===p.id);
+  if(i>=0) P[i]=p; else P.push(p);
+  reindexCats();
+  verify({target:p});
+  return p;
+}
+
+/* ---- reading an export back in ---- */
+function importItems(input){
+  const f=input.files&&input.files[0];
+  if(!f) return;
+  const r=new FileReader();
+  r.onload=()=>{
+    let doc;
+    try{ doc=JSON.parse(r.result); }
+    catch(e){ S.formErr=["That file is not JSON: "+e.message]; render(); return; }
+    const items=Array.isArray(doc) ? doc : doc.items;
+    if(!Array.isArray(items)){ S.formErr=["No items in that file. Expected {\"items\":[…]} or a bare array."]; render(); return; }
+
+    const bad=[], good=[];
+    items.forEach((it,i)=>{
+      if(!it || typeof it!=="object") return bad.push("entry "+(i+1)+" is not an object");
+      if(!it.name) return bad.push("entry "+(i+1)+" has no name");
+      if(!it.type || !ITEM_TYPES[it.type]) return bad.push("“"+it.name+"” has an unknown item type: "+it.type);
+      if(!it.category) return bad.push("“"+it.name+"” has no category");
+      good.push(it);
+    });
+
+    good.forEach(it=>{
+      adoptItem(it);
+      const at=DRAFTS.findIndex(d=>itemId(d)===itemId(it));
+      if(at>=0) DRAFTS[at]=it; else DRAFTS.push(it);
+    });
+    S.formErr = bad.length ? ["Imported "+good.length+", skipped "+bad.length+":", ...bad] : [];
+    S.imported = good.length;
+    render(); window.scrollTo({top:0});
+  };
+  r.readAsText(f);
+}
+
 const DRAFTS = [];
 const blankForm = () => ({
   type:"", cat:"", party:"", partyName:"", name:"",
   img:null, imgName:"", desc:"", ids:[], country:"", city:""
 });
 
-function openAdd(){ S.view="add"; S.form=S.form||blankForm(); S.formErr=[]; render(); window.scrollTo({top:0}); }
+function openAdd(){ S.view="add"; S.form=S.form||blankForm(); S.formErr=[]; S.added=null; S.imported=0; render(); window.scrollTo({top:0}); }
 
 /* Only the type change re-renders, because it reveals a different category
    list, a different identifier list and a different default party. Every other
@@ -2077,7 +2191,7 @@ function saveDraft(){
   if(err.length){ render(); window.scrollTo({top:0}); return; }
 
   const marked = f.ids.filter(r=>r.scheme!=="Unknown" && r.value.trim());
-  DRAFTS.push({
+  const item = {
     recorded:new Date().toISOString().slice(0,10),
     type:f.type, typeLabel:ITEM_TYPES[f.type].n, category:f.cat,
     party: f.partyName.trim() ? {role:f.party, name:f.partyName.trim()} : null,
@@ -2090,10 +2204,17 @@ function saveDraft(){
     origin: (f.country||f.city) ? {country:f.country||null, city:f.city||null} : null,
     image: f.img ? {name:f.imgName, dataUri:f.img} : null,
     composition:null   // the component roster comes next, and is not in this form
-  });
-  S.form=blankForm(); S.formErr=[]; render(); window.scrollTo({top:0});
+  };
+  DRAFTS.push(item);
+  adoptItem(item);          // straight into the catalogue, searchable immediately
+  S.form=blankForm(); S.formErr=[]; S.added=item.name;
+  render(); window.scrollTo({top:0});
 }
-function dropDraft(i){ DRAFTS.splice(i,1); render(); }
+function dropDraft(i){
+  const gone=DRAFTS.splice(i,1)[0];
+  if(gone){ const at=P.findIndex(x=>x.id===itemId(gone)); if(at>=0) P.splice(at,1); }
+  render();
+}
 function exportDrafts(){
   if(!DRAFTS.length) return;
   download("substrate-items.json","application/json",
@@ -2113,6 +2234,14 @@ function renderAdd(){
     <h3>Add an item</h3>
     <p>Start with what kind of thing it is — the rest of the form follows from that. Composition, what it is made of part by part, comes after this.</p>
   </div>
+
+  ${S.added?`<div class="formok">
+    <span class="eyebrow">In the catalogue</span>
+    <p>“${S.added}” is searchable now. Nothing is made of anything yet — open it and every
+       section reads <b>No Data For Now</b>, which is correct until somebody records what it is made of.</p>
+  </div>`:""}
+  ${S.imported?`<div class="formok"><span class="eyebrow">Imported</span>
+    <p>${S.imported} item${S.imported===1?"":"s"} read in and filed.</p></div>`:""}
 
   ${S.formErr&&S.formErr.length?`<div class="formerr">
     <span class="eyebrow">Not saved</span>
@@ -2221,7 +2350,7 @@ function renderAdd(){
 
     <div class="fact">
       <button class="genbtn" onclick="saveDraft()">Add item</button>
-      <span class="fhelp">Drafts are held in this tab only. Export before you close it.</span>
+      <span class="fhelp">Added items are searchable straight away, but live in this tab only. Export before you close it.</span>
     </div>
     </div>`:""}
   </div></div>
@@ -2242,7 +2371,15 @@ function renderAdd(){
       </tr>`).join("")}
     </table>
     <div class="fact"><button class="btn ghost" onclick="exportDrafts()">Export ${DRAFTS.length} item${DRAFTS.length===1?"":"s"} as JSON</button></div>
-  </div>`:""}`;
+  </div>`:""}
+
+  <div class="sec">
+    <div class="sechead"><h3>Load a previous export</h3>
+      <span class="note">Reads an items JSON back in. An item with the same name and party replaces itself rather than doubling.</span></div>
+    <div class="imgbox" style="min-height:0;padding:14px">
+      <input type="file" accept="application/json,.json" onchange="importItems(this)" aria-label="Import items JSON">
+    </div>
+  </div>`;
 }
 
 /* ==================================================================

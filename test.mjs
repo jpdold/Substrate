@@ -40,7 +40,8 @@ const mod = await import(
     "norm, addReq, REQS, renderGen, renderMethod, TABL, " +
     "exportPayload, exportRows, loadCorpus, META, " +
     "ITEM_TYPES, IDENTIFIERS, identList, COUNTRIES, titleCase, DRAFTS, renderAdd, blankForm, saveDraft, " +
-    "PARTIES, TYPE_PARTY, PARTY_OPTIONAL, setItemType, addId, setId, dropId };"
+    "PARTIES, TYPE_PARTY, PARTY_OPTIONAL, setItemType, addId, setId, dropId, " +
+    "itemToProduct, itemId, itemCatId, adoptItem, dropDraft, exportDrafts };"
   )
 );
 
@@ -50,7 +51,8 @@ const {
   quickView, fullView, vpanel, results, stale, norm,
   renderMethod, TABL, exportPayload, exportRows, loadCorpus, META,
   ITEM_TYPES, IDENTIFIERS, identList, COUNTRIES, titleCase, DRAFTS, renderAdd, blankForm, saveDraft,
-  PARTIES, TYPE_PARTY, PARTY_OPTIONAL, setItemType, addId, setId, dropId
+  PARTIES, TYPE_PARTY, PARTY_OPTIONAL, setItemType, addId, setId, dropId,
+  itemToProduct, itemId, itemCatId, adoptItem, dropDraft
 } = mod;
 
 const TABS = p => [["quick", () => quickView(p)], ["full", () => fullView(p)]];
@@ -707,6 +709,7 @@ console.log("\nadd item");
     Object.assign(S.form, { cat: "Metals & Alloys", name: "Hot-rolled coil, S235JR" });
     saveDraft();
     if (DRAFTS.length !== before + 1) fail("a raw material was refused for having no producer: " + S.formErr.join(" "));
+    if (!P.some(x => x.id === itemId(DRAFTS.at(-1)))) fail("a saved item did not reach the catalogue");
     if (DRAFTS.at(-1).party !== null) fail("an unnamed party recorded as something other than null");
 
     S.form = blankForm(); setItemType("consumer");
@@ -719,7 +722,7 @@ console.log("\nadd item");
     saveDraft();
     if (DRAFTS.length !== before + 2) fail("a complete consumer product was refused");
     if (DRAFTS.at(-1).party.role !== "Manufacturer") fail("the party role was not recorded");
-    DRAFTS.length = before;
+    while (DRAFTS.length > before) dropDraft(DRAFTS.length - 1);
     ok("a party is required where it exists and optional where it does not");
   }
 
@@ -746,7 +749,7 @@ console.log("\nadd item");
     if (d.ids.length !== 2) fail("the saved item lost an identifier");
     if (d.ids[0].scheme !== "GTIN" || d.ids[1].value !== "AP-75-BLK") fail("an identifier was garbled on save");
     if (d.identifierNote) fail("a marked item recorded an Unknown note");
-    DRAFTS.length = before;
+    while (DRAFTS.length > before) dropDraft(DRAFTS.length - 1);
     ok("identifiers are a repeatable list, and a half-filled row is refused by name");
   }
 
@@ -767,7 +770,7 @@ console.log("\nadd item");
     Object.assign(S.form, { cat: "Furniture", name: "Chair", party: "Manufacturer", partyName: "Local" });
     saveDraft();
     if (DRAFTS.at(-1).identifierNote !== null) fail("an unchecked item claimed somebody had looked");
-    DRAFTS.length = before;
+    while (DRAFTS.length > before) dropDraft(DRAFTS.length - 1);
     ok("Unknown records that somebody looked; an empty list records that nobody did");
   }
 
@@ -787,6 +790,110 @@ console.log("\nadd item");
   }
 
   S.form = null; S.formErr = [];
+}
+
+/* ------------------------------------------------ 13. items into the catalogue */
+/* An entered item and a product are different shapes: one is classified by
+   trade, the other filed by use with a component roster. This is the join,
+   and the round trip has to survive an export and a re-import without
+   duplicating or losing anything. */
+console.log("\nround trip");
+{
+  const beforeP = P.length, beforeD = DRAFTS.length;
+  const item = {
+    recorded: "2026-08-23", type: "consumer", typeLabel: ITEM_TYPES.consumer.n,
+    category: "Electronics", party: { role: "Manufacturer", name: "Anglepoise" },
+    name: "Type 75 Desk Lamp", description: "Sprung-arm task lamp.",
+    ids: [{ scheme: "GTIN", value: "5012345678900" }], identifierNote: null,
+    origin: { country: "United Kingdom", city: "Redditch" }, image: null, composition: null,
+  };
+
+  /* ---- the trade tree lands beside the use tree, not inside it ---- */
+  {
+    const leaf = itemCatId("consumer", "Electronics");
+    if (!CATS[leaf]) fail("adopting an item did not create its category");
+    if (!CATS[leaf].trade) fail("a trade category is not marked as one");
+    const path = catPath(leaf);
+    if (path.length !== 2) fail("a trade category is not two deep: " + path.join(" > "));
+    if (catPath(leaf).includes("kitchen")) fail("the trade tree nested inside the use tree");
+    if (itemCatId("consumer", "Electronics") !== leaf) fail("the same category made two nodes");
+    ok("the trade tree grows as its own branch: " + catCrumb(leaf));
+  }
+
+  /* ---- the mapping, and what it honestly cannot fill ---- */
+  {
+    const p = itemToProduct(item);
+    if (p.brand !== "Anglepoise" || p.model !== "Type 75 Desk Lamp") fail("the item lost its name");
+    if (!p.assembly || !/Redditch/.test(p.assembly.sites[0].l)) fail("origin did not reach the report");
+    if (p.ids[0].value !== "5012345678900") fail("the identifier did not carry across");
+    if (!p.entered) fail("an entered item is not marked as entered");
+    for (const empty of ["comps", "materials", "sourcing", "parts"])
+      if (p[empty].length) fail("itemToProduct invented " + empty);
+    if (p.construction || p.skill) fail("itemToProduct invented a composition section");
+    ok("an item maps to a product carrying only what was actually recorded");
+  }
+
+  /* ---- and it renders, saying No Data For Now everywhere it should ---- */
+  {
+    const p = adoptItem(item);
+    if (!P.some(x => x.id === p.id)) fail("the adopted item is not in the catalogue");
+    const q = quickView(p);
+    if (strays(q)) fail("an adopted item printed a stray value");
+    if (!/No Data For Now/.test(q)) fail("an adopted item does not say what it has no data for");
+    if (!/Redditch/.test(q)) fail("the origin it does have is not shown");
+    try { fullView(p); vpanel(p); } catch (e) { fail("an adopted item does not render: " + e.message); }
+    if (!/Entered by hand/.test(vpanel(p))) fail("provenance does not say the record was entered by hand");
+    ok("an adopted item renders, shows its origin, and says No Data For Now for the rest");
+  }
+
+  /* ---- searchable straight away, by name and by barcode ---- */
+  {
+    S.q = "anglepoise";
+    if (!results().some(x => x.id === itemId(item))) fail("an adopted item is not findable by its maker");
+    S.q = "5012345678900";
+    const byId = results();
+    if (byId.length !== 1 || byId[0].id !== itemId(item)) fail("an adopted item is not findable by its identifier");
+    S.q = "5012 3456 78900";
+    if (!results().some(x => x.id === itemId(item))) fail("the identifier does not tolerate the spacing on the box");
+    S.q = "";
+    ok("an adopted item is searchable by maker, by name, and by barcode");
+  }
+
+  /* ---- re-adopting must update, never duplicate ---- */
+  {
+    const at = P.length;
+    adoptItem(item);
+    if (P.length !== at) fail("adopting the same item twice duplicated it");
+    adoptItem({ ...item, description: "Changed." });
+    if (P.length !== at) fail("a re-import duplicated instead of replacing");
+    if (P.find(x => x.id === itemId(item)).desc !== "Changed.") fail("a re-import did not update the record");
+    ok("re-adopting the same item updates it in place");
+  }
+
+  /* ---- and the export it round-trips through ---- */
+  {
+    DRAFTS.push(item);
+    const doc = { recorded: "2026-08-23", schema: "items/2", items: DRAFTS.slice(-1) };
+    const back = JSON.parse(JSON.stringify(doc));
+    if (JSON.stringify(back.items[0]) !== JSON.stringify(item)) fail("the export is not JSON-round-trippable");
+    const p2 = itemToProduct(back.items[0]);
+    if (p2.id !== itemId(item)) fail("an item re-read from its export got a different id");
+    ok("an exported item reads back to the same record and the same id");
+  }
+
+  /* ---- removing a draft removes it from the catalogue, or the two disagree ---- */
+  {
+    const at = DRAFTS.findIndex(d => itemId(d) === itemId(item));
+    dropDraft(at);
+    if (P.some(x => x.id === itemId(item))) fail("removing a draft left the product behind");
+    ok("removing a draft takes its product out of the catalogue too");
+  }
+
+  while (DRAFTS.length > beforeD) dropDraft(DRAFTS.length - 1);
+  P.length = beforeP;
+  /* the trade nodes these sections created are test state, not corpus state */
+  Object.keys(CATS).filter(k => CATS[k].trade).forEach(k => delete CATS[k]);
+  if (P.length !== beforeP) fail("the round-trip section leaked products into the catalogue");
 }
 /* ----------------------------------------------------------------- done */
 console.log("");

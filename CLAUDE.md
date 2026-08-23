@@ -233,6 +233,45 @@ because blur fires again every time the field is revisited.
 
 ---
 
+## Items into the catalogue
+
+An entered item and a product are different shapes. The item is classified by
+trade — what kind of thing it is, who stands behind it. The product is filed by
+use, under a `CATS` leaf, with a component roster. `itemToProduct()` is the
+join, `adoptItem()` puts it in `P`, and `saveDraft()` calls it so an added item
+is searchable immediately rather than only after an export.
+
+**The trade tree lands in `CATS` as its own branch, marked `trade:true`.**
+`Consumer product › Electronics` sits beside `Kitchen › Cutlery › Chef's knife`
+and neither nests inside the other. That is the honest arrangement: a
+hand-entered item is classified by what it **is**, a curated report is filed by
+what it is **for**, and forcing either into the other invents a fact. Nodes are
+prefixed `it-` so a trade category can never collide with a curated one.
+
+**An adopted item carries no composition, and says so.** `comps`, `materials`,
+`sourcing` and `parts` are empty; `construction` and `skill` are null. Every
+section reads *No Data For Now* and the provenance panel says *Entered by hand
+— nothing recorded yet about what it is made of*. Do not populate those from
+the form: somebody recorded what the thing is, and nobody has taken it apart.
+
+**Origin maps to `assembly`**, because that is the field the report surfaces as
+"Where it's made". It is the one composition slot an entered item can fill
+honestly.
+
+**`itemId()` is derived from party and name**, so re-importing an export
+updates the record in place instead of doubling it. `adoptItem()` upserts, and
+`test.mjs` asserts that adopting the same item twice leaves `P` the same
+length.
+
+**`dropDraft()` removes the product too.** They were separate lists for one
+commit and immediately disagreed.
+
+**`importItems()` accepts `{items:[…]}` or a bare array**, validates each entry
+for a name, a known type and a category, adopts what passes and reports what it
+skipped by name. A file that is not JSON says so rather than failing silently.
+
+---
+
 ## Data model
 
 A product is a component roster plus rows bound to those components.
